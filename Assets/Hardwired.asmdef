@@ -1,0 +1,26 @@
+{
+    "name": "Hardwired",
+    "rootNamespace": "Hardwired",
+    "references": [
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [
+        "Editor",
+        "WindowsStandalone64"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "autoReferenced": true,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Assembly-CSharp.dll",
+        "Assembly-CSharp-firstpass.dll",
+        "BepInEx.dll",
+        "0Harmony.dll",
+        "RW.RocketNet.dll",
+        "LaunchPadBooster.dll"
+    ],
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
