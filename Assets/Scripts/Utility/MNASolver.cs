@@ -3,47 +3,77 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using MathNet.Numerics.LinearAlgebra;
-
+using MathNet.Numerics.LinearAlgebra.Factorization;
 using Complex = System.Numerics.Complex;
 
 namespace Hardwired.Utility
 {
-    // Note that there are also other approaches to solving circuits - in particular the direct alternative to "node analysis" is "mesh analysis", which uses
-    // Kirchoff's voltage law (KVL) rather than Kirchoff's current law (KCL) for the system of equations. According to Wikipedia, mesh analysis is particularly
-    // suitable for "planar circuits" (i.e. circuits where no wires cross each other). In our case, all our circuits should be planar (in fact, they follow a
-    // fairly regular structure, since all devices must be wired in parallel), so it may be possible to create a more optimal solution that doesn't have to do
-    // so many calculations... On the other hand, this solver is fairly versatile so could still be used in case we decide to add more complex circuit behaviors
-    // down the line.
-    //
-    // References:
-    // - https://en.wikipedia.org/wiki/Nodal_analysis
-    // - https://en.wikipedia.org/wiki/Mesh_analysis
-    // - https://en.wikipedia.org/wiki/System_of_linear_equations
-    // - https://github.com/age-series/ElectricalAge/blob/main/src/main/java/mods/eln/sim/mna/SubSystem.java
-    // - https://ecircuitcenter.com/SpiceTopics/Nodal%20Analysis/Nodal%20Analysis.htm#top
-    // - https://cheever.domains.swarthmore.edu/Ref/mna/MNA2.html
+    /// <summary>
+    /// A Modified Node Analysis solver which can solve most linear circuits, both AC and DC, by using a system of equations built up using Kirchoff's laws.
+    /// 
+    /// Non-linear components can be approximated using various strategies, though I don't think we'll actually end up needing any non-linear components...
+    /// 
+    /// References:
+    /// - https://en.wikipedia.org/wiki/Nodal_analysis
+    /// - https://en.wikipedia.org/wiki/Mesh_analysis
+    /// - https://en.wikipedia.org/wiki/System_of_linear_equations
+    /// - https://github.com/age-series/ElectricalAge/blob/main/src/main/java/mods/eln/sim/mna/SubSystem.java
+    /// - https://ecircuitcenter.com/SpiceTopics/Nodal%20Analysis/Nodal%20Analysis.htm#top
+    /// - https://cheever.domains.swarthmore.edu/Ref/mna/MNA2.html
+    /// </summary>
     public class MNASolver
     {
+        /// <summary>
+        /// The number of nodes in the circuit
+        /// </summary>
         private int _nodes;
+
+        /// <summary>
+        /// The number of voltage sources in the circuit
+        /// </summary>
         private int _voltageSources;
 
         /// <summary>
-        /// Matrix of admittance values between each node.
+        /// Matrix of coefficients for the system of equations.
         /// 
-        /// Admittance represents the ability for electricity to flow (i.e. reciprocol of resistance for DC circuits).
+        /// A * x = z
         /// 
-        /// The matrix equation
+        /// Where "x" is a vector of unknown values (to be solved for), and "z" is a vector of known values.
         /// 
-        /// A * v = i
+        /// A[n, m] for values of n and m between 0 and `_nodes` represents the admittance between the nodes
+        /// n and m, which is a measure of the ability for electricity to flow between two points (for simple
+        /// circuits this is essentially the reciprocol of resistance, though other properties can contribute
+        /// to this too, especially for AC circuits).
         /// 
-        /// Represents a system of equations following Kirchoff's Current Law (KCL), which we end up solving for `v` (the voltage at each node).
+        /// Row A[(_nodes + v), _] for values of v between 0 and `_voltageSources` represents the linear equation
+        /// for the voltage of voltage source `v`.
+        /// 
+        /// Column A[n, (_nodes + v)] for values of v between 0 and `_voltageSources` represents the contribution
+        /// of voltage source `v`'s current to node n.
         /// </summary>
         private Matrix<Complex>? _A;
 
-        // A * x = z
+        private LU<Complex>? _A_LU;
+
+        /// <summary>
+        /// Vector of unknown values to be solved for.
+        /// The first `_nodes` values will be the voltages at each node.
+        /// The next `_voltageSources` values will be the currents across each voltage source.
+        /// </summary>
         private Vector<Complex>? _x;
+
+        /// <summary>
+        /// Vector of known values to be used as inputs.
+        /// The first `_nodes` values will be the current flowing through each node from current sources (positive values indicate current flowing out of the node).
+        /// The next `_voltageSources` values will be the voltage of each voltage source.
+        /// </summary>
         private Vector<Complex>? _z;
 
+        /// <summary>
+        /// (re)initializes the solver for a circuit with the given number of nodes and voltage sources.
+        /// </summary>
+        /// <param name="nodes"></param>
+        /// <param name="voltageSources"></param>
         public void Initialize(int nodes, int voltageSources)
         {
             _nodes = nodes;
@@ -53,10 +83,14 @@ namespace Hardwired.Utility
 
             _A = Matrix<Complex>.Build.Dense(totalSize, totalSize);
             _z = Vector<Complex>.Build.Dense(totalSize);
+
+            _A_LU = null;
         }
 
         /// <summary>
         /// Adds the given admittance value between the given nodes.
+        /// 
+        /// If n is null, it is assumed to be the common ground node.
         /// 
         /// Admittance is a complex value that describes the ability of electricity to flow between two points.
         /// The real part represents conductance (i.e. reciprocal of resistance).
@@ -79,11 +113,28 @@ namespace Hardwired.Utility
                 _A[n.Value, m] -= value;
                 _A[m, n.Value] -= value;
             }
+
+            // Since A was modified, invalidate factorization so it will be re-factored on the next solve
+            _A_LU = null;
         }
 
+        /// <summary>
+        /// Adds the given resistance value between the given nodes.
+        /// 
+        /// If n is null, it is assumed to be the common ground node.
+        /// </summary>
+        /// <param name="n"></param>
+        /// <param name="m"></param>
+        /// <param name="value"></param>
         public void AddResistance(int? n, int m, double value)
             => AddAdmittance(n, m, 1.0 / value);
 
+        /// <summary>
+        /// Sets the voltage at node `n` to the given value, corresponding to the voltage source `v`
+        /// </summary>
+        /// <param name="n"></param>
+        /// <param name="v"></param>
+        /// <param name="value"></param>
         public void SetVoltage(int n, int v, Complex value)
         {
             if (_A is null || _z is null) { ThrowNotInitializedException(); }
@@ -93,10 +144,15 @@ namespace Hardwired.Utility
             _A[m, n] = 1;
             _A[n, m] = 1;
             _z[m] = value;
+
+            // Since A was modified, invalidate factorization so it will be re-factored on the next solve
+            _A_LU = null;
         }
 
         /// <summary>
-        /// Adds a current source between the given nodes with the given complex current value.
+        /// Sets the current between two nodes to a specific value, repersenting a current source in the circuit.
+        /// 
+        /// If either n or m is null, it is assumed to be the common ground node.
         /// </summary>
         /// <param name="n"></param>
         /// <param name="m"></param>
@@ -117,13 +173,17 @@ namespace Hardwired.Utility
         }
 
         /// <summary>
-        /// Solves the system for the voltage at each node.
+        /// Solves the system for the voltage at each node and current through each voltage source.
         /// </summary>
         public void Solve()
         {
             if (_A is null || _z is null) { ThrowNotInitializedException(); }
 
-            _x = _A.Solve(_z);
+            // Factorize A into L & U matricies, if not already set up
+            _A_LU ??= _A.LU();
+
+            // Solve for x
+            _x = _A_LU.Solve(_z);
         }
 
         /// <summary>
