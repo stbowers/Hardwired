@@ -81,6 +81,9 @@ namespace Hardwired.Utility
             }
         }
 
+        public void AddResistance(int? n, int m, double value)
+            => AddAdmittance(n, m, 1.0 / value);
+
         public void SetVoltage(int n, int v, Complex value)
         {
             if (_A is null || _z is null) { ThrowNotInitializedException(); }
@@ -98,12 +101,19 @@ namespace Hardwired.Utility
         /// <param name="n"></param>
         /// <param name="m"></param>
         /// <param name="i"></param>
-        public void SetCurrent(int n, int m, Complex value)
+        public void SetCurrent(int? n, int? m, Complex value)
         {
             if (_A is null || _z is null) { ThrowNotInitializedException(); }
 
-            _z[n] = value;
-            _z[m] = -value;
+            if (n != null)
+            {
+                _z[n.Value] = value;
+            }
+
+            if (m != null)
+            {
+                _z[m.Value] = -value;
+            }
         }
 
         /// <summary>
