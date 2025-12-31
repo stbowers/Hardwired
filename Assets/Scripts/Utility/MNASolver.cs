@@ -8,21 +8,25 @@ using Complex = System.Numerics.Complex;
 
 namespace Hardwired.Utility
 {
-    // At the moment this is really more of an NA solver, rather than an MNA solver... That may change in the future, or otherwise this class may be renamed.
-    //
     // Note that there are also other approaches to solving circuits - in particular the direct alternative to "node analysis" is "mesh analysis", which uses
     // Kirchoff's voltage law (KVL) rather than Kirchoff's current law (KCL) for the system of equations. According to Wikipedia, mesh analysis is particularly
     // suitable for "planar circuits" (i.e. circuits where no wires cross each other). In our case, all our circuits should be planar (in fact, they follow a
     // fairly regular structure, since all devices must be wired in parallel), so it may be possible to create a more optimal solution that doesn't have to do
-    // so many calculations.
+    // so many calculations... On the other hand, this solver is fairly versatile so could still be used in case we decide to add more complex circuit behaviors
+    // down the line.
     //
     // References:
     // - https://en.wikipedia.org/wiki/Nodal_analysis
     // - https://en.wikipedia.org/wiki/Mesh_analysis
     // - https://en.wikipedia.org/wiki/System_of_linear_equations
     // - https://github.com/age-series/ElectricalAge/blob/main/src/main/java/mods/eln/sim/mna/SubSystem.java
+    // - https://ecircuitcenter.com/SpiceTopics/Nodal%20Analysis/Nodal%20Analysis.htm#top
+    // - https://cheever.domains.swarthmore.edu/Ref/mna/MNA2.html
     public class MNASolver
     {
+        private int _nodes;
+        private int _voltageSources;
+
         /// <summary>
         /// Matrix of admittance values between each node.
         /// 
@@ -36,14 +40,19 @@ namespace Hardwired.Utility
         /// </summary>
         private Matrix<Complex>? _A;
 
-        // A * v = I
-        private Vector<Complex>? _i;
-        private Vector<Complex>? _v;
+        // A * x = z
+        private Vector<Complex>? _x;
+        private Vector<Complex>? _z;
 
-        public void Initialize(int nodes)
+        public void Initialize(int nodes, int voltageSources)
         {
-            _A = Matrix<Complex>.Build.Dense(nodes, nodes);
-            _i = Vector<Complex>.Build.Dense(nodes);
+            _nodes = nodes;
+            _voltageSources = voltageSources;
+
+            int totalSize = _nodes + _voltageSources;
+
+            _A = Matrix<Complex>.Build.Dense(totalSize, totalSize);
+            _z = Vector<Complex>.Build.Dense(totalSize);
         }
 
         /// <summary>
@@ -58,26 +67,29 @@ namespace Hardwired.Utility
         /// <param name="n"></param>
         /// <param name="m"></param>
         /// <param name="a"></param>
-        public void AddAdmittance(int n, int m, Complex a)
+        public void AddAdmittance(int? n, int m, Complex value)
         {
-            if (_A is null || _i is null) { ThrowNotInitializedException(); }
+            if (_A is null || _z is null) { ThrowNotInitializedException(); }
 
-            _A[n, n] += a;
-            _A[m, m] += a;
+            _A[m, m] += value;
 
-            _A[n, m] -= a;
-            _A[m, n] -= a;
+            if (n != null)
+            {
+                _A[n.Value, n.Value] += value;
+                _A[n.Value, m] -= value;
+                _A[m, n.Value] -= value;
+            }
         }
 
-        /// <summary>
-        /// Resets the current flowing through each node to 0.
-        /// This should be called prior to adding any current sources.
-        /// </summary>
-        public void ClearCurrent()
+        public void SetVoltage(int n, int v, Complex value)
         {
-            if (_A is null || _i is null) { ThrowNotInitializedException(); }
+            if (_A is null || _z is null) { ThrowNotInitializedException(); }
 
-            _i.Clear();
+            int m = _nodes + v;
+
+            _A[m, n] = 1;
+            _A[n, m] = 1;
+            _z[m] = value;
         }
 
         /// <summary>
@@ -86,12 +98,12 @@ namespace Hardwired.Utility
         /// <param name="n"></param>
         /// <param name="m"></param>
         /// <param name="i"></param>
-        public void AddCurrent(int n, int m, Complex i)
+        public void SetCurrent(int n, int m, Complex value)
         {
-            if (_A is null || _i is null) { ThrowNotInitializedException(); }
+            if (_A is null || _z is null) { ThrowNotInitializedException(); }
 
-            _i[n] += i;
-            _i[m] -= i;
+            _z[n] = value;
+            _z[m] = -value;
         }
 
         /// <summary>
@@ -99,9 +111,9 @@ namespace Hardwired.Utility
         /// </summary>
         public void Solve()
         {
-            if (_A is null || _i is null) { ThrowNotInitializedException(); }
+            if (_A is null || _z is null) { ThrowNotInitializedException(); }
 
-            _v = _A.Solve(_i);
+            _x = _A.Solve(_z);
         }
 
         /// <summary>
@@ -111,9 +123,34 @@ namespace Hardwired.Utility
         /// <returns></returns>
         public Complex GetVoltage(int n)
         {
-            return _v?.At(n) ?? Complex.Zero;
+            if (_x is not null && _x.Count > n)
+            {
+                return _x[n];
+            }
+            else
+            {
+                return Complex.Zero;
+            }
         }
 
+        /// <summary>
+        /// Gets the current for the given voltage source from the result vector
+        /// </summary>
+        /// <param name="vIndex"></param>
+        /// <returns></returns>
+        public Complex GetCurrent(int v)
+        {
+            int m = _nodes + v;
+
+            if (_x is not null && _x.Count > m)
+            {
+                return _x[m];
+            }
+            else
+            {
+                return Complex.Zero;
+            }
+        }
 
         [DoesNotReturn]
         private void ThrowNotInitializedException()

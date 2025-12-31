@@ -61,6 +61,8 @@ namespace Hardwired.Utility
 
             _powerTicks += 1;
 
+            Solve();
+
             if ((_powerTicks % 30) == 0)
             {
                 double averageTickTime = _timeProcessing.Milliseconds / 30.0;
@@ -75,6 +77,50 @@ namespace Hardwired.Utility
         public override bool IsNetworkValid()
         {
             return Components.Count > 0;
+        }
+
+        private void Solve()
+        {
+            int nNodes = Components.Count;
+            int nVSources = _voltageSources.Count;
+
+            _solver.Initialize(nNodes, nVSources);
+
+            int n = 0;
+
+            // Add cables
+            foreach (var cable in _cables)
+            {
+                double a = 1.0 / cable.Resistance;
+                _solver.AddAdmittance(n, n + 1, a);
+                n += 1;
+            }
+
+            // Add resistor at the end (required to make full circuit for testing)
+            _solver.AddAdmittance(null, n, 0.001);
+
+            // Add voltage sources
+            int v = 0;
+            foreach (var vsource in _voltageSources)
+            {
+                // TODO, vsource should note the connected node instead of hard-coding it to 0...
+                _solver.SetVoltage(0, v, vsource.Voltage);
+            }
+
+            _solver.Solve();
+            
+            StringBuilder solutionDebug = new();
+            solutionDebug.AppendLine($"Circuit {ReferenceId} solution:");
+            for (int j = 0; j < nNodes; j++)
+            {
+                solutionDebug.Append($"V{j}: {_solver.GetVoltage(j).Magnitude} ");
+            }
+            for (int k = 0; k < nVSources; k++)
+            {
+                solutionDebug.Append($"I{k}: {_solver.GetCurrent(k).Magnitude} ");
+            }
+
+            Hardwired.LogDebug(solutionDebug);
         }
 
         private void PrintDebugInfo()
