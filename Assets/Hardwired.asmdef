@@ -10,7 +10,6 @@
     ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
-    "autoReferenced": true,
     "overrideReferences": true,
     "precompiledReferences": [
         "Assembly-CSharp.dll",
@@ -18,8 +17,10 @@
         "BepInEx.dll",
         "0Harmony.dll",
         "RW.RocketNet.dll",
-        "LaunchPadBooster.dll"
+        "LaunchPadBooster.dll",
+        "MathNet.Numerics.dll"
     ],
+    "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false
