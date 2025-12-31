@@ -1,54 +1,120 @@
+using System.Numerics;
 using Hardwired.Utility;
 
 namespace Hardwired.UnitTests;
 
 public class MNASolverTests
 {
-    [Fact]
-    public void Test1()
+    public static List<object[]> ExampleCircuits = new()
+    {
+        // Custom example 1 - 24V voltage source, 2 resistors in series
+        new object[]
+        {
+            new CircuitDescription()
+            {
+                Nodes = 2,
+                Admittances =
+                {
+                    (0, 1, 1.0 / 100.0),
+                    (null, 1, 1.0 / 1000.0)
+                },
+                VoltageSources =
+                {
+                    (0, 0, 24.0)
+                },
+            },
+            new ExpectedOutputs()
+            {
+                NodeVoltages = { 24.0, 21.8181 },
+                VoltageSourceCurrents = { -0.021818 }
+            }
+        },
+
+        // Custom example 2
+        new object[]
+        {
+            new CircuitDescription()
+            {
+                Nodes = 4,
+                Admittances =
+                {
+                    (0, 1, 1.0 / 10.0),
+                    (1, 3, 1.0 / 20.0),
+                    (null, 3, 1.0 / 100.0),
+                    (null, 3, 1.0 / 40.0),
+
+                    (1, 2, 1.0 / 35.0),
+                    (null, 2, 1.0 / 85.0),
+                },
+                VoltageSources =
+                {
+                    (0, 0, 24.0)
+                },
+            },
+            new ExpectedOutputs()
+            {
+                NodeVoltages = { 24.0, 18.6159, 13.1863, 10.9505 },
+                VoltageSourceCurrents = { -0.5384 }
+            }
+        },
+    };
+
+    [Theory]
+    [MemberData(nameof(ExampleCircuits))]
+    public void CanSolveExampleCircuits(CircuitDescription circuit, ExpectedOutputs expectedOutputs)
     {
         var solver = new MNASolver();
 
-        solver.Initialize(2, 1);
+        solver.Initialize(circuit.Nodes, circuit.VoltageSources.Count);
 
-        solver.AddResistance(0, 1, 100.0);
-        solver.AddResistance(null, 1, 1000.0);
+        foreach ((int? n, int m, Complex a) in circuit.Admittances)
+        {
+            solver.AddAdmittance(n, m, a);
+        }
 
-        solver.SetVoltage(0, 0, 24.0);
+        foreach ((int? n, int m, Complex i) in circuit.CurrentSources)
+        {
+            solver.SetCurrent(n, m, i);
+        }
+
+        foreach ((int n, int v, Complex e) in circuit.VoltageSources)
+        {
+            solver.SetVoltage(n, v, e);
+        }
 
         solver.Solve();
 
-        var v1 = solver.GetVoltage(1).Magnitude;
-        var i0 = solver.GetCurrent(0).Magnitude;
-        Assert.Equal(0.021818, i0, 0.000001);
+        // Check outputs
+        for (int n = 0; n < expectedOutputs.NodeVoltages.Count; n++)
+        {
+            Complex expected = expectedOutputs.NodeVoltages[n];
+            Complex actual = solver.GetVoltage(n);
+
+            Assert.Equal(expected.Real, actual.Real, 0.001);
+            Assert.Equal(expected.Imaginary, actual.Imaginary, 0.001);
+        }
+
+        for (int v = 0; v < expectedOutputs.VoltageSourceCurrents.Count; v++)
+        {
+            Complex expected = expectedOutputs.VoltageSourceCurrents[v];
+            Complex actual = solver.GetCurrent(v);
+
+            Assert.Equal(expected.Real, actual.Real, 0.001);
+            Assert.Equal(expected.Imaginary, actual.Imaginary, 0.001);
+        }
     }
 
-    [Fact]
-    public void Test2()
+    public class CircuitDescription
     {
-        var solver = new MNASolver();
+        public int Nodes { get; set; }
+        public List<(int? n, int m, Complex a)> Admittances { get; } = new();
+        public List<(int? n, int m, Complex i)> CurrentSources { get; } = new();
+        public List<(int n, int v, Complex e)> VoltageSources { get; } = new();
+    }
 
-        solver.Initialize(4, 1);
-
-        solver.AddResistance(0, 1, 10.0);
-        solver.AddResistance(1, 3, 20.0);
-        solver.AddResistance(null, 3, 100.0);
-        solver.AddResistance(null, 3, 40.0);
-
-        solver.AddResistance(1, 2, 35.0);
-        solver.AddResistance(null, 2, 85.0);
-
-        solver.SetVoltage(0, 0, 24.0);
-
-        solver.Solve();
-
-        var v1 = solver.GetVoltage(1).Magnitude;
-        var v2 = solver.GetVoltage(2).Magnitude;
-        var v3 = solver.GetVoltage(3).Magnitude;
-        var i0 = solver.GetCurrent(0).Magnitude;
-        Assert.Equal(18.6159, v1, 0.0001);
-        Assert.Equal(13.1863, v2, 0.0001);
-        Assert.Equal(10.9505, v3, 0.0001);
-        Assert.Equal(0.5384, i0, 0.0001);
+    public class ExpectedOutputs
+    {
+        public List<Complex> NodeVoltages { get; } = new();
+        public List<Complex> VoltageSourceCurrents { get; } = new();
     }
 }

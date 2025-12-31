@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
@@ -33,7 +34,7 @@ namespace Hardwired.Objects.Electrical
             base.OnRegistered(cell);
 
             var connected = Connected();
-            Hardwired.LogDebug($"Component registered - {connected.Count} connections.");
+            // Hardwired.LogDebug($"Component registered - {connected.Count} connections.");
 
             foreach (var connection in Connected())
             {
@@ -63,29 +64,34 @@ namespace Hardwired.Objects.Electrical
 
         public override PassiveTooltip GetPassiveTooltip(Collider hitCollider)
         {
-            Tooltip.ToolTipStringBuilder.Clear();
-            PassiveTooltip result = new PassiveTooltip(toDefault: true);
             if (hitCollider != InfoCollider)
             {
                 return base.GetPassiveTooltip(hitCollider);
             }
 
+            Tooltip.ToolTipStringBuilder.Clear();
+            BuildPassiveToolTip(Tooltip.ToolTipStringBuilder);
+
+            PassiveTooltip result = new PassiveTooltip(toDefault: true)
+            {
+                Title = DisplayName,
+                Extended = Tooltip.ToolTipStringBuilder.ToString(),
+            };
+
+            return result;
+        }
+
+        protected virtual void BuildPassiveToolTip(StringBuilder stringBuilder)
+        {
             if (Circuit == null)
             {
-                Tooltip.ToolTipStringBuilder.AppendColorText("red", "Network Not Found");
+                stringBuilder.AppendColorText("red", "Network Not Found");
             }
             else
             {
-                double numComponents = Circuit.Components.Count;
-
-                Tooltip.ToolTipStringBuilder.AppendLine($"Circuit network: {Circuit.ReferenceId}");
-                Tooltip.ToolTipStringBuilder.AppendLine($"Circuit components: {numComponents}");
+                stringBuilder.AppendLine($"Circuit network: {Circuit.ReferenceId}");
                 // Tooltip.ToolTipStringBuilder.Append(GameStrings.CableAnalyserRequired.AsString(RequiredLoad.ToStringPrefix("W", "yellow")));
             }
-
-            result.Title = DisplayName;
-            result.Extended = Tooltip.ToolTipStringBuilder.ToString();
-            return result;
         }
         #endregion
 

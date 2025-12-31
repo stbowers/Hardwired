@@ -81,9 +81,27 @@ namespace Hardwired.Utility
 
             int totalSize = _nodes + _voltageSources;
 
-            _A = Matrix<Complex>.Build.Dense(totalSize, totalSize);
-            _z = Vector<Complex>.Build.Dense(totalSize);
+            // (re)create A matrix, or zero if existing matrix is correct size
+            if (_A is null || _A.RowCount != totalSize)
+            {
+                _A = Matrix<Complex>.Build.Dense(totalSize, totalSize);
+            }
+            else
+            {
+                _A.Clear();
+            }
 
+            // (re)create z vector, or zero if existing vector is correct size
+            if (_z is null || _z.Count != totalSize)
+            {
+                _z = Vector<Complex>.Build.Dense(totalSize);
+            }
+            else
+            {
+                _z.Clear();
+            }
+
+            // Clear cached factorization, regardless of if we made a new A matrix or not
             _A_LU = null;
         }
 
@@ -141,12 +159,17 @@ namespace Hardwired.Utility
 
             int m = _nodes + v;
 
-            _A[m, n] = 1;
-            _A[n, m] = 1;
             _z[m] = value;
 
-            // Since A was modified, invalidate factorization so it will be re-factored on the next solve
-            _A_LU = null;
+            // Check if A already has the correct values (avoid having to re-calculate _A_LU unless A actually changes)
+            if (_A[m, n] != 1 || _A[n, m] != 1)
+            {
+                _A[m, n] = 1;
+                _A[n, m] = 1;
+
+                // Since A was modified, invalidate factorization so it will be re-factored on the next solve
+                _A_LU = null;
+            }
         }
 
         /// <summary>
