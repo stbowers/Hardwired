@@ -71,8 +71,8 @@ public class MNASolverTests
                 },
                 CurrentSources =
                 {
-                    // 0.1 A load from node 1 to ground
-                    (1, null, 0.1),
+                    // 0.05 A load from node 1 to ground
+                    (1, null, 0.05),
                 },
                 VoltageSources =
                 {
@@ -82,8 +82,8 @@ public class MNASolverTests
             },
             new ExpectedOutputs()
             {
-                NodeVoltages = { 24.0, 20 },
-                VoltageSourceCurrents = { -0.1 }
+                NodeVoltages = { 24.0, 4 },
+                VoltageSourceCurrents = { -0.05 }
             }
         },
     };

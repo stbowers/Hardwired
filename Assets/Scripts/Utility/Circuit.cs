@@ -242,8 +242,8 @@ namespace Hardwired.Utility
 
                         var s = _cableSegments.IndexOf(segment);
                         cable.CircuitSolverDebug = $"n: {n}; m: {m}; vA: {vA}; vB: {vB}; s: {s}";
-                        cable.DeltaVoltage = (vB - vA).Real;
-                        cable.Current = current.Real;
+                        cable.DeltaVoltage = (vB - vA).Magnitude;
+                        cable.Current = current.Magnitude;
                     }
                     else if (component is CurrentSource currentSource)
                     {

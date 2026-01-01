@@ -293,7 +293,7 @@ MonoBehaviour:
   InfoCollider: {fileID: 4527279027523969312}
   ConnectionType: 8
   OpenEndsPermutation: 000000000100000002000000030000000400000005000000
-  Current: 0.1
+  Current: 0.05
 --- !u!1 &6478424996001752475
 GameObject:
   m_ObjectHideFlags: 0
