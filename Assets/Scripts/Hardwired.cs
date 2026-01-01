@@ -1,3 +1,5 @@
+#nullable enable
+
 using UnityEngine;
 using LaunchPadBooster;
 using System.Collections.Generic;

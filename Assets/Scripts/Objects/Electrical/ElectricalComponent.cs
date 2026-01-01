@@ -1,19 +1,10 @@
 #nullable enable
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Assets.Scripts.GridSystem;
-using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
-using Assets.Scripts.Objects.Electrical;
-using Assets.Scripts.UI;
 using Assets.Scripts.UI.HelperHints.Extensions;
-using Assets.Scripts.Util;
 using Hardwired.Utility;
-using LaunchPadBooster.Utils;
 using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
