@@ -375,7 +375,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   PinA: 0
   PinB: 1
-  Resistance: 100
+  Resistance: 10
 --- !u!114 &430383925079346782
 MonoBehaviour:
   m_ObjectHideFlags: 0
