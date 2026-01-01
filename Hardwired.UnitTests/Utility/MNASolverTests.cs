@@ -57,6 +57,35 @@ public class MNASolverTests
                 VoltageSourceCurrents = { -0.5384 }
             }
         },
+
+        // Custom example 2 - 24V voltage source, 1 resistor in series, 1 current source (based on example that wasn't working in game)
+        new object[]
+        {
+            new CircuitDescription()
+            {
+                Nodes = 2,
+                Admittances =
+                {
+                    // 400 ohm resistor betwen voltage source and current source
+                    (0, 1, 1.0 / 400.0),
+                },
+                CurrentSources =
+                {
+                    // 0.1 A load from node 1 to ground
+                    (1, null, 0.1),
+                },
+                VoltageSources =
+                {
+                    // 24 V source connected to node 0
+                    (0, 0, 24.0)
+                },
+            },
+            new ExpectedOutputs()
+            {
+                NodeVoltages = { 24.0, 20 },
+                VoltageSourceCurrents = { -0.1 }
+            }
+        },
     };
 
     [Theory]
@@ -72,7 +101,7 @@ public class MNASolverTests
             solver.AddAdmittance(n, m, a);
         }
 
-        foreach ((int? n, int m, Complex i) in circuit.CurrentSources)
+        foreach ((int? n, int? m, Complex i) in circuit.CurrentSources)
         {
             solver.SetCurrent(n, m, i);
         }
@@ -108,7 +137,7 @@ public class MNASolverTests
     {
         public int Nodes { get; set; }
         public List<(int? n, int m, Complex a)> Admittances { get; } = new();
-        public List<(int? n, int m, Complex i)> CurrentSources { get; } = new();
+        public List<(int? n, int? m, Complex i)> CurrentSources { get; } = new();
         public List<(int n, int v, Complex e)> VoltageSources { get; } = new();
     }
 

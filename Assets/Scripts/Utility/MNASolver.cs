@@ -186,12 +186,12 @@ namespace Hardwired.Utility
 
             if (n != null)
             {
-                _z[n.Value] = value;
+                _z[n.Value] = -value;
             }
 
             if (m != null)
             {
-                _z[m.Value] = -value;
+                _z[m.Value] = value;
             }
         }
 

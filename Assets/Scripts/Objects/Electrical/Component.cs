@@ -1,6 +1,9 @@
+#nullable enable
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Inventory;
@@ -29,6 +32,9 @@ namespace Hardwired.Objects.Electrical
 
         public Circuit Circuit;
 
+        [HideInInspector]
+        public string? CircuitSolverDebug;
+
         public override void OnRegistered(Cell cell)
         {
             base.OnRegistered(cell);
@@ -36,7 +42,7 @@ namespace Hardwired.Objects.Electrical
             var connected = Connected();
             // Hardwired.LogDebug($"Component registered - {connected.Count} connections.");
 
-            foreach (var connection in Connected())
+            foreach (var connection in Connected().ToList())
             {
                 if (connection.GetComponent<Component>() is not Component connectedComponent)
                 {
@@ -90,7 +96,11 @@ namespace Hardwired.Objects.Electrical
             else
             {
                 stringBuilder.AppendLine($"Circuit network: {Circuit.ReferenceId}");
-                // Tooltip.ToolTipStringBuilder.Append(GameStrings.CableAnalyserRequired.AsString(RequiredLoad.ToStringPrefix("W", "yellow")));
+
+                if (CircuitSolverDebug != null)
+                {
+                    stringBuilder.AppendLine($"DEBUG: {CircuitSolverDebug}");
+                }
             }
         }
         #endregion

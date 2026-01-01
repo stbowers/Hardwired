@@ -21,6 +21,12 @@ namespace Hardwired.Objects.Electrical
         public double Resistance;
 
         /// <summary>
+        /// The momentary voltage across this cable calculated by the circuit solver.
+        /// </summary>
+        [HideInInspector]
+        public double? DeltaVoltage;
+
+        /// <summary>
         /// The momentary current across this voltage source calculated by the circuit solver.
         /// </summary>
         [HideInInspector]
@@ -30,7 +36,8 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Voltage: {Resistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {DeltaVoltage?.ToStringPrefix("V", "yellow") ?? "N/A"}");
             stringBuilder.AppendLine($"Current: {Current?.ToStringPrefix("A", "yellow") ?? "N/A"}");
         }
     }
