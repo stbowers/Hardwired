@@ -10,7 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 8346195145136773013}
   - component: {fileID: 4527279027523969312}
+  - component: {fileID: 5065318565922970062}
   - component: {fileID: 7521894204368904362}
+  - component: {fileID: 906518863626297998}
   m_Layer: 0
   m_Name: StructureCurrentSource
   m_TagString: Untagged
@@ -56,7 +58,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.5, y: 0.3, z: 0.5}
   m_Center: {x: 0, y: 0.1, z: 0}
---- !u!114 &7521894204368904362
+--- !u!114 &5065318565922970062
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -65,7 +67,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 5553481732446436715}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 015d7da2f89867a4bb2df374478bb8fc, type: 3}
+  m_Script: {fileID: 11500000, guid: 24d20ef10f6b02ab4b180d3f47ef895c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   _referenceId: 0
@@ -118,7 +120,7 @@ MonoBehaviour:
   AudioSources: []
   BaseAnimator: {fileID: 0}
   IsCursor: 0
-  Blueprint: {fileID: 919132149155446097, guid: 8d54e7e35d00b326f9136064b886fc79, type: 3}
+  Blueprint: {fileID: 1518120450043850374, guid: b66cd50c2009d848f8657a7678bbbf46, type: 3}
   Wireframe: {fileID: 0}
   lodFlares: []
   IsCustomThing: 0
@@ -169,7 +171,7 @@ MonoBehaviour:
   maxPressureDelta: -1
   BuildingTip: 
   BuildStates:
-  - Thumbnail: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  - Thumbnail: {fileID: 0}
     DamagedBuildState: 0
     BlockAir: 0
     AlwaysBlockAir: 0
@@ -192,7 +194,7 @@ MonoBehaviour:
       ToolEntry: {fileID: 4248042755683902435, guid: 36e4e9aacdd877d47b0a5c6fcfaccb5d, type: 3}
       ToolEntry2: {fileID: 0}
       EntryTime: 1
-      EntryQuantity: 0
+      EntryQuantity: 1
       EntryQuantity2: 0
       ToolUseType: 0
       ToolExit: {fileID: 0}
@@ -276,7 +278,7 @@ MonoBehaviour:
     Collider: {fileID: 6945949541167116376}
     ConnectionRole: 0
     HelperRenderer: {fileID: 0}
-    Parent: {fileID: 7521894204368904362}
+    Parent: {fileID: 5065318565922970062}
     LocalGrid:
       x: 0
       y: 0
@@ -289,11 +291,40 @@ MonoBehaviour:
   DualRegister: 0
   requiresFrame: 0
   HasDataConnection: 0
-  CircuitSolverDebug: 
-  InfoCollider: {fileID: 4527279027523969312}
   ConnectionType: 8
   OpenEndsPermutation: 000000000100000002000000030000000400000005000000
+--- !u!114 &7521894204368904362
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5553481732446436715}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 015d7da2f89867a4bb2df374478bb8fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  PinA: 0
+  PinB: -1
   Current: 0.05
+--- !u!114 &906518863626297998
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5553481732446436715}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db04f86da609d2d7f91b57f3a308cb4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  BuildStatePatches:
+  - BuildState: 0
+    SetEntryTool: 
+    SetEntry2Tool: 
+    SetExitTool: ItemWireCutters
 --- !u!1 &6478424996001752475
 GameObject:
   m_ObjectHideFlags: 0
@@ -319,13 +350,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6478424996001752475}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: -0.5, y: 0, z: 0}
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8346195145136773013}
-  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
 --- !u!135 &6945949541167116376
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -369,27 +400,27 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8d54e7e35d00b326f9136064b886fc79, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.7071068
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8d54e7e35d00b326f9136064b886fc79, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0.7071068
+      value: -0.5
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8d54e7e35d00b326f9136064b886fc79, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8d54e7e35d00b326f9136064b886fc79, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8d54e7e35d00b326f9136064b886fc79, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
+      value: -90
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8d54e7e35d00b326f9136064b886fc79, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
+      value: 90
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8d54e7e35d00b326f9136064b886fc79, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z

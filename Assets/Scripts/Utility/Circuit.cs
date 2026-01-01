@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
@@ -9,6 +10,7 @@ using System.Text;
 using System.Threading;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
+using Hardwired.Objects;
 using Hardwired.Objects.Electrical;
 
 namespace Hardwired.Utility
@@ -16,87 +18,44 @@ namespace Hardwired.Utility
     public class Circuit : CableNetwork
     {
         private List<Node> _nodes = new();
-        private List<Component> _components = new();
-        private List<CableSegment> _cableSegments = new();
+        private List<ElectricalComponent> _components = new();
         private List<VoltageSource> _voltageSources = new();
         private MNASolver _solver = new();
-        private bool _solverAdmittanceInitialized;
+        private bool _solverInitialized;
 
-        public IReadOnlyList<Component> Components => _components.AsReadOnly();
+        public IReadOnlyList<ElectricalComponent> Components => _components.AsReadOnly();
 
-        public void AddComponent(Component component)
+        private void EnsureConnectionHasNode(Connection? connection)
+        {
+            if (connection == null) { return; }
+
+            // Try to get an existing node attached to this connection
+            Node? node = GetNode(connection);
+            if (node != null) { return; }
+
+            // Next, try to get an existing node attached to this connection's peer.
+            // If one isn't found, create a new node
+            node = GetNode(connection.GetPeer()); // ?? new();
+
+            if (node == null)
+            {
+                node = new();
+                _nodes.Add(node);
+            }
+
+            // Attach this connection to the node
+            node.Connections.Add(connection);
+        }
+
+        public void AddComponent(ElectricalComponent component)
         {
             lock (_solver)
             {
-                if (component is Cable cable)
-                {
-                    // If cable is a junction (more than 2 connections), create a cable segment for each connection
-                    if (cable.OpenEnds.Count > 2)
-                    {
-                        var commonNode = new Node();
-                        _nodes.Add(commonNode);
+                // Create a node (or add the connection to an existing node) for each connection on this component
+                EnsureConnectionHasNode(component.ConnectionA);
+                EnsureConnectionHasNode(component.ConnectionB);
 
-                        var connections = cable.OpenEnds;
-
-                        // TODO
-                    }
-                    // Otherwise, if cable only has 2 connections, create a single cable segment (merging existing connections if needed)
-                    else
-                    {
-                        CableSegment? cableSegment = null;
-                        
-                        var connectedSegments = cable.Connected()
-                            .OfType<Cable>()
-                            .Select(c => GetCableSegment(c)!)
-                            .Where(s => s != null)
-                            .ToList();
-
-                        if (connectedSegments.Count == 1)
-                        {
-                            cableSegment = connectedSegments[0];
-                            cableSegment.Cables.Add(cable);
-                        }
-                        else
-                        {
-                            Node nodeA = connectedSegments.ElementAtOrDefault(0)?.NodeA ?? new();
-                            Node nodeB = connectedSegments.ElementAtOrDefault(1)?.NodeB ?? new();
-
-                            cableSegment = new(nodeA, nodeB);
-
-                            if (connectedSegments.Count > 0)
-                            {
-                                cableSegment.Cables.AddRange(connectedSegments[0].Cables);
-
-                                _nodes.Remove(connectedSegments[0].NodeB);
-                            }
-                            else
-                            {
-                                _nodes.Add(nodeA);
-                            }
-
-                            cableSegment.Cables.Add(cable);
-
-                            if (connectedSegments.Count > 1)
-                            {
-                                cableSegment.Cables.AddRange(connectedSegments[1].Cables);
-
-                                _nodes.Remove(connectedSegments[1].NodeA);
-                            }
-                            else
-                            {
-                                _nodes.Add(nodeB);
-                            }
-
-                            foreach (var connectedSegment in connectedSegments)
-                            {
-                                _cableSegments.Remove(connectedSegment);
-                            }
-
-                            _cableSegments.Add(cableSegment);
-                        }
-                    }
-                }
-                else if (component is VoltageSource voltageSource)
+                if (component is VoltageSource voltageSource)
                 {
                     _voltageSources.Add(voltageSource);
                 }
@@ -104,34 +63,23 @@ namespace Hardwired.Utility
                 _components.Add(component);
 
                 // Circuit topology has changed, so we need to reset solver
-                ReinitializeSolver();
+                InvalidateSolver();
             }
         }
 
-        public void RemoveComponent(Component component)
+        public void RemoveComponent(ElectricalComponent component)
         {
             lock (_solver)
             {
                 _components.Remove(component);
 
-                if (component is Cable cable && GetCableSegment(cable) is CableSegment cableSegment)
-                {
-                    // TODO: If the removed cable was in the "middle" of a segment, we need to split the
-                    // segment in to two segments, and even potentially split the network into two networks
-                    cableSegment.Cables.Remove(cable);
-
-                    if (cableSegment.Cables.Count == 0)
-                    {
-                        _cableSegments.Remove(cableSegment);
-                    }
-                }
-                else if (component is VoltageSource voltageSource)
+                if (component is VoltageSource voltageSource)
                 {
                     _voltageSources.Remove(voltageSource);
                 }
 
                 // Circuit topology has changed, so we need to reset solver
-                ReinitializeSolver();
+                InvalidateSolver();
 
                 // Refresh network will clean up and destroy the network if all components are removed...
                 RefreshNetwork();
@@ -164,124 +112,81 @@ namespace Hardwired.Utility
             return Components.Count > 0;
         }
 
-        private CableSegment? GetCableSegment(Cable cable)
+        /// <summary>
+        /// Marks the solver as uninitialized so it will be re-initialized on the next power tick
+        /// </summary>
+        private void InvalidateSolver()
         {
-            return _cableSegments.FirstOrDefault(s => s.Cables.Contains(cable));
-        }
-
-        private void ReinitializeSolver()
-        {
-            int nNodes = Math.Max(_nodes.Count, 1);
-            int nVSources = _voltageSources.Count;
-
-            _solver.Initialize(nNodes, nVSources);
-            _solverAdmittanceInitialized = false;
+            _solverInitialized = false;
         }
 
         private void Solve()
         {
             lock (_solver)
             {
-                // Add adittance from cables if needed (only has to be done once after (re)initializing the solver)
-                if (!_solverAdmittanceInitialized)
+                // (re)initialize solver if needed
+                if (!_solverInitialized)
                 {
-                    foreach (var cableSegment in _cableSegments)
+                    int nNodes = Math.Max(_nodes.Count, 1);
+                    int nVSources = _voltageSources.Count;
+
+                    // Assign indices to each node
+                    for (int i = 0; i < _nodes.Count; i++)
                     {
-                        int n = _nodes.IndexOf(cableSegment.NodeA);
-                        int m = _nodes.IndexOf(cableSegment.NodeB);
-
-                        // A cable segment represents one or more cables in series - add each cable's resistance to get the total resistance of the segment
-                        // TODO: need to add reactive components for AC
-                        double r = cableSegment.Cables.Select(c => c.Resistance).Sum();
-                        _solver.AddResistance(n, m, r);
+                        _nodes[i].Index = i;
                     }
-                    _solverAdmittanceInitialized = true;
+
+                    // Hardwired.LogDebug($"Circuit network {ReferenceId} - Initializing solver with {nNodes} nodes and {nVSources} voltage sources");
+
+                    _solver.Initialize(nNodes, nVSources);
+
+                    foreach (var component in Components)
+                    {
+                        component.InitializeSolver(_solver);
+                    }
+
+                    _solverInitialized = true;
                 }
 
-                // Add voltage sources
-                for (int v = 0; v < _voltageSources.Count; v++)
+                // Update solver inputs (voltage source voltages, current source currents, etc) from each component
+                foreach (var component in Components)
                 {
-                    var vsource = _voltageSources[v];
-
-                    var node = GetNode(vsource.OpenEnds[0]) ?? 0;
-
-                    _solver.SetVoltage(node, v, vsource.Voltage);
-                }
-
-                // Add current sources
-                var nCurrentSources = 0;
-                foreach (CurrentSource currentSource in _components.Select(c => c.GetComponent<CurrentSource>()).Where(cs => cs != null))
-                {
-                    nCurrentSources += 1;
-                    var node = GetNode(currentSource.OpenEnds[0]) ?? 0;
-
-                    // Current source always goes to ground
-                    _solver.SetCurrent(node, null, currentSource.Current);
+                    component.UpdateSolverInputs(_solver);
                 }
 
                 // Solve the circuit
                 _solver.Solve();
 
-                // Update components with solved values as applicable
-                foreach (var component in _components)
+                // Update components with solver output
+                foreach (var component in Components)
                 {
-                    if (component is Cable cable)
-                    {
-                        var segment = GetCableSegment(cable);
-                        if (segment is null) { continue; }
-
-                        var n = _nodes.IndexOf(segment.NodeA);
-                        var m = _nodes.IndexOf(segment.NodeB);
-
-                        var vA = _solver.GetVoltage(n);
-                        var vB = _solver.GetVoltage(m);
-
-                        // I = V / R
-                        var totalResistance = segment.Cables.Sum(c => c.Resistance);
-                        var current = (vB - vA) / totalResistance;
-
-                        var s = _cableSegments.IndexOf(segment);
-                        cable.CircuitSolverDebug = $"n: {n}; m: {m}; vA: {vA}; vB: {vB}; s: {s}";
-                        cable.DeltaVoltage = (vB - vA).Magnitude;
-                        cable.Current = current.Magnitude;
-                    }
-                    else if (component is CurrentSource currentSource)
-                    {
-                        var node = GetNode(currentSource.OpenEnds[0]);
-
-                        currentSource.CircuitSolverDebug = $"n: {node}; nCurrentSources: {nCurrentSources}";
-                        currentSource.DeltaVoltage = _solver.GetVoltage(node ?? 0).Real;
-                    }
-                    else if (component is VoltageSource vsource)
-                    {
-                        var v = _voltageSources.IndexOf(vsource);
-                        var node = GetNode(vsource.OpenEnds[0]);
-
-                        vsource.CircuitSolverDebug = $"n: {node}";
-                        vsource.Current = _solver.GetCurrent(v).Real;
-                    }
+                    component.GetSolverOutputs(_solver);
                 }
             }
         }
 
-        private int? GetNode(Connection connection)
+        public Node? GetNode(Connection? connection)
         {
-            var cable = connection.GetOther() as Cable;
-            if (cable == null) { return null; }
+            if (connection == null) { return null; }
 
-            var cableSegment = GetCableSegment(cable);
-            if (cableSegment == null) { return null; }
+            return _nodes.FirstOrDefault(n => n.Connections.Contains(connection));
+        }
 
-            int cableIndex = cableSegment.Cables.IndexOf(cable);
-
-            if (cableIndex == 0)
+        public int? GetVoltageSourceIndex(VoltageSource? voltageSource)
+        {
+            if (voltageSource == null)
             {
-                return _nodes.IndexOf(cableSegment.NodeA);
+                return null;
             }
-            else
+
+            var result = _voltageSources?.IndexOf(voltageSource);
+
+            if (result < 0)
             {
-                return _nodes.IndexOf(cableSegment.NodeB);
+                return null;
             }
+
+            return result;
         }
 
         public static Circuit? Merge(Circuit? a, Circuit? b)
@@ -289,12 +194,18 @@ namespace Hardwired.Utility
             if (a is null) { return b; }
             if (b is null) { return a; }
 
-            foreach (var component in b._components.ToList())
+            foreach (var component in b.Components.ToList())
             {
+                b.RemoveComponent(component);
+
                 component.Circuit = a;
                 a.AddComponent(component);
-                b.RemoveComponent(component);
             }
+
+            // Clear circuit B
+            b._components.Clear();
+            b._nodes.Clear();
+            b._voltageSources.Clear();
 
             return a;
         }

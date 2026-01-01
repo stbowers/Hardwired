@@ -119,17 +119,24 @@ namespace Hardwired.Utility
         /// <param name="n"></param>
         /// <param name="m"></param>
         /// <param name="a"></param>
-        public void AddAdmittance(int? n, int m, Complex value)
+        public void AddAdmittance(int? n, int? m, Complex value)
         {
             if (_A is null || _z is null) { ThrowNotInitializedException(); }
-
-            _A[m, m] += value;
 
             if (n != null)
             {
                 _A[n.Value, n.Value] += value;
-                _A[n.Value, m] -= value;
-                _A[m, n.Value] -= value;
+            }
+
+            if (m != null)
+            {
+                _A[m.Value, m.Value] += value;
+            }
+
+            if (n != null && m != null)
+            {
+                _A[n.Value, m.Value] -= value;
+                _A[m.Value, n.Value] -= value;
             }
 
             // Since A was modified, invalidate factorization so it will be re-factored on the next solve
@@ -144,32 +151,69 @@ namespace Hardwired.Utility
         /// <param name="n"></param>
         /// <param name="m"></param>
         /// <param name="value"></param>
-        public void AddResistance(int? n, int m, double value)
+        public void AddResistance(int? n, int? m, double value)
             => AddAdmittance(n, m, 1.0 / value);
 
         /// <summary>
-        /// Sets the voltage at node `n` to the given value, corresponding to the voltage source `v`
+        /// Adds the equation `V(m) - V(n) = z[v]` to the system of equations.
+        /// 
+        /// If either `n` or `m` is null, it is assumed to be the common ground node.
+        /// 
+        /// Must be called when initializing the solver, as this method modifies the A matrix.
+        /// 
+        /// After initializing, the voltage of this voltage source can be updated by calling `SetVoltage()`
         /// </summary>
         /// <param name="n"></param>
+        /// <param name="m"></param>
         /// <param name="v"></param>
         /// <param name="value"></param>
-        public void SetVoltage(int n, int v, Complex value)
+        public void InitializeVoltageSource(int? n, int? m, int v)
         {
             if (_A is null || _z is null) { ThrowNotInitializedException(); }
 
-            int m = _nodes + v;
+            // Calculate index for this voltage source - by convention, the equations for each voltage source are put at the end of the matrix,
+            // after node voltage equations
+            int j = _nodes + v;
 
-            _z[m] = value;
-
-            // Check if A already has the correct values (avoid having to re-calculate _A_LU unless A actually changes)
-            if (_A[m, n] != 1 || _A[n, m] != 1)
+            if (n != null)
             {
-                _A[m, n] = 1;
-                _A[n, m] = 1;
+                // V(n) ... = V
+                _A[j, n.Value] = -1;
 
-                // Since A was modified, invalidate factorization so it will be re-factored on the next solve
-                _A_LU = null;
+                // Add the voltage source's current to the destination node
+                _A[n.Value, j] = -1;
             }
+
+            if (m != null)
+            {
+                // ... -V(m) = V
+                _A[j, m.Value] = 1;
+
+                // Subtract the voltage source's current from the source node
+                _A[m.Value, j] = 1;
+            }
+
+            // Since A was modified, invalidate factorization so it will be re-factored on the next solve
+            _A_LU = null;
+        }
+
+        /// <summary>
+        /// Sets the voltage for voltage source `v` to the given value.
+        /// 
+        /// `InitializeVoltageSource()` must be called before this method to ensure the system of equations was correctly set up.
+        /// </summary>
+        /// <param name="v"></param>
+        /// <param name="value"></param>
+        public void SetVoltage(int v, Complex value)
+        {
+            if (_A is null || _z is null) { ThrowNotInitializedException(); }
+
+            // Calculate index for this voltage source - by convention, the equations for each voltage source are put at the end of the matrix,
+            // after node voltage equations
+            int j = _nodes + v;
+
+            // Set input voltage to the given value
+            _z[j] = value;
         }
 
         /// <summary>
@@ -214,11 +258,11 @@ namespace Hardwired.Utility
         /// </summary>
         /// <param name="n"></param>
         /// <returns></returns>
-        public Complex GetVoltage(int n)
+        public Complex GetVoltage(int? n)
         {
-            if (_x is not null && _x.Count > n)
+            if (n != null && _x is not null && _x.Count > n.Value)
             {
-                return _x[n];
+                return _x[n.Value];
             }
             else
             {

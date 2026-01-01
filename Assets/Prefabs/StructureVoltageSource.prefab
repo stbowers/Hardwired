@@ -9,8 +9,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8346195145136773013}
-  - component: {fileID: 4349430373906723878}
   - component: {fileID: 4527279027523969312}
+  - component: {fileID: 8670393510292924329}
+  - component: {fileID: 4349430373906723878}
+  - component: {fileID: 4625376819722840815}
   m_Layer: 0
   m_Name: StructureVoltageSource
   m_TagString: Untagged
@@ -31,11 +33,32 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 5768336456624768980}
   - {fileID: 9046234498090118830}
+  - {fileID: 5768336456624768980}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4349430373906723878
+--- !u!65 &4527279027523969312
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5553481732446436715}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.5, y: 0.3, z: 0.5}
+  m_Center: {x: 0, y: 0.1, z: 0}
+--- !u!114 &8670393510292924329
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -44,7 +67,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 5553481732446436715}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4f39c46cea0dff4e59a54c7dea918573, type: 3}
+  m_Script: {fileID: 11500000, guid: 24d20ef10f6b02ab4b180d3f47ef895c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   _referenceId: 0
@@ -255,7 +278,7 @@ MonoBehaviour:
     Collider: {fileID: 6945949541167116376}
     ConnectionRole: 0
     HelperRenderer: {fileID: 0}
-    Parent: {fileID: 4349430373906723878}
+    Parent: {fileID: 8670393510292924329}
     LocalGrid:
       x: 0
       y: 0
@@ -268,31 +291,40 @@ MonoBehaviour:
   DualRegister: 0
   requiresFrame: 0
   HasDataConnection: 0
-  InfoCollider: {fileID: 4527279027523969312}
   ConnectionType: 8
   OpenEndsPermutation: 000000000100000002000000030000000400000005000000
-  Voltage: 24
---- !u!65 &4527279027523969312
-BoxCollider:
+--- !u!114 &4349430373906723878
+MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5553481732446436715}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.5, y: 0.3, z: 0.5}
-  m_Center: {x: 0, y: 0.1, z: 0}
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f39c46cea0dff4e59a54c7dea918573, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  PinA: -1
+  PinB: 0
+  Voltage: 24
+--- !u!114 &4625376819722840815
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5553481732446436715}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db04f86da609d2d7f91b57f3a308cb4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  BuildStatePatches:
+  - BuildState: 0
+    SetEntryTool: 
+    SetEntry2Tool: 
+    SetExitTool: ItemWireCutters
 --- !u!1 &6478424996001752475
 GameObject:
   m_ObjectHideFlags: 0

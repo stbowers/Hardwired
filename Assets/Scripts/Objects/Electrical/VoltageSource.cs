@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
@@ -7,14 +8,17 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.UI;
 using Assets.Scripts.Util;
+using Hardwired.Utility;
 using LaunchPadBooster.Utils;
 using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
-    public class VoltageSource : Component
+    public class VoltageSource : ElectricalComponent
     {
-        [Header("Voltage Source")]
+        /// <summary>
+        /// The DC voltage, or maximum AC voltage.
+        /// </summary>
         public double Voltage;
 
         /// <summary>
@@ -28,12 +32,45 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public double? Current;
 
-        protected override void BuildPassiveToolTip(StringBuilder stringBuilder)
+        public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
 
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current?.ToStringPrefix("A", "yellow") ?? "N/A"}");
+        }
+
+        public override void InitializeSolver(MNASolver solver)
+        {
+            base.InitializeSolver(solver);
+
+            var v = GetVoltageSourceIndex(this);
+            if (v == null) { return; }
+
+            int? n = GetNodeIndex(PinA);
+            int? m = GetNodeIndex(PinB);
+
+            solver.InitializeVoltageSource(n, m, v.Value);
+        }
+
+        public override void UpdateSolverInputs(MNASolver solver)
+        {
+            base.UpdateSolverInputs(solver);
+
+            var v = GetVoltageSourceIndex(this);
+            if (v == null) { return; }
+
+            solver.SetVoltage(v.Value, Voltage);
+        }
+
+        public override void GetSolverOutputs(MNASolver solver)
+        {
+            base.GetSolverOutputs(solver);
+
+            var v = GetVoltageSourceIndex(this);
+            if (v == null) { return; }
+
+            Current = solver.GetCurrent(v.Value).Magnitude;
         }
     }
 }

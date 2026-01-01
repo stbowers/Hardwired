@@ -10,6 +10,8 @@ namespace Hardwired.Utility
 {
     public class Node
     {
-        int? Index { get; set; }
+        public int? Index { get; set; }
+
+        public List<Connection> Connections { get; } = new();
     }
 }

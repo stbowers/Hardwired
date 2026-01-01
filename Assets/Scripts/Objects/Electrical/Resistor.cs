@@ -1,5 +1,8 @@
+#nullable enable
+
 using System.Collections;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Inventory;
@@ -7,17 +10,17 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.UI;
 using Assets.Scripts.Util;
+using Hardwired.Utility;
 using LaunchPadBooster.Utils;
 using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
-    public class Resistor : Component
+    public class Resistor : ElectricalComponent
     {
         /// <summary>
         /// Resistance value in ohms
         /// </summary>
-        [Header("Resistor")]
         public double Resistance;
 
         /// <summary>
@@ -32,7 +35,7 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public double? Current;
 
-        protected override void BuildPassiveToolTip(StringBuilder stringBuilder)
+        public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
 
@@ -40,5 +43,38 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"ΔV: {DeltaVoltage?.ToStringPrefix("V", "yellow") ?? "N/A"}");
             stringBuilder.AppendLine($"Current: {Current?.ToStringPrefix("A", "yellow") ?? "N/A"}");
         }
+
+
+        public override void InitializeSolver(MNASolver solver)
+        {
+            base.InitializeSolver(solver);
+
+            int? n = GetNodeIndex(PinA);
+            int? m = GetNodeIndex(PinB);
+            solver.AddResistance(n, m, Resistance);
+        }
+
+        public override void GetSolverOutputs(MNASolver solver)
+        {
+            base.GetSolverOutputs(solver);
+
+            int? n = GetNodeIndex(PinA);
+            int? m = GetNodeIndex(PinB);
+
+            Complex vA = solver.GetVoltage(n);
+            Complex vB = solver.GetVoltage(m);
+
+            // TODO: This needs to take in to account the resistance of the entire cable segment, not just this individual component... May need to re-think this approach...
+            // Maybe CableSegment will be the actual Component added to the network, and that will in turn hold a reference to each individual cable in the segment, so
+            // cables themselves won't actually have this function called?
+
+            // I = V / R
+            // var totalResistance = segment.Cables.Sum(c => c.Resistance);
+            var current = (vB - vA) / Resistance;
+
+            DeltaVoltage = (vB - vA).Magnitude;
+            Current = current.Magnitude;
+        }
+
     }
 }

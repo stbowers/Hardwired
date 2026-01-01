@@ -108,7 +108,8 @@ public class MNASolverTests
 
         foreach ((int n, int v, Complex e) in circuit.VoltageSources)
         {
-            solver.SetVoltage(n, v, e);
+            solver.InitializeVoltageSource(null, n, v);
+            solver.SetVoltage(v, e);
         }
 
         solver.Solve();

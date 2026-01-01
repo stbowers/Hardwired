@@ -63,7 +63,9 @@ GameObject:
   m_Component:
   - component: {fileID: 4831931313690434071}
   - component: {fileID: 2689848997213600998}
-  - component: {fileID: 4632574823586657591}
+  - component: {fileID: 3710053380614681320}
+  - component: {fileID: 8221034776373187405}
+  - component: {fileID: 430383925079346782}
   m_Layer: 0
   m_Name: StructureLowCurrentCable90
   m_TagString: Untagged
@@ -110,7 +112,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.275, y: 0.1, z: 0.275}
   m_Center: {x: -0.115, y: 0, z: 0.115}
---- !u!114 &4632574823586657591
+--- !u!114 &3710053380614681320
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -119,7 +121,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 5442210240001122566}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a75cf7895e15356059c2cf983632f005, type: 3}
+  m_Script: {fileID: 11500000, guid: 24d20ef10f6b02ab4b180d3f47ef895c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   _referenceId: 0
@@ -138,7 +140,7 @@ MonoBehaviour:
   Slots: []
   Bounds:
     m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 0.25, y: 0.25, z: 0.5}
+    m_Extent: {x: 0, y: 0, z: 0}
   SurfaceArea: 0
   SurfaceAreaScale: 1
   BoundsOffset: {x: 0, y: 0, z: 0}
@@ -172,7 +174,7 @@ MonoBehaviour:
   AudioSources: []
   BaseAnimator: {fileID: 0}
   IsCursor: 0
-  Blueprint: {fileID: 919132149155446097, guid: 1bccd3cf0cbf4e3618b1fce27a8d55f7, type: 3}
+  Blueprint: {fileID: 6352807180072332776, guid: 2735a511d65a0278597c417566ff02c0, type: 3}
   Wireframe: {fileID: 0}
   lodFlares: []
   IsCustomThing: 0
@@ -223,7 +225,7 @@ MonoBehaviour:
   maxPressureDelta: -1
   BuildingTip: 
   BuildStates:
-  - Thumbnail: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  - Thumbnail: {fileID: 0}
     DamagedBuildState: 0
     BlockAir: 0
     AlwaysBlockAir: 0
@@ -330,7 +332,7 @@ MonoBehaviour:
     Collider: {fileID: 251561228718053958}
     ConnectionRole: 0
     HelperRenderer: {fileID: 0}
-    Parent: {fileID: 4632574823586657591}
+    Parent: {fileID: 3710053380614681320}
     LocalGrid:
       x: 0
       y: 0
@@ -344,7 +346,7 @@ MonoBehaviour:
     Collider: {fileID: 8041861412703604636}
     ConnectionRole: 0
     HelperRenderer: {fileID: 0}
-    Parent: {fileID: 4632574823586657591}
+    Parent: {fileID: 3710053380614681320}
     LocalGrid:
       x: 0
       y: 0
@@ -357,10 +359,40 @@ MonoBehaviour:
   DualRegister: 0
   requiresFrame: 0
   HasDataConnection: 0
-  InfoCollider: {fileID: 2689848997213600998}
   ConnectionType: 8
   OpenEndsPermutation: 000000000100000002000000030000000400000005000000
+--- !u!114 &8221034776373187405
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5442210240001122566}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e99b4801412543c6ca291e0bb5f7fd0b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  PinA: 0
+  PinB: 1
   Resistance: 100
+--- !u!114 &430383925079346782
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5442210240001122566}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db04f86da609d2d7f91b57f3a308cb4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  BuildStatePatches:
+  - BuildState: 0
+    SetEntryTool: 
+    SetEntry2Tool: 
+    SetExitTool: ItemWireCutters
 --- !u!1 &7104356442187560660
 GameObject:
   m_ObjectHideFlags: 0
