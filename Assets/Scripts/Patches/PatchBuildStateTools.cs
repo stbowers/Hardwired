@@ -19,47 +19,41 @@ namespace Hardwired.Patches
             prefabSetup.RunFunc(PatchPrefab);
         }
 
-        public List<BuildStatePatch> BuildStatePatches = new();
+        public int BuildState;
+
+        public string? SetEntryTool;
+
+        public string? SetEntry2Tool;
+
+        public string? SetExitTool;
 
         private static void PatchPrefab(Thing prefab)
         {
-            // Check for components required for the patch
-            if (prefab.GetComponent<Structure>() is not Structure structure
-                || prefab.GetComponent<PatchBuildStateTools>() is not PatchBuildStateTools patch)
+            if (prefab.GetComponent<Structure>() is not Structure structure)
             {
+                // Can only patch structures
                 return;
             }
 
-            foreach (var buildStatePatch in patch.BuildStatePatches)
+            foreach (var patch in prefab.GetComponents<PatchBuildStateTools>())
             {
-                if (!string.IsNullOrWhiteSpace(buildStatePatch.SetEntryTool))
+                Hardwired.LogDebug($"Patching {prefab.PrefabName} -- {patch.BuildState} - {patch.SetExitTool}");
+
+                if (!string.IsNullOrWhiteSpace(patch.SetEntryTool))
                 {
-                    PrefabUtils.SetEntryTool(structure, buildStatePatch.SetEntryTool, buildStatePatch.BuildState);
+                    PrefabUtils.SetEntryTool(structure, patch.SetEntryTool, patch.BuildState);
                 }
 
-                if (!string.IsNullOrWhiteSpace(buildStatePatch.SetEntry2Tool))
+                if (!string.IsNullOrWhiteSpace(patch.SetEntry2Tool))
                 {
-                    PrefabUtils.SetEntry2Tool(structure, buildStatePatch.SetEntry2Tool, buildStatePatch.BuildState);
+                    PrefabUtils.SetEntry2Tool(structure, patch.SetEntry2Tool, patch.BuildState);
                 }
 
-                if (!string.IsNullOrWhiteSpace(buildStatePatch.SetExitTool))
+                if (!string.IsNullOrWhiteSpace(patch.SetExitTool))
                 {
-                    PrefabUtils.SetExitTool(structure, buildStatePatch.SetExitTool, buildStatePatch.BuildState);
+                    PrefabUtils.SetExitTool(structure, patch.SetExitTool, patch.BuildState);
                 }
             }
         }
-
-        [Serializable]
-        public class BuildStatePatch
-        {
-            public int BuildState;
-
-            public string? SetEntryTool;
-
-            public string? SetEntry2Tool;
-
-            public string? SetExitTool;
-        }
     }
-    
 }

@@ -388,11 +388,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db04f86da609d2d7f91b57f3a308cb4f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  BuildStatePatches:
-  - BuildState: 0
-    SetEntryTool: 
-    SetEntry2Tool: 
-    SetExitTool: ItemWireCutters
+  BuildState: 0
+  SetEntryTool: 
+  SetEntry2Tool: 
+  SetExitTool: ItemWireCutters
 --- !u!1 &7104356442187560660
 GameObject:
   m_ObjectHideFlags: 0

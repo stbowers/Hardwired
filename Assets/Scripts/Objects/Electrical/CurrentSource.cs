@@ -45,7 +45,7 @@ namespace Hardwired.Objects.Electrical
             var vN = solver.GetVoltage(n);
             var vM = solver.GetVoltage(m);
 
-            DeltaVoltage = (vN - vM).Magnitude;
+            DeltaVoltage = (vN - vM).Real;
         }
     }
 }

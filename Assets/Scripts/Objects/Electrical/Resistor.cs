@@ -64,8 +64,8 @@ namespace Hardwired.Objects.Electrical
             // var totalResistance = segment.Cables.Sum(c => c.Resistance);
             var current = (vB - vA) / Resistance;
 
-            DeltaVoltage = (vB - vA).Magnitude;
-            Current = current.Magnitude;
+            DeltaVoltage = (vB - vA).Real;
+            Current = current.Real;
         }
 
     }
