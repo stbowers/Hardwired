@@ -22,10 +22,10 @@ namespace Hardwired.Objects.Electrical
         public double Capacitance;
 
         /// <summary>
-        /// Impedence value in ohms (depends on AC circuit frequency)
+        /// Reactance value in ohms (depends on AC circuit frequency)
         /// </summary>
         [HideInInspector]
-        public double Impedence;
+        public double Reactance;
 
         /// <summary>
         /// The current charge in the capacitor, in Coulombs
@@ -49,7 +49,7 @@ namespace Hardwired.Objects.Electrical
 
             if (Frequency != 0f)
             {
-                stringBuilder.AppendLine($"Impedence: {Impedence.ToStringPrefix("Ω", "yellow") ?? "N/A"}");
+                stringBuilder.AppendLine($"Reactance: {Reactance.ToStringPrefix("Ω", "yellow") ?? "N/A"}");
             }
         }
 
@@ -65,17 +65,17 @@ namespace Hardwired.Objects.Electrical
             {
                 // Note - the complex impedence value for the capacitor is 1 / (j * w * C), where j is the imaginary unit (instead of 'i' to avoid confusion with current).
                 // When treating the impedence as a real value we negate it since 1 / j = -j, so when later used as the imaginary component of a complex value it will be correct.
-                var w = 2f * Math.PI * solver.Frequency;
-                Impedence = -1f / (w * Capacitance);
+                var w = 2f * Math.PI * Frequency;
+                Reactance = -1f / (w * Capacitance);
 
                 int? n = GetNodeIndex(PinA);
                 int? m = GetNodeIndex(PinB);
 
-                solver.AddReactance(n, m, Impedence);
+                solver.AddReactance(n, m, Reactance);
             }
             else
             {
-                Impedence = 0f;
+                Reactance = 0f;
             }
         }
 

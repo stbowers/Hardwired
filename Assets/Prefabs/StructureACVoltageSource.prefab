@@ -308,7 +308,7 @@ MonoBehaviour:
   PinA: -1
   PinB: 0
   Voltage: 24
-  Frequency: 100
+  Frequency: 200
 --- !u!114 &4625376819722840815
 MonoBehaviour:
   m_ObjectHideFlags: 0

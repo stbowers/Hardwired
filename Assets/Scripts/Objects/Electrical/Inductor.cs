@@ -17,17 +17,17 @@ namespace Hardwired.Objects.Electrical
         public double Inductance;
 
         /// <summary>
-        /// Impedence value in ohms (depends on AC circuit frequency)
+        /// Reactance value in ohms (depends on AC circuit frequency)
         /// </summary>
         [HideInInspector]
-        public double Impedence;
+        public double Reactance;
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
 
             stringBuilder.AppendLine($"Inductance: {Inductance.ToStringPrefix("H", "yellow")}");
-            stringBuilder.AppendLine($"Impedence: {Impedence.ToStringPrefix("Ω", "yellow") ?? "N/A"}");
+            stringBuilder.AppendLine($"Impedence: {Reactance.ToStringPrefix("Ω", "yellow") ?? "N/A"}");
         }
 
         public override void InitializeSolver(MNASolver solver)
@@ -38,12 +38,12 @@ namespace Hardwired.Objects.Electrical
             if (solver.Frequency != 0)
             {
                 var w = 2f * Math.PI * solver.Frequency;
-                Impedence = w * Inductance;
+                Reactance = w * Inductance;
 
                 int? n = GetNodeIndex(PinA);
                 int? m = GetNodeIndex(PinB);
 
-                solver.AddReactance(n, m, Impedence);
+                solver.AddReactance(n, m, Reactance);
             }
         }
     }
