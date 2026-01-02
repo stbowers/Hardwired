@@ -540,6 +540,7 @@ MonoBehaviour:
   Constructables:
   - {fileID: 5065318565922970062, guid: 8d877eaa5c93f27efab5b592fa0566df, type: 3}
   - {fileID: 8670393510292924329, guid: a4c5b73265537a81489a4f6a9f617faa, type: 3}
+  - {fileID: 8670393510292924329, guid: 2b9e430eb626bbcab9a9790112c57b71, type: 3}
   - {fileID: 8670393510292924329, guid: 46f82578bc0d32da5bddf41bcc1c52f4, type: 3}
   - {fileID: 8670393510292924329, guid: 57b1b42d5475727a0883f1e5e5ee6863, type: 3}
   - {fileID: 8670393510292924329, guid: 9e24ea29f140e58d4bc462ffa2c4d930, type: 3}

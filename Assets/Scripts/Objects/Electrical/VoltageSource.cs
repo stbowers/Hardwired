@@ -25,7 +25,7 @@ namespace Hardwired.Objects.Electrical
         /// <summary>
         /// The AC frequency of the voltage source, or null for a DC voltage source.
         /// </summary>
-        public double? Frequency;
+        public double Frequency;
 
         /// <summary>
         /// The momentary current across this voltage source calculated by the circuit solver.
