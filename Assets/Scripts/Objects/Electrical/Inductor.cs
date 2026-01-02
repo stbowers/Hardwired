@@ -27,7 +27,7 @@ namespace Hardwired.Objects.Electrical
             base.BuildPassiveToolTip(stringBuilder);
 
             stringBuilder.AppendLine($"Inductance: {Inductance.ToStringPrefix("H", "yellow")}");
-            stringBuilder.AppendLine($"Impedence: {Impedence.ToStringPrefix("J", "yellow") ?? "N/A"}");
+            stringBuilder.AppendLine($"Impedence: {Impedence.ToStringPrefix("Ω", "yellow") ?? "N/A"}");
         }
 
         public override void InitializeSolver(MNASolver solver)

@@ -46,7 +46,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Capacitance: {Capacitance.ToStringPrefix("F", "yellow")}");
             stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("C", "yellow") ?? "N/A"}");
             stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow") ?? "N/A"}");
-            stringBuilder.AppendLine($"Impedence: {Impedence.ToStringPrefix("J", "yellow") ?? "N/A"}");
+            stringBuilder.AppendLine($"Impedence: {Impedence.ToStringPrefix("Ω", "yellow") ?? "N/A"}");
         }
 
         public override void InitializeSolver(MNASolver solver)
