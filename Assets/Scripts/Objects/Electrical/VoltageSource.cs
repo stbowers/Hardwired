@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
 using Hardwired.Utility;
@@ -31,7 +32,7 @@ namespace Hardwired.Objects.Electrical
         /// The momentary current across this voltage source calculated by the circuit solver.
         /// </summary>
         [HideInInspector]
-        public double? Current;
+        public Complex? Current;
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
@@ -39,8 +40,14 @@ namespace Hardwired.Objects.Electrical
 
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Frequency: {Frequency.ToStringPrefix("Hz", "yellow")}");
-            // Note - by convention current is from pin B to A; but this is backwards from what I expect when viewing, so we'll negate it for display...
-            stringBuilder.AppendLine($"Current: {(-Current)?.ToStringPrefix("A", "yellow") ?? "N/A"}");
+            stringBuilder.AppendLine($"Current: {Current?.Magnitude.ToStringPrefix("A", "yellow") ?? "N/A"}");
+
+            if (Frequency != 0f)
+            {
+                // Note - by convention current flow for a voltage source is essentially the current "produced" by the source, not "flowing through"
+                // the source... This means it's generally opposite from what we expect, so we negate it first before displaying.
+                stringBuilder.AppendLine($"Current Phase: {(-Current)?.Phase.ToStringPrefix("rad", "yellow") ?? "N/A"}");
+            }
         }
 
         public override void InitializeSolver(MNASolver solver)
@@ -73,7 +80,7 @@ namespace Hardwired.Objects.Electrical
             var v = GetVoltageSourceIndex(this);
             if (v == null) { return; }
 
-            Current = solver.GetCurrent(v.Value).Real;
+            Current = solver.GetCurrent(v.Value);
         }
     }
 }
