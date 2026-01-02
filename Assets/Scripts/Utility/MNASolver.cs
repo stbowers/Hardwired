@@ -167,6 +167,17 @@ namespace Hardwired.Utility
             => AddAdmittance(n, m, 1.0 / value);
 
         /// <summary>
+        /// Adds the given impedence value between the given nodes.
+        /// 
+        /// If n is null, it is assumed to be the common ground node.
+        /// </summary>
+        /// <param name="n"></param>
+        /// <param name="m"></param>
+        /// <param name="value"></param>
+        public void AddImpedence(int? n, int? m, double value)
+            => AddAdmittance(n, m, new Complex(0, 1.0 / value));
+
+        /// <summary>
         /// Adds the equation `V(m) - V(n) = z[v]` to the system of equations.
         /// 
         /// If either `n` or `m` is null, it is assumed to be the common ground node.

@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
@@ -21,6 +22,12 @@ namespace Hardwired.Objects.Electrical
         public double Capacitance;
 
         /// <summary>
+        /// Impedence value in ohms (depends on AC circuit frequency)
+        /// </summary>
+        [HideInInspector]
+        public double Impedence;
+
+        /// <summary>
         /// The current charge in the capacitor, in Coulombs
         /// </summary>
         [HideInInspector]
@@ -39,6 +46,24 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Capacitance: {Capacitance.ToStringPrefix("F", "yellow")}");
             stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("C", "yellow") ?? "N/A"}");
             stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow") ?? "N/A"}");
+            stringBuilder.AppendLine($"Impedence: {Impedence.ToStringPrefix("J", "yellow") ?? "N/A"}");
+        }
+
+        public override void InitializeSolver(MNASolver solver)
+        {
+            base.InitializeSolver(solver);
+
+            // If circuit has AC current, add impedence based on the frequency
+            if (solver.Frequency != 0)
+            {
+                var w = 2f * Math.PI * solver.Frequency;
+                Impedence = 1f / (w * Capacitance);
+
+                int? n = GetNodeIndex(PinA);
+                int? m = GetNodeIndex(PinB);
+
+                solver.AddImpedence(n, m, Impedence);
+            }
         }
 
         public override void GetSolverOutputs(MNASolver solver)
