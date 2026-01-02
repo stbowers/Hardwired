@@ -54,7 +54,7 @@ namespace Hardwired.Objects.Electrical
             base.InitializeSolver(solver);
 
             // If circuit has AC current, add impedence based on the frequency
-            if (solver.Frequency != 0)
+            if (solver.Frequency != 0f)
             {
                 // Note - the complex impedence value for the capacitor is 1 / (j * w * C), where j is the imaginary unit (instead of 'i' to avoid confusion with current).
                 // When treating the impedence as a real value we negate it since 1 / j = -j, so when later used as the imaginary component of a complex value it will be correct.
@@ -71,6 +71,9 @@ namespace Hardwired.Objects.Electrical
         public override void GetSolverOutputs(MNASolver solver)
         {
             base.GetSolverOutputs(solver);
+
+            // Don't update charge for AC circuit
+            if (solver.Frequency != 0f) { return; }
 
             // We must have solved for a valid current, otherwise we have nothing to do...
             if (Current == null){ return; }

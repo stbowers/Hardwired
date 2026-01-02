@@ -131,17 +131,30 @@ namespace Hardwired.Utility
                     int nVSources = _voltageSources.Count;
 
                     // Determine the AC frequency to use
-                    double? frequency = 0;
+                    double frequency = 0f;
                     foreach (var component in Components)
                     {
-                        double? componentFrequency = (component as VoltageSource)?.Frequency ?? (component as CurrentSource)?.Frequency;
+                        double componentFrequency = 0f;
 
-                        if (frequency != null && componentFrequency != frequency)
+                        if (component is VoltageSource voltageSource)
                         {
-                            Hardwired.LogDebug($"Circuit network {ReferenceId} -- Invalid network, cannot have multiple AC sources at different frequencies");
+                            componentFrequency = voltageSource.Frequency;
+                        }
+                        else if (component is CurrentSource currentSource)
+                        {
+                            componentFrequency = currentSource.Frequency;
+                        }
+                        else
+                        {
+                            continue;
+                        }
+
+                        if (frequency != 0f && componentFrequency != 0f && componentFrequency != frequency)
+                        {
+                            Hardwired.LogDebug($"Circuit network {ReferenceId} -- Invalid network, cannot have multiple AC sources at different frequencies ({frequency}, {componentFrequency})");
                             return;
                         }
-                        else if (componentFrequency != null)
+                        else if (componentFrequency != 0f)
                         {
                             frequency = componentFrequency;
                         }
@@ -153,9 +166,9 @@ namespace Hardwired.Utility
                         _nodes[i].Index = i;
                     }
 
-                    Hardwired.LogDebug($"Circuit network {ReferenceId} - Initializing solver with {nNodes} nodes and {nVSources} voltage sources, at {frequency ?? 0f} Hz");
+                    Hardwired.LogDebug($"Circuit network {ReferenceId} - Initializing solver with {nNodes} nodes and {nVSources} voltage sources, at {frequency} Hz");
 
-                    _solver.Initialize(nNodes, nVSources, frequency ?? 0f);
+                    _solver.Initialize(nNodes, nVSources, frequency);
 
                     foreach (var component in Components)
                     {

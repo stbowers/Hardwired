@@ -23,7 +23,7 @@ namespace Hardwired.Objects.Electrical
         public double Voltage;
 
         /// <summary>
-        /// The AC frequency of the voltage source, or null for a DC voltage source.
+        /// The AC frequency of the voltage source, or 0 for a DC voltage source.
         /// </summary>
         public double Frequency;
 
@@ -38,6 +38,7 @@ namespace Hardwired.Objects.Electrical
             base.BuildPassiveToolTip(stringBuilder);
 
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Frequency: {Frequency.ToStringPrefix("Hz", "yellow")}");
             // Note - by convention current is from pin B to A; but this is backwards from what I expect when viewing, so we'll negate it for display...
             stringBuilder.AppendLine($"Current: {(-Current)?.ToStringPrefix("A", "yellow") ?? "N/A"}");
         }

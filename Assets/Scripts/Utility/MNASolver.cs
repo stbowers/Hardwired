@@ -87,6 +87,7 @@ namespace Hardwired.Utility
         public void Initialize(int nodes, int voltageSources, double frequency)
         {
             IsValid = true;
+            Frequency = frequency;
 
             Nodes = nodes;
             VoltageSources = voltageSources;
@@ -171,6 +172,7 @@ namespace Hardwired.Utility
 
         /// <summary>
         /// Adds the given resistance value between the given nodes.
+        /// Resistance is the real part of impedence, and represents the resistance to current flow.
         /// 
         /// If n is null, it is assumed to be the common ground node.
         /// </summary>
@@ -182,6 +184,7 @@ namespace Hardwired.Utility
 
         /// <summary>
         /// Adds the given reactance value between the given nodes.
+        /// Reactance is the imaginary part of impedence, and represents the resistance to change in current flow.
         /// 
         /// If n is null, it is assumed to be the common ground node.
         /// </summary>
