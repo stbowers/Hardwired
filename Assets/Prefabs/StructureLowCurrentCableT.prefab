@@ -118,6 +118,8 @@ GameObject:
   - component: {fileID: 2689848997213600998}
   - component: {fileID: 6235114327804871545}
   - component: {fileID: 3203734893184553421}
+  - component: {fileID: 1758071695644447330}
+  - component: {fileID: 2214434984845688229}
   - component: {fileID: 2856758661253627166}
   m_Layer: 0
   m_Name: StructureLowCurrentCableT
@@ -443,6 +445,36 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   PinA: 0
   PinB: 1
+  Resistance: 10
+--- !u!114 &1758071695644447330
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5442210240001122566}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e99b4801412543c6ca291e0bb5f7fd0b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  PinA: 0
+  PinB: 2
+  Resistance: 10
+--- !u!114 &2214434984845688229
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5442210240001122566}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e99b4801412543c6ca291e0bb5f7fd0b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  PinA: 1
+  PinB: 2
   Resistance: 10
 --- !u!114 &2856758661253627166
 MonoBehaviour:
