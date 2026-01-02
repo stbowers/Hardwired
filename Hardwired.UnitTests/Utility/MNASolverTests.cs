@@ -86,6 +86,35 @@ public class MNASolverTests
                 VoltageSourceCurrents = { -0.05 }
             }
         },
+
+        // OpenStax University Physics II - Example 15.4.1 - RLC series circuit
+        new object[]
+        {
+            new CircuitDescription()
+            {
+                Nodes = 3,
+                Frequency = 200,
+                Admittances =
+                {
+                    // 4 ohm resistor
+                    (0, 1, new Complex(1f / 4f, 0)),
+                    // 3 mH inductor
+                    (1, 2, new Complex(0, 1f / (2f * Math.PI * 200 * 0.003))),
+                    // 0.8 mF capacitor
+                    (2, null, new Complex(0, -2f * Math.PI * 200 * 0.0008)),
+                },
+                VoltageSources =
+                {
+                    // 0.1 V AC @ 200 Hz
+                    (0, 0, 0.1)
+                },
+            },
+            new ExpectedOutputs()
+            {
+                NodeVoltages = { 0.1, new Complex(0.03249, -0.0468), new Complex(-0.01164, 0.016787) },
+                VoltageSourceCurrents = { -Complex.FromPolarCoordinates(0.0205, 0.607) }
+            }
+        },
     };
 
     [Theory]
@@ -96,7 +125,7 @@ public class MNASolverTests
 
         solver.Initialize(circuit.Nodes, circuit.VoltageSources.Count, circuit.Frequency);
 
-        foreach ((int? n, int m, Complex a) in circuit.Admittances)
+        foreach ((int? n, int? m, Complex a) in circuit.Admittances)
         {
             solver.AddAdmittance(n, m, a);
         }
@@ -138,7 +167,7 @@ public class MNASolverTests
     {
         public int Nodes { get; set; }
         public double Frequency { get; set; }
-        public List<(int? n, int m, Complex a)> Admittances { get; } = new();
+        public List<(int? n, int? m, Complex a)> Admittances { get; } = new();
         public List<(int? n, int? m, Complex i)> CurrentSources { get; } = new();
         public List<(int n, int v, Complex e)> VoltageSources { get; } = new();
     }
