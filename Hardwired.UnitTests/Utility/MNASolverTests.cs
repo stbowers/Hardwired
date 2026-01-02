@@ -94,7 +94,7 @@ public class MNASolverTests
     {
         var solver = new MNASolver();
 
-        solver.Initialize(circuit.Nodes, circuit.VoltageSources.Count);
+        solver.Initialize(circuit.Nodes, circuit.VoltageSources.Count, circuit.Frequency);
 
         foreach ((int? n, int m, Complex a) in circuit.Admittances)
         {
@@ -137,6 +137,7 @@ public class MNASolverTests
     public class CircuitDescription
     {
         public int Nodes { get; set; }
+        public double Frequency { get; set; }
         public List<(int? n, int m, Complex a)> Admittances { get; } = new();
         public List<(int? n, int? m, Complex i)> CurrentSources { get; } = new();
         public List<(int n, int v, Complex e)> VoltageSources { get; } = new();

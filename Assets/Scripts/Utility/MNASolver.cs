@@ -24,16 +24,6 @@ namespace Hardwired.Utility
     public class MNASolver
     {
         /// <summary>
-        /// The number of nodes in the circuit
-        /// </summary>
-        private int _nodes;
-
-        /// <summary>
-        /// The number of voltage sources in the circuit
-        /// </summary>
-        private int _voltageSources;
-
-        /// <summary>
         /// Matrix of coefficients for the system of equations.
         /// 
         /// A * x = z
@@ -70,16 +60,38 @@ namespace Hardwired.Utility
         private Vector<Complex>? _z;
 
         /// <summary>
+        /// The number of nodes in the circuit
+        /// </summary>
+        public int Nodes { get; private set; }
+
+        /// <summary>
+        /// The number of voltage sources in the circuit
+        /// </summary>
+        public int VoltageSources { get; private set; }
+
+        /// <summary>
+        /// The frequency of any AC voltages or currents in the circuit.
+        /// </summary>
+        public double Frequency { get; private set; }
+
+        /// <summary>
+        /// Indicates if Solve() was able to find a solution to the circuit.
+        /// </summary>
+        public bool IsValid { get; private set; }
+
+        /// <summary>
         /// (re)initializes the solver for a circuit with the given number of nodes and voltage sources.
         /// </summary>
         /// <param name="nodes"></param>
         /// <param name="voltageSources"></param>
-        public void Initialize(int nodes, int voltageSources)
+        public void Initialize(int nodes, int voltageSources, double frequency)
         {
-            _nodes = nodes;
-            _voltageSources = voltageSources;
+            IsValid = true;
 
-            int totalSize = _nodes + _voltageSources;
+            Nodes = nodes;
+            VoltageSources = voltageSources;
+
+            int totalSize = Nodes + VoltageSources;
 
             // (re)create A matrix, or zero if existing matrix is correct size
             if (_A is null || _A.RowCount != totalSize)
@@ -173,7 +185,7 @@ namespace Hardwired.Utility
 
             // Calculate index for this voltage source - by convention, the equations for each voltage source are put at the end of the matrix,
             // after node voltage equations
-            int j = _nodes + v;
+            int j = Nodes + v;
 
             if (n != null)
             {
@@ -210,7 +222,7 @@ namespace Hardwired.Utility
 
             // Calculate index for this voltage source - by convention, the equations for each voltage source are put at the end of the matrix,
             // after node voltage equations
-            int j = _nodes + v;
+            int j = Nodes + v;
 
             // Set input voltage to the given value
             _z[j] = value;
@@ -246,11 +258,26 @@ namespace Hardwired.Utility
         {
             if (_A is null || _z is null) { ThrowNotInitializedException(); }
 
-            // Factorize A into L & U matricies, if not already set up
+            // If circuit wasn't valid on the last call to solve, don't try to solve it again... (next call to Initialize() will reset IsValid so we can try again)
+            if (!IsValid) { return; }
+
+            // Try to factorize A into L & U matricies, if not already set up
             _A_LU ??= _A.LU();
+
+            if (_A_LU == null)
+            {
+                IsValid = false;
+                return;
+            }
 
             // Solve for x
             _x = _A_LU.Solve(_z);
+
+            if (_x == null)
+            {
+                IsValid = false;
+                return;
+            }
         }
 
         /// <summary>
@@ -277,7 +304,7 @@ namespace Hardwired.Utility
         /// <returns></returns>
         public Complex GetCurrent(int v)
         {
-            int m = _nodes + v;
+            int m = Nodes + v;
 
             if (_x is not null && _x.Count > m)
             {

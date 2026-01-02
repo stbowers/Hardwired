@@ -17,6 +17,11 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public double? DeltaVoltage;
 
+        /// <summary>
+        /// The AC frequency of the current source, or null for a DC current source.
+        /// </summary>
+        public double? Frequency;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);

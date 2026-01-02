@@ -130,15 +130,32 @@ namespace Hardwired.Utility
                     int nNodes = Math.Max(_nodes.Count, 1);
                     int nVSources = _voltageSources.Count;
 
+                    // Determine the AC frequency to use
+                    double? frequency = 0;
+                    foreach (var component in Components)
+                    {
+                        double? componentFrequency = (component as VoltageSource)?.Frequency ?? (component as CurrentSource)?.Frequency;
+
+                        if (frequency != null && componentFrequency != frequency)
+                        {
+                            Hardwired.LogDebug($"Circuit network {ReferenceId} -- Invalid network, cannot have multiple AC sources at different frequencies");
+                            return;
+                        }
+                        else if (componentFrequency != null)
+                        {
+                            frequency = componentFrequency;
+                        }
+                    }
+
                     // Assign indices to each node
                     for (int i = 0; i < _nodes.Count; i++)
                     {
                         _nodes[i].Index = i;
                     }
 
-                    // Hardwired.LogDebug($"Circuit network {ReferenceId} - Initializing solver with {nNodes} nodes and {nVSources} voltage sources");
+                    Hardwired.LogDebug($"Circuit network {ReferenceId} - Initializing solver with {nNodes} nodes and {nVSources} voltage sources, at {frequency ?? 0f} Hz");
 
-                    _solver.Initialize(nNodes, nVSources);
+                    _solver.Initialize(nNodes, nVSources, frequency ?? 0f);
 
                     foreach (var component in Components)
                     {
