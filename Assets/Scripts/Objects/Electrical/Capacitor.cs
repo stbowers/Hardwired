@@ -56,8 +56,10 @@ namespace Hardwired.Objects.Electrical
             // If circuit has AC current, add impedence based on the frequency
             if (solver.Frequency != 0)
             {
+                // Note - the complex impedence value for the capacitor is 1 / (j * w * C), where j is the imaginary unit (instead of 'i' to avoid confusion with current).
+                // When treating the impedence as a real value we negate it since 1 / j = -j, so when later used as the imaginary component of a complex value it will be correct.
                 var w = 2f * Math.PI * solver.Frequency;
-                Impedence = 1f / (w * Capacitance);
+                Impedence = -1f / (w * Capacitance);
 
                 int? n = GetNodeIndex(PinA);
                 int? m = GetNodeIndex(PinB);
