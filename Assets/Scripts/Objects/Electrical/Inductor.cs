@@ -43,7 +43,7 @@ namespace Hardwired.Objects.Electrical
                 int? n = GetNodeIndex(PinA);
                 int? m = GetNodeIndex(PinB);
 
-                solver.AddImpedence(n, m, Impedence);
+                solver.AddReactance(n, m, Impedence);
             }
         }
     }

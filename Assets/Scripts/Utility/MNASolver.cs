@@ -156,6 +156,20 @@ namespace Hardwired.Utility
         }
 
         /// <summary>
+        /// Adds the given impedance value between the given nodes.
+        /// Impedance is a complex value representing the resistance to current.
+        /// The real part of impedance is resistance.
+        /// The imaginary part of impedance is reactance.
+        /// 
+        /// If n is null, it is assumed to be the common ground node.
+        /// </summary>
+        /// <param name="n"></param>
+        /// <param name="m"></param>
+        /// <param name="value"></param>
+        public void AddImpedance(int? n, int? m, Complex value)
+            => AddAdmittance(n, m, 1f / value);
+
+        /// <summary>
         /// Adds the given resistance value between the given nodes.
         /// 
         /// If n is null, it is assumed to be the common ground node.
@@ -164,18 +178,18 @@ namespace Hardwired.Utility
         /// <param name="m"></param>
         /// <param name="value"></param>
         public void AddResistance(int? n, int? m, double value)
-            => AddAdmittance(n, m, 1.0 / value);
+            => AddImpedance(n, m, new Complex(value, 0));
 
         /// <summary>
-        /// Adds the given impedence value between the given nodes.
+        /// Adds the given reactance value between the given nodes.
         /// 
         /// If n is null, it is assumed to be the common ground node.
         /// </summary>
         /// <param name="n"></param>
         /// <param name="m"></param>
         /// <param name="value"></param>
-        public void AddImpedence(int? n, int? m, double value)
-            => AddAdmittance(n, m, new Complex(0, 1.0 / value));
+        public void AddReactance(int? n, int? m, double value)
+            => AddImpedance(n, m, new Complex(0, value));
 
         /// <summary>
         /// Adds the equation `V(m) - V(n) = z[v]` to the system of equations.
