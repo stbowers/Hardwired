@@ -221,8 +221,12 @@ namespace Hardwired.Utility
 
         public static Circuit? Merge(Circuit? a, Circuit? b)
         {
+            // If a or b is null, nothing to merge (just return the other)
             if (a is null) { return b; }
             if (b is null) { return a; }
+
+            // If a == b, nothing to merge (same network)
+            if (a == b) { return a; }
 
             foreach (var component in b.Components.ToList())
             {
