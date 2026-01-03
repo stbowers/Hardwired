@@ -63,6 +63,8 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
+            stringBuilder.AppendLine($"DEBUG: {_v}");
+
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Frequency: {Frequency.ToStringPrefix("Hz", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current?.Magnitude.ToStringPrefix("A", "yellow") ?? "N/A"}");
@@ -103,6 +105,8 @@ namespace Hardwired.Objects.Electrical
                 Reactance = -1f / (w * Capacitance);
 
                 solver.AddReactance(n, m, Reactance);
+
+                _v = null;
             }
             // Otherwise for DC circuit, treat as a voltage source
             else
@@ -127,6 +131,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.GetSolverOutputs(solver);
 
+            int? n = GetNodeIndex(PinA);
+            int? m = GetNodeIndex(PinB);
+
             if (_v != null)
             {
                 Current = solver.GetCurrent(_v.Value);
@@ -139,6 +146,14 @@ namespace Hardwired.Objects.Electrical
                 // Update voltage & energy from new charge
                 Voltage = Charge / Capacitance;
                 Energy = 0.5 * Charge * Charge / Capacitance;
+            }
+            else
+            {
+                var vN = solver.GetVoltage(n);
+                var vM = solver.GetVoltage(m);
+                var dV = vM - vN;
+
+                Current = dV / new Complex(0, Reactance);
             }
         }
     }
