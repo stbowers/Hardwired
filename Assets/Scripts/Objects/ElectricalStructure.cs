@@ -21,9 +21,9 @@ namespace Hardwired.Objects
             }
         }
 
-        public override void OnDeregistered()
+        public override void OnDestroy()
         {
-            base.OnDeregistered();
+            base.OnDestroy();
 
             foreach (var component in GetComponents<ElectricalComponent>())
             {
