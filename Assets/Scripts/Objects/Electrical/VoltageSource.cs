@@ -34,6 +34,8 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public Complex? Current;
 
+        private int? _v;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -54,33 +56,28 @@ namespace Hardwired.Objects.Electrical
         {
             base.InitializeSolver(solver);
 
-            var v = GetVoltageSourceIndex(this);
-            if (v == null) { return; }
-
             int? n = GetNodeIndex(PinA);
             int? m = GetNodeIndex(PinB);
 
-            solver.InitializeVoltageSource(n, m, v.Value);
+            _v = solver.AddVoltageSource(n, m);
         }
 
         public override void UpdateSolverInputs(MNASolver solver)
         {
             base.UpdateSolverInputs(solver);
 
-            var v = GetVoltageSourceIndex(this);
-            if (v == null) { return; }
+            if (_v == null) { return; }
 
-            solver.SetVoltage(v.Value, Voltage);
+            solver.SetVoltage(_v.Value, Voltage);
         }
 
         public override void GetSolverOutputs(MNASolver solver)
         {
             base.GetSolverOutputs(solver);
 
-            var v = GetVoltageSourceIndex(this);
-            if (v == null) { return; }
+            if (_v == null) { return; }
 
-            Current = solver.GetCurrent(v.Value);
+            Current = solver.GetCurrent(_v.Value);
         }
     }
 }

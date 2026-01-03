@@ -168,7 +168,7 @@ namespace Hardwired.Utility
 
                     Hardwired.LogDebug($"Circuit network {ReferenceId} - Initializing solver with {nNodes} nodes and {nVSources} voltage sources, at {frequency} Hz");
 
-                    _solver.Initialize(nNodes, nVSources, frequency);
+                    _solver.Initialize(nNodes, frequency);
 
                     foreach (var component in Components)
                     {

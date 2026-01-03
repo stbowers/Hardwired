@@ -1,7 +1,7 @@
 using System.Numerics;
 using Hardwired.Utility;
 
-namespace Hardwired.UnitTests;
+namespace Hardwired.UnitTests.Tests.Utility;
 
 public class MNASolverTests
 {
@@ -20,7 +20,7 @@ public class MNASolverTests
                 },
                 VoltageSources =
                 {
-                    (0, 0, 24.0)
+                    (null, 0, 24.0)
                 },
             },
             new ExpectedOutputs()
@@ -48,7 +48,7 @@ public class MNASolverTests
                 },
                 VoltageSources =
                 {
-                    (0, 0, 24.0)
+                    (null, 0, 24.0)
                 },
             },
             new ExpectedOutputs()
@@ -77,7 +77,7 @@ public class MNASolverTests
                 VoltageSources =
                 {
                     // 24 V source connected to node 0
-                    (0, 0, 24.0)
+                    (null, 0, 24.0)
                 },
             },
             new ExpectedOutputs()
@@ -106,7 +106,7 @@ public class MNASolverTests
                 VoltageSources =
                 {
                     // 0.1 V AC @ 200 Hz
-                    (0, 0, 0.1)
+                    (null, 0, 0.1)
                 },
             },
             new ExpectedOutputs()
@@ -123,7 +123,7 @@ public class MNASolverTests
     {
         var solver = new MNASolver();
 
-        solver.Initialize(circuit.Nodes, circuit.VoltageSources.Count, circuit.Frequency);
+        solver.Initialize(circuit.Nodes, circuit.Frequency);
 
         foreach ((int? n, int? m, Complex a) in circuit.Admittances)
         {
@@ -135,9 +135,9 @@ public class MNASolverTests
             solver.SetCurrent(n, m, i);
         }
 
-        foreach ((int n, int v, Complex e) in circuit.VoltageSources)
+        foreach ((int? n, int? m, Complex e) in circuit.VoltageSources)
         {
-            solver.InitializeVoltageSource(null, n, v);
+            int v = solver.AddVoltageSource(n, m);
             solver.SetVoltage(v, e);
         }
 
@@ -169,7 +169,7 @@ public class MNASolverTests
         public double Frequency { get; set; }
         public List<(int? n, int? m, Complex a)> Admittances { get; } = new();
         public List<(int? n, int? m, Complex i)> CurrentSources { get; } = new();
-        public List<(int n, int v, Complex e)> VoltageSources { get; } = new();
+        public List<(int? n, int? m, Complex e)> VoltageSources { get; } = new();
     }
 
     public class ExpectedOutputs

@@ -14,12 +14,30 @@ namespace Hardwired.Objects.Electrical
     /// a capacitor will act as a voltage source in the circuit, applying a voltage based on it's current charge.
     /// After the circuit is solved, the charge is updated based on how much current flowed through the capacitor.
     /// </summary>
-    public class Capacitor : VoltageSource
+    public class Capacitor : ElectricalComponent
     {
         /// <summary>
         /// Capacitance value in Farads
         /// </summary>
         public double Capacitance;
+
+        /// <summary>
+        /// The DC voltage, or maximum AC voltage.
+        /// </summary>
+        [HideInInspector]
+        public double Voltage;
+
+        /// <summary>
+        /// The AC frequency of the voltage source, or 0 for a DC voltage source.
+        /// </summary>
+        [HideInInspector]
+        public double Frequency;
+
+        /// <summary>
+        /// The momentary current across this voltage source calculated by the circuit solver.
+        /// </summary>
+        [HideInInspector]
+        public Complex? Current;
 
         /// <summary>
         /// Reactance value in ohms (depends on AC circuit frequency)
@@ -39,9 +57,22 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public double Energy;
 
+        private int? _v;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
+
+            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Frequency: {Frequency.ToStringPrefix("Hz", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current?.Magnitude.ToStringPrefix("A", "yellow") ?? "N/A"}");
+
+            if (Frequency != 0f)
+            {
+                // Note - by convention current flow for a voltage source is essentially the current "produced" by the source, not "flowing through"
+                // the source... This means it's generally opposite from what we expect, so we negate it first before displaying.
+                stringBuilder.AppendLine($"Current Phase: {(-Current)?.Phase.ToStringPrefix("rad", "yellow") ?? "N/A"}");
+            }
 
             stringBuilder.AppendLine($"Capacitance: {Capacitance.ToStringPrefix("F", "yellow")}");
             stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("C", "yellow") ?? "N/A"}");
@@ -57,6 +88,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.InitializeSolver(solver);
 
+            int? n = GetNodeIndex(PinA);
+            int? m = GetNodeIndex(PinB);
+
             // Match frequency from solver
             Frequency = solver.Frequency;
 
@@ -68,14 +102,24 @@ namespace Hardwired.Objects.Electrical
                 var w = 2f * Math.PI * Frequency;
                 Reactance = -1f / (w * Capacitance);
 
-                int? n = GetNodeIndex(PinA);
-                int? m = GetNodeIndex(PinB);
-
                 solver.AddReactance(n, m, Reactance);
             }
+            // Otherwise for DC circuit, treat as a voltage source
             else
             {
                 Reactance = 0f;
+
+                _v = solver.AddVoltageSource(n, m);
+            }
+        }
+
+        public override void UpdateSolverInputs(MNASolver solver)
+        {
+            base.UpdateSolverInputs(solver);
+
+            if (_v != null)
+            {
+                solver.SetVoltage(_v.Value, Voltage);
             }
         }
 
@@ -83,21 +127,19 @@ namespace Hardwired.Objects.Electrical
         {
             base.GetSolverOutputs(solver);
 
-            // Don't update charge for AC circuit
-            if (Frequency != 0f) { return; }
+            if (_v != null)
+            {
+                Current = solver.GetCurrent(_v.Value);
 
-            // We must have solved for a valid current, otherwise we have nothing to do...
-            if (Current == null){ return; }
+                // Calculate charge - dQ = I * dT
+                // Each power tick is .5 seconds - should this be a constant or calculated instead of hard coded?
+                var deltaCharge = 0.5 * Current.Value.Real;
+                Charge += deltaCharge;
 
-            // Calculate charge - dQ = I * dT
-            // Each power tick is .5 seconds - should this be a constant or calculated instead of hard coded?
-            var deltaCharge = 0.5 * Current.Value.Real;
-            Charge += deltaCharge;
-
-            // Update voltage & energy from new charge
-            Voltage = Charge / Capacitance;
-            Energy = 0.5 * Charge * Charge / Capacitance;
+                // Update voltage & energy from new charge
+                Voltage = Charge / Capacitance;
+                Energy = 0.5 * Charge * Charge / Capacitance;
+            }
         }
-
     }
 }

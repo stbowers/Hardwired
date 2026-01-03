@@ -2,6 +2,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Factorization;
 using Complex = System.Numerics.Complex;
@@ -50,14 +51,14 @@ namespace Hardwired.Utility
         /// The first `_nodes` values will be the voltages at each node.
         /// The next `_voltageSources` values will be the currents across each voltage source.
         /// </summary>
-        private Vector<Complex>? _x;
+        private Matrix<Complex>? _x;
 
         /// <summary>
         /// Vector of known values to be used as inputs.
         /// The first `_nodes` values will be the current flowing through each node from current sources (positive values indicate current flowing out of the node).
         /// The next `_voltageSources` values will be the voltage of each voltage source.
         /// </summary>
-        private Vector<Complex>? _z;
+        private Matrix<Complex>? _z;
 
         /// <summary>
         /// The number of nodes in the circuit
@@ -84,13 +85,13 @@ namespace Hardwired.Utility
         /// </summary>
         /// <param name="nodes"></param>
         /// <param name="voltageSources"></param>
-        public void Initialize(int nodes, int voltageSources, double frequency)
+        public void Initialize(int nodes, double frequency)
         {
             IsValid = true;
             Frequency = frequency;
 
             Nodes = nodes;
-            VoltageSources = voltageSources;
+            VoltageSources = 0;
 
             int totalSize = Nodes + VoltageSources;
 
@@ -105,9 +106,9 @@ namespace Hardwired.Utility
             }
 
             // (re)create z vector, or zero if existing vector is correct size
-            if (_z is null || _z.Count != totalSize)
+            if (_z is null || _z.RowCount != totalSize)
             {
-                _z = Vector<Complex>.Build.Dense(totalSize);
+                _z = Matrix<Complex>.Build.Dense(totalSize, 1);
             }
             else
             {
@@ -195,21 +196,27 @@ namespace Hardwired.Utility
             => AddImpedance(n, m, new Complex(0, value));
 
         /// <summary>
-        /// Adds the equation `V(m) - V(n) = z[v]` to the system of equations.
+        /// Adds a voltage source to the system of equations, representing the equation `V(m) - V(n) = z[v]`.
         /// 
         /// If either `n` or `m` is null, it is assumed to be the common ground node.
         /// 
         /// Must be called when initializing the solver, as this method modifies the A matrix.
         /// 
-        /// After initializing, the voltage of this voltage source can be updated by calling `SetVoltage()`
+        /// The return value is the index of the voltage source, which can be used with `SetVoltage()` to set the voltage as an input to the system.
         /// </summary>
         /// <param name="n"></param>
         /// <param name="m"></param>
-        /// <param name="v"></param>
-        /// <param name="value"></param>
-        public void InitializeVoltageSource(int? n, int? m, int v)
+        public int AddVoltageSource(int? n, int? m)
         {
             if (_A is null || _z is null) { ThrowNotInitializedException(); }
+
+            int v = VoltageSources;
+            VoltageSources += 1;
+
+            int newSize = Nodes + VoltageSources;
+            _A = _A.Resize(newSize, newSize);
+            _z = _z.Resize(newSize, 1);
+            _A_LU = null;
 
             // Calculate index for this voltage source - by convention, the equations for each voltage source are put at the end of the matrix,
             // after node voltage equations
@@ -233,8 +240,7 @@ namespace Hardwired.Utility
                 _A[m.Value, j] = 1;
             }
 
-            // Since A was modified, invalidate factorization so it will be re-factored on the next solve
-            _A_LU = null;
+            return v;
         }
 
         /// <summary>
@@ -253,7 +259,7 @@ namespace Hardwired.Utility
             int j = Nodes + v;
 
             // Set input voltage to the given value
-            _z[j] = value;
+            _z[j, 0] = value;
         }
 
         /// <summary>
@@ -270,12 +276,12 @@ namespace Hardwired.Utility
 
             if (n != null)
             {
-                _z[n.Value] = -value;
+                _z[n.Value, 0] = -value;
             }
 
             if (m != null)
             {
-                _z[m.Value] = value;
+                _z[m.Value, 0] = value;
             }
         }
 
@@ -315,9 +321,9 @@ namespace Hardwired.Utility
         /// <returns></returns>
         public Complex GetVoltage(int? n)
         {
-            if (n != null && _x is not null && _x.Count > n.Value)
+            if (n != null && _x is not null && _x.RowCount > n.Value)
             {
-                return _x[n.Value];
+                return _x[n.Value, 0];
             }
             else
             {
@@ -334,9 +340,9 @@ namespace Hardwired.Utility
         {
             int m = Nodes + v;
 
-            if (_x is not null && _x.Count > m)
+            if (_x is not null && _x.RowCount > m)
             {
-                return _x[m];
+                return _x[m, 0];
             }
             else
             {
