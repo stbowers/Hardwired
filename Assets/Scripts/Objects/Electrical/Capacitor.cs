@@ -92,8 +92,26 @@ namespace Hardwired.Objects.Electrical
             // Match frequency from solver
             Frequency = solver.Frequency;
 
-            // If circuit has AC current, add impedence based on the frequency
-            if (Frequency != 0f)
+            // If circuit is DC, set up differential equation to simulate transient behavior
+            if (solver.Frequency == 0f)
+            {
+                Reactance = 0f;
+
+                // TODO: Add some better documentation about what this is doing...
+                // Basically we're adding another term, + (C * dv/dt), to the current equations for nodes n and m, representing the current flowing through the capacitor.
+                // If we then add (C * V_t-1 / dt) (where V_t-1 is the voltage from the last tick) to both sides of the equation, the dv/dt term turns in to (C / dt) * (V_t-1 + dv).
+                // If we then consider V = V_t-1 + dv (approximation based on tick speed), the term is now (C / dt) * V, and we can simply add it to the A matrix as (C / dt).
+                //
+                // TL;DR: by adding an extra term to the A matrix and z vector, we're essentially solving the differential equation step-by-step with an approximation similar to
+                // v(t) = v(t-1) + dv
+                var dt = 0.5;
+                var a = Capacitance / dt;
+
+                solver.AddAdmittance(n, m, a);
+
+            }
+            // Otherwise, if circuit is AC the capacitor has no transient behavior but instead just has a complex impedance value
+            else
             {
                 // Note - the complex impedence value for the capacitor is 1 / (j * w * C), where j is the imaginary unit (instead of 'i' to avoid confusion with current).
                 // When treating the impedence as a real value we negate it since 1 / j = -j, so when later used as the imaginary component of a complex value it will be correct.
@@ -102,27 +120,19 @@ namespace Hardwired.Objects.Electrical
 
                 solver.AddReactance(n, m, Reactance);
             }
-            // Otherwise for DC circuit, treat as a voltage source
-            else
-            {
-                Reactance = 0f;
-
-                var dt = 0.5;
-                var a = Capacitance / dt;
-
-                solver.AddAdmittance(n, m, a);
-            }
         }
 
         public override void UpdateSolverInputs(MNASolver solver)
         {
             base.UpdateSolverInputs(solver);
 
+            // If circuit is DC, update the 
             if (Frequency == 0f)
             {
                 int? n = GetNodeIndex(PinA);
                 int? m = GetNodeIndex(PinB);
 
+                // Add (C * V_t-1 / dt) to the right hand side of the node equations in order to take in to account transient behavior (see setup above)
                 var dt = 0.5;
                 var x = Capacitance * Voltage / dt;
 

@@ -76,13 +76,18 @@ namespace Hardwired.Objects.Electrical
             }
             else
             {
+                // TODO: Add some better documentation about what this is doing...
+                // By adding an extra term to the A matrix and z vector, we're essentially solving the differential equation step-by-step with an approximation similar to
+                // i(t) = i(t-1) + dv.
+                // A similar setup is used for Capacitor as well, and has better comments
                 _v = solver.AddVoltageSource(n, m);
 
                 var dt = 0.5;
                 var x = Inductance / dt;
 
+                // TODO: We don't have "direct" access to the part of the A matrix we need to modify for inductors...
+                // It would probably be good to refactor this code at some point to make it more clear what we're adding
                 var j = solver.Nodes + _v;
-
                 solver.AddAdmittance(j, null, x);
             }
         }
