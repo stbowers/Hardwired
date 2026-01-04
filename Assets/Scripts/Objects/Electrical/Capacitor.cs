@@ -57,13 +57,9 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public double Energy;
 
-        private int? _v;
-
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
-
-            stringBuilder.AppendLine($"DEBUG: {_v}");
 
             stringBuilder.AppendLine($"Voltage: {Voltage.Magnitude.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Frequency: {Frequency.ToStringPrefix("Hz", "yellow")}");
@@ -105,15 +101,16 @@ namespace Hardwired.Objects.Electrical
                 Reactance = -1f / (w * Capacitance);
 
                 solver.AddReactance(n, m, Reactance);
-
-                _v = null;
             }
             // Otherwise for DC circuit, treat as a voltage source
             else
             {
                 Reactance = 0f;
 
-                _v = solver.AddVoltageSource(n, m);
+                var dt = 0.5;
+                var a = Capacitance / dt;
+
+                solver.AddAdmittance(n, m, a);
             }
         }
 
@@ -121,9 +118,15 @@ namespace Hardwired.Objects.Electrical
         {
             base.UpdateSolverInputs(solver);
 
-            if (_v != null)
+            if (Frequency == 0f)
             {
-                solver.SetVoltage(_v.Value, Voltage);
+                int? n = GetNodeIndex(PinA);
+                int? m = GetNodeIndex(PinB);
+
+                var dt = 0.5;
+                var x = Capacitance * Voltage / dt;
+
+                solver.SetCurrent(n, m, x);
             }
         }
 
@@ -134,17 +137,20 @@ namespace Hardwired.Objects.Electrical
             int? n = GetNodeIndex(PinA);
             int? m = GetNodeIndex(PinB);
 
-            if (_v != null)
+            if (Frequency == 0f)
             {
-                Current = solver.GetCurrent(_v.Value);
+                var vN = solver.GetVoltage(n);
+                var vM = solver.GetVoltage(m);
+                Voltage = vM - vN;
 
                 // Calculate charge - dQ = I * dT
                 // Each power tick is .5 seconds - should this be a constant or calculated instead of hard coded?
-                var deltaCharge = 0.5 * Current.Value.Real;
-                Charge += deltaCharge;
+                // var deltaCharge = 0.5 * Current.Value.Real;
+                // Charge += deltaCharge;
 
                 // Update voltage & energy from new charge
-                Voltage = Charge / Capacitance;
+                // Voltage = Charge / Capacitance;
+                Charge = Voltage.Real * Capacitance;
                 Energy = 0.5 * Charge * Charge / Capacitance;
             }
             else

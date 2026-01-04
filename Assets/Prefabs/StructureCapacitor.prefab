@@ -307,8 +307,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   PinA: 0
   PinB: -1
-  Voltage: 0
-  Capacitance: 0.1
+  Capacitance: 0.0001
+  Frequency: 0
+  Reactance: 0
   Charge: 0
   Energy: 0
 --- !u!114 &4625376819722840815
