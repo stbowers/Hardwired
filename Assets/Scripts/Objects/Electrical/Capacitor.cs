@@ -25,7 +25,7 @@ namespace Hardwired.Objects.Electrical
         /// The DC voltage, or maximum AC voltage.
         /// </summary>
         [HideInInspector]
-        public double Voltage;
+        public Complex Voltage;
 
         /// <summary>
         /// The AC frequency of the voltage source, or 0 for a DC voltage source.
@@ -65,7 +65,7 @@ namespace Hardwired.Objects.Electrical
 
             stringBuilder.AppendLine($"DEBUG: {_v}");
 
-            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Voltage: {Voltage.Magnitude.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Frequency: {Frequency.ToStringPrefix("Hz", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current?.Magnitude.ToStringPrefix("A", "yellow") ?? "N/A"}");
 
@@ -151,9 +151,9 @@ namespace Hardwired.Objects.Electrical
             {
                 var vN = solver.GetVoltage(n);
                 var vM = solver.GetVoltage(m);
-                var dV = vM - vN;
+                Voltage = vM - vN;
 
-                Current = dV / new Complex(0, Reactance);
+                Current = Voltage / new Complex(0, Reactance);
             }
         }
     }
