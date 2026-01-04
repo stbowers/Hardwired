@@ -307,8 +307,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   PinA: 0
   PinB: -1
-  Inductance: 0.003
-  Impedence: 0
+  Inductance: 100
+  Reactance: 0
+  Energy: 0
 --- !u!114 &4625376819722840815
 MonoBehaviour:
   m_ObjectHideFlags: 0
