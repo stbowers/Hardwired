@@ -243,6 +243,52 @@ namespace Hardwired.Utility
             return v;
         }
 
+        public int AddTransformer(int? a, int? b, int? c, int? d, double n)
+        {
+            if (_A is null || _z is null) { ThrowNotInitializedException(); }
+
+            var v1 = VoltageSources;
+            var v2 = VoltageSources + 1;
+            VoltageSources += 2;
+
+            int newSize = Nodes + VoltageSources;
+            _A = _A.Resize(newSize, newSize);
+            _z = _z.Resize(newSize, 1);
+            _A_LU = null;
+
+            var i1 = Nodes + v1;
+            var i2 = Nodes + v2;
+            
+            if (a != null)
+            {
+                _A[a.Value, i1] += 1;
+                _A[i1, a.Value] += 1;
+            }
+
+            if (b != null)
+            {
+                _A[b.Value, i1] -= 1;
+                _A[i1, b.Value] -= 1;
+            }
+
+            if (c != null)
+            {
+                _A[c.Value, i2] += 1;
+                _A[i1, c.Value] -= n;
+            }
+
+            if (d != null)
+            {
+                _A[d.Value, i2] -= 1;
+                _A[i1, d.Value] += n;
+            }
+
+            _A[i2, i2] += 1;
+            _A[i2, i1] -= n;
+
+            return v1;
+        }
+
         /// <summary>
         /// Sets the voltage for voltage source `v` to the given value.
         /// 
