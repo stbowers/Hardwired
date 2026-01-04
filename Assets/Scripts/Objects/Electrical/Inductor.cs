@@ -40,6 +40,8 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public double Energy;
 
+        private int _v;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -61,16 +63,27 @@ namespace Hardwired.Objects.Electrical
         {
             base.InitializeSolver(solver);
 
+            int? n = GetNodeIndex(PinA);
+            int? m = GetNodeIndex(PinB);
+
             // If circuit has AC current, add impedence based on the frequency
             if (solver.Frequency != 0)
             {
                 var w = 2f * Math.PI * solver.Frequency;
                 Reactance = w * Inductance;
 
-                int? n = GetNodeIndex(PinA);
-                int? m = GetNodeIndex(PinB);
-
                 solver.AddReactance(n, m, Reactance);
+            }
+            else
+            {
+                _v = solver.AddVoltageSource(n, m);
+
+                var dt = 0.5;
+                var x = Inductance / dt;
+
+                var j = solver.Nodes + _v;
+
+                solver.AddAdmittance(j, null, x);
             }
         }
 
@@ -83,7 +96,10 @@ namespace Hardwired.Objects.Electrical
 
             if (solver.Frequency == 0f)
             {
-                solver.SetCurrent(n, m, Current);
+                var dt = 0.5;
+                var x = Inductance * Current / dt;
+
+                solver.SetVoltage(_v, x);
             }
         }
 
@@ -99,10 +115,7 @@ namespace Hardwired.Objects.Electrical
 
             if (solver.Frequency == 0f)
             {
-                var dt = 0.5;
-                var dI = dt * Voltage / Inductance;
-
-                Current += dI;
+                Current = solver.GetCurrent(_v);
 
                 Energy = (0.5f * Inductance * Current * Current).Magnitude;
             }
