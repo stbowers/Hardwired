@@ -75,27 +75,33 @@ namespace Hardwired.Objects.Electrical
         {
             base.UpdateSolverInputs(solver);
 
-            // Determine how much power we should "request"
             double v = Math.Max(0.01, Voltage.Magnitude);
-            double requestedPower = PowerTarget;
+            double r, iSlewMax;
 
-            if (v < MinVoltage)
+            if (v < MinVoltage || v > MaxVoltage)
             {
-                requestedPower = 0f;
+                r = 0f;
+                iSlewMax = 5f;
             }
-            else if (v > MaxVoltage)
+            else if (v >= BrownoutVoltage)
             {
-                requestedPower = 0f;
+                r = 1f;
+                iSlewMax = 5f;
             }
-            else if (v < BrownoutVoltage)
+            else
             {
-                double r = (v - MinVoltage) / (BrownoutVoltage - MinVoltage);
-                requestedPower = PowerTarget * r;
+                r = (v - MinVoltage) / (BrownoutVoltage - MinVoltage);
+                iSlewMax = 0.01f;
             }
 
-            // Calculate new current value based on requested power and current voltage; ensure current is in-phase with voltage
-            // Note - we clamp i to no more than 5A more than the previous value, to limit the rate at which current can suddenly "jump", to avoid shocking the network.
-            double i = Math.Clamp(requestedPower / v, 0, Current.Magnitude + 5f);
+            double G = r * PowerTarget / (BrownoutVoltage * BrownoutVoltage);
+
+            double iResistive = G * v;
+            double iPower = PowerTarget / v;
+
+            double i = r * iPower + (1 - r) * iResistive;
+            i = Math.Clamp(i, Current.Magnitude - iSlewMax, Current.Magnitude + iSlewMax);
+
             Complex vUnit = Voltage / v;
             Current = i * vUnit;
 
