@@ -6,7 +6,6 @@ using System.Text;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
 using Hardwired.Utility;
-using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
 using UnityEngine;
 
@@ -70,18 +69,14 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            var vP_rms = PrimaryVoltage.RootMeanSquare();
-            var vS_rms = SecondaryVoltage.RootMeanSquare();
-            var iP_rms = PrimaryCurrent.RootMeanSquare();
-            var iS_rms = SecondaryCurrent.RootMeanSquare();
-            var primaryPower = 0.5f * (PrimaryVoltage * PrimaryCurrent.Conjugate()).Real;
-            var secondaryPower = 0.5f * (SecondaryVoltage * SecondaryCurrent.Conjugate()).Real;
+            var primaryPower = (PrimaryVoltage * PrimaryCurrent.Conjugate()).Real;
+            var secondaryPower = (SecondaryVoltage * SecondaryCurrent.Conjugate()).Real;
 
             stringBuilder.AppendLine($"N: {N}");
-            stringBuilder.AppendLine($"Primary Coil Voltage (RMS): {vP_rms.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Secondary Coil Voltage (RMS): {vS_rms.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Primary Coil Current (RMS): {iP_rms.ToStringPrefix("A", "yellow")}");
-            stringBuilder.AppendLine($"Secondary Coil Current (RMS): {iS_rms.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Primary Coil Voltage: {PrimaryVoltage.Magnitude.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Secondary Coil Voltage: {SecondaryVoltage.Magnitude.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Primary Coil Current: {PrimaryCurrent.Magnitude.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Secondary Coil Current: {SecondaryCurrent.Magnitude.ToStringPrefix("A", "yellow")}");
             stringBuilder.AppendLine($"Primary Coil Power: {primaryPower.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Secondary Coil Power: {secondaryPower.ToStringPrefix("W", "yellow")}");
         }
