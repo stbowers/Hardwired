@@ -55,6 +55,12 @@ namespace Hardwired.Utility
                 EnsureConnectionHasNode(component.ConnectionA);
                 EnsureConnectionHasNode(component.ConnectionB);
 
+                if (component is Transformer tx)
+                {
+                    EnsureConnectionHasNode(tx.ConnectionC);
+                    EnsureConnectionHasNode(tx.ConnectionD);
+                }
+
                 if (component is VoltageSource voltageSource)
                 {
                     _voltageSources.Add(voltageSource);

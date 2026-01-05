@@ -33,7 +33,7 @@ namespace Hardwired.Objects.Electrical
 
         public Connection? ConnectionB => GetConnection(PinB);
 
-        public void ConnectCircuit()
+        public virtual void ConnectCircuit()
         {
             // If we're already connected, disconnect first so we don't end up in two networks...
             DisconnectCircuit();
@@ -139,7 +139,10 @@ namespace Hardwired.Objects.Electrical
             var components = peerStructure.GetComponents<ElectricalComponent>();
 
             // Look for the component attached to the peer connection
-            return components.FirstOrDefault(c => c.PinA == peerConnectionIndex || c.PinB == peerConnectionIndex);
+            return components.FirstOrDefault(c => c.UsesConnection(peerConnectionIndex));
         }
+
+        protected virtual bool UsesConnection(int connection)
+            => PinA == connection || PinB == connection;
     }
 }

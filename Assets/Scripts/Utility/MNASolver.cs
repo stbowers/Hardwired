@@ -42,7 +42,7 @@ namespace Hardwired.Utility
         /// Column A[n, (_nodes + v)] for values of v between 0 and `_voltageSources` represents the contribution
         /// of voltage source `v`'s current to node n.
         /// </summary>
-        private Matrix<Complex>? _A;
+        public Matrix<Complex>? _A;
 
         private LU<Complex>? _A_LU;
 
@@ -51,14 +51,14 @@ namespace Hardwired.Utility
         /// The first `_nodes` values will be the voltages at each node.
         /// The next `_voltageSources` values will be the currents across each voltage source.
         /// </summary>
-        private Matrix<Complex>? _x;
+        public Matrix<Complex>? _x;
 
         /// <summary>
         /// Vector of known values to be used as inputs.
         /// The first `_nodes` values will be the current flowing through each node from current sources (positive values indicate current flowing out of the node).
         /// The next `_voltageSources` values will be the voltage of each voltage source.
         /// </summary>
-        private Matrix<Complex>? _z;
+        public Matrix<Complex>? _z;
 
         /// <summary>
         /// The number of nodes in the circuit
@@ -243,10 +243,11 @@ namespace Hardwired.Utility
             return v;
         }
 
-        public int AddTransformer(int? a, int? b, int? c, int? d, double n)
+        public int AddTransformer(int? a, int? b, int? c, int? d, double l1, double l2, double m)
         {
             if (_A is null || _z is null) { ThrowNotInitializedException(); }
 
+            // Add 2 new current variables
             var v1 = VoltageSources;
             var v2 = VoltageSources + 1;
             VoltageSources += 2;
@@ -258,6 +259,9 @@ namespace Hardwired.Utility
 
             var i1 = Nodes + v1;
             var i2 = Nodes + v2;
+
+            // Add impedance for inductors
+            var w = 2f * Math.PI * Frequency;
             
             if (a != null)
             {
@@ -274,17 +278,19 @@ namespace Hardwired.Utility
             if (c != null)
             {
                 _A[c.Value, i2] += 1;
-                _A[i1, c.Value] -= n;
+                _A[i2, c.Value] += 1;
             }
 
             if (d != null)
             {
                 _A[d.Value, i2] -= 1;
-                _A[i1, d.Value] += n;
+                _A[i2, d.Value] -= 1;
             }
 
-            _A[i2, i2] += 1;
-            _A[i2, i1] -= n;
+            _A[i1, i1] -= new Complex(0, w * l1);
+            _A[i1, i2] -= new Complex(0, w * m);
+            _A[i2, i1] -= new Complex(0, w * m);
+            _A[i2, i2] -= new Complex(0, w * l2);
 
             return v1;
         }
