@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
 using Hardwired.Utility;
+using Hardwired.Utility.Extensions;
 using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
@@ -28,16 +29,10 @@ namespace Hardwired.Objects.Electrical
         public Complex Voltage;
 
         /// <summary>
-        /// The AC frequency of the voltage source, or 0 for a DC voltage source.
-        /// </summary>
-        [HideInInspector]
-        public double Frequency;
-
-        /// <summary>
         /// The momentary current across this voltage source calculated by the circuit solver.
         /// </summary>
         [HideInInspector]
-        public Complex? Current;
+        public Complex Current;
 
         /// <summary>
         /// Reactance value in ohms (depends on AC circuit frequency)
@@ -61,39 +56,24 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Voltage: {Voltage.Magnitude.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Frequency: {Frequency.ToStringPrefix("Hz", "yellow")}");
-            stringBuilder.AppendLine($"Current: {Current?.Magnitude.ToStringPrefix("A", "yellow") ?? "N/A"}");
+            if (Circuit == null) { return; }
 
-            if (Frequency != 0f)
-            {
-                // Note - by convention current flow for a voltage source is essentially the current "produced" by the source, not "flowing through"
-                // the source... This means it's generally opposite from what we expect, so we negate it first before displaying.
-                stringBuilder.AppendLine($"Current Phase: {(-Current)?.Phase.ToStringPrefix("rad", "yellow") ?? "N/A"}");
-            }
-
+            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
             stringBuilder.AppendLine($"Capacitance: {Capacitance.ToStringPrefix("F", "yellow")}");
-            stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("C", "yellow") ?? "N/A"}");
-            stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow") ?? "N/A"}");
-
-            if (Frequency != 0f)
-            {
-                stringBuilder.AppendLine($"Reactance: {Reactance.ToStringPrefix("Ω", "yellow") ?? "N/A"}");
-            }
+            stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("C", "yellow")}");
+            stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow")}");
+            stringBuilder.AppendLine($"Reactance: {Reactance.ToStringPrefix("Ω", "yellow")}");
         }
 
-        public override void InitializeSolver(MNASolver solver)
+        public override void Initialize(Circuit circuit)
         {
-            base.InitializeSolver(solver);
+            base.Initialize(circuit);
 
-            int? n = GetNodeIndex(PinA);
-            int? m = GetNodeIndex(PinB);
-
-            // Match frequency from solver
-            Frequency = solver.Frequency;
+            if (Circuit == null) { return; }
 
             // If circuit is DC, set up differential equation to simulate transient behavior
-            if (solver.Frequency == 0f)
+            if (Circuit.Frequency == 0f)
             {
                 Reactance = 0f;
 
@@ -105,54 +85,51 @@ namespace Hardwired.Objects.Electrical
                 // TL;DR: by adding an extra term to the A matrix and z vector, we're essentially solving the differential equation step-by-step with an approximation similar to
                 // v(t) = v(t-1) + dv
                 var dt = 0.5;
-                var a = Capacitance / dt;
+                var i = Capacitance / dt;
 
-                solver.AddAdmittance(n, m, a);
-
+                Circuit.Solver.AddAdmittance(_vA, _vB, i);
             }
             // Otherwise, if circuit is AC the capacitor has no transient behavior but instead just has a complex impedance value
             else
             {
                 // Note - the complex impedence value for the capacitor is 1 / (j * w * C), where j is the imaginary unit (instead of 'i' to avoid confusion with current).
                 // When treating the impedence as a real value we negate it since 1 / j = -j, so when later used as the imaginary component of a complex value it will be correct.
-                var w = 2f * Math.PI * Frequency;
+                var w = 2f * Math.PI * Circuit.Frequency;
                 Reactance = -1f / (w * Capacitance);
 
-                solver.AddReactance(n, m, Reactance);
+                Circuit.Solver.AddReactance(_vA, _vB, Reactance);
             }
         }
 
-        public override void UpdateSolverInputs(MNASolver solver)
+        public override void UpdateState()
         {
-            base.UpdateSolverInputs(solver);
+            base.UpdateState();
 
-            // If circuit is DC, update the 
-            if (Frequency == 0f)
+            if (Circuit == null) { return; }
+
+            // If circuit is DC, update the current from last tick
+            if (Circuit.Frequency == 0f)
             {
-                int? n = GetNodeIndex(PinA);
-                int? m = GetNodeIndex(PinB);
-
                 // Add (C * V_t-1 / dt) to the right hand side of the node equations in order to take in to account transient behavior (see setup above)
                 var dt = 0.5;
                 var x = Capacitance * Voltage / dt;
 
-                solver.SetCurrent(n, m, x);
+                Circuit?.Solver.SetCurrent(_vA, _vB, x);
             }
         }
 
-        public override void GetSolverOutputs(MNASolver solver)
+        public override void ApplyState()
         {
-            base.GetSolverOutputs(solver);
+            base.ApplyState();
 
-            int? n = GetNodeIndex(PinA);
-            int? m = GetNodeIndex(PinB);
+            if (Circuit == null) { return; }
 
-            if (Frequency == 0f)
+            var vA = Circuit.Solver.GetValue(_vA) ?? Complex.Zero;
+            var vB = Circuit.Solver.GetValue(_vA) ?? Complex.Zero;
+            Voltage = vA - vB;
+
+            if (Circuit.Frequency == 0f)
             {
-                var vN = solver.GetVoltage(n);
-                var vM = solver.GetVoltage(m);
-                Voltage = vM - vN;
-
                 // Calculate charge - dQ = I * dT
                 // Each power tick is .5 seconds - should this be a constant or calculated instead of hard coded?
                 // var deltaCharge = 0.5 * Current.Value.Real;
@@ -165,10 +142,6 @@ namespace Hardwired.Objects.Electrical
             }
             else
             {
-                var vN = solver.GetVoltage(n);
-                var vM = solver.GetVoltage(m);
-                Voltage = vM - vN;
-
                 Current = Voltage / new Complex(0, Reactance);
             }
         }

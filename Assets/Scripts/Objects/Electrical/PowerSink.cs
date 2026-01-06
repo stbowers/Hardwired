@@ -117,9 +117,11 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("J", "yellow")} / {EnergyBufferMax.ToStringPrefix("J", "yellow")}");
         }
 
-        public override void InitializeSolver(MNASolver solver)
+        public override void Initialize(Circuit circuit)
         {
-            base.InitializeSolver(solver);
+            base.Initialize(circuit);
+
+            if (Circuit == null) { return; }
 
             // Set the max size of the energy buffer such that it can "absorb" a full second of power loss
             EnergyBufferMax = 1 * MaxPower;
@@ -129,15 +131,14 @@ namespace Hardwired.Objects.Electrical
             LoadImpedance = VoltageNominal * VoltageNominal / MaxPower;
 
             // Add the impedance to the circuit
-            var a = GetNodeIndex(PinA);
-            var b = GetNodeIndex(PinB);
-
-            solver.AddImpedance(a, b, LoadImpedance);
+            Circuit.Solver.AddImpedance(_vA, _vB, LoadImpedance);
         }
 
-        public override void UpdateSolverInputs(MNASolver solver)
+        public override void UpdateState()
         {
-            base.UpdateSolverInputs(solver);
+            base.UpdateState();
+
+            if (Circuit == null) { return; }
 
             // Update energy buffer
             double dt = 0.5;
@@ -169,20 +170,18 @@ namespace Hardwired.Objects.Electrical
             }
 
             // Add current to counteract the resistor to the circuit
-            var a = GetNodeIndex(PinA);
-            var b = GetNodeIndex(PinB);
-            solver.SetCurrent(a, b, SourceCurrent);
+            Circuit.Solver.SetCurrent(_vA, _vB, SourceCurrent);
         }
 
-        public override void GetSolverOutputs(MNASolver solver)
+        public override void ApplyState()
         {
-            base.GetSolverOutputs(solver);
+            base.ApplyState();
+
+            if (Circuit == null) { return; }
 
             // Get node voltages
-            var a = GetNodeIndex(PinA);
-            var b = GetNodeIndex(PinB);
-            var vA = solver.GetVoltage(a);
-            var vB = solver.GetVoltage(b);
+            var vA = Circuit.Solver.GetValueOrDefault(_vA);
+            var vB = Circuit.Solver.GetValueOrDefault(_vB);
 
             // Get voltage across the device, and calculate current going through the resistor
             Voltage = vA - vB;

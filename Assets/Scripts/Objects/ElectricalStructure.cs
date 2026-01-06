@@ -17,7 +17,7 @@ namespace Hardwired.Objects
 
             foreach (var component in GetComponents<ElectricalComponent>())
             {
-                component.ConnectCircuit();
+                // component.ConnectCircuit();
             }
         }
 
@@ -27,7 +27,7 @@ namespace Hardwired.Objects
 
             foreach (var component in GetComponents<ElectricalComponent>())
             {
-                component.DisconnectCircuit();
+                // component.DisconnectCircuit();
             }
         }
 

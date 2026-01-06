@@ -1,8 +1,10 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Hardwired.Utility.Extensions;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Factorization;
 using Complex = System.Numerics.Complex;
@@ -25,6 +27,98 @@ namespace Hardwired.Utility
     public class MNASolver
     {
         /// <summary>
+        /// Represents an unknown value and its corresponding equation in the system of equations.
+        /// 
+        /// For example, nodes in the circuit are an Unknown value representing the voltage at that node, and the KCL equation for that node.
+        /// 
+        /// Typical unknown values in MNA include:
+        /// - Node voltages
+        /// - Branch currents (i.e. for voltage source, transformer, etc)
+        /// </summary>
+        public class Unknown
+        {
+            public int Index;
+        }
+
+        private List<Unknown> _unknownValues = new();
+
+        public Unknown AddUnknown()
+            => AddUnknowns(1)[0];
+
+        public Unknown[] AddUnknowns(int count)
+        {
+            Unknown[] newUnknowns = new Unknown[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                newUnknowns[i] = new() { Index = _unknownValues.Count };
+                _unknownValues.Add(newUnknowns[i]);
+            }
+
+            var newSize = _unknownValues.Count;
+            _A = _A.Resize(newSize, newSize);
+            _z = _z.Resize(newSize, 1);
+
+            _A_LU = null;
+            _x = null;
+
+            return newUnknowns;
+        }
+
+        public void RemoveUnknown(Unknown unknown)
+        {
+            _unknownValues.Remove(unknown);
+
+            _A = _A.RemoveRowColumn(unknown.Index, unknown.Index);
+            _z = _z.RemoveRow(unknown.Index);
+
+            _A_LU = null;
+            _x = null;
+
+            for (int i = unknown.Index; i < _unknownValues.Count; i++)
+            {
+                _unknownValues[i].Index = i;
+            }
+        }
+
+        /// <summary>
+        /// Gets the solved value of the given unknown, or null if the unknown is invalid or the system has not been solved yet.
+        /// </summary>
+        /// <param name="unknown"></param>
+        /// <returns></returns>
+        public Complex? GetValue(Unknown? unknown)
+        {
+            if (unknown == null || _x == null) { return null; }
+            if (unknown.Index < 0 || unknown.Index > _x.RowCount) { return null; }
+
+            return _x[unknown.Index, 0];
+        }
+
+        /// <summary>
+        /// Gets the solved value of the given unknown, or 0 if the unknown is invalid or the system has not been solved yet.
+        /// </summary>
+        /// <param name="unknown"></param>
+        /// <returns></returns>
+        public Complex GetValueOrDefault(Unknown? unknown)
+            => GetValue(unknown) ?? default;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
         /// Matrix of coefficients for the system of equations.
         /// 
         /// A * x = z
@@ -42,7 +136,7 @@ namespace Hardwired.Utility
         /// Column A[n, (_nodes + v)] for values of v between 0 and `_voltageSources` represents the contribution
         /// of voltage source `v`'s current to node n.
         /// </summary>
-        public Matrix<Complex>? _A;
+        private Matrix<Complex> _A = Matrix<Complex>.Build.Dense(0, 0);
 
         private LU<Complex>? _A_LU;
 
@@ -51,78 +145,19 @@ namespace Hardwired.Utility
         /// The first `_nodes` values will be the voltages at each node.
         /// The next `_voltageSources` values will be the currents across each voltage source.
         /// </summary>
-        public Matrix<Complex>? _x;
+        private Matrix<Complex>? _x;
 
         /// <summary>
         /// Vector of known values to be used as inputs.
         /// The first `_nodes` values will be the current flowing through each node from current sources (positive values indicate current flowing out of the node).
         /// The next `_voltageSources` values will be the voltage of each voltage source.
         /// </summary>
-        public Matrix<Complex>? _z;
-
-        /// <summary>
-        /// The number of nodes in the circuit
-        /// </summary>
-        public int Nodes { get; private set; }
-
-        /// <summary>
-        /// The number of voltage sources in the circuit
-        /// </summary>
-        public int VoltageSources { get; private set; }
-
-        /// <summary>
-        /// The frequency of any AC voltages or currents in the circuit.
-        /// </summary>
-        public double Frequency { get; private set; }
-
-        /// <summary>
-        /// Indicates if Solve() was able to find a solution to the circuit.
-        /// </summary>
-        public bool IsValid { get; private set; }
-
-        /// <summary>
-        /// (re)initializes the solver for a circuit with the given number of nodes and voltage sources.
-        /// </summary>
-        /// <param name="nodes"></param>
-        /// <param name="voltageSources"></param>
-        public void Initialize(int nodes, double frequency)
-        {
-            IsValid = true;
-            Frequency = frequency;
-
-            Nodes = nodes;
-            VoltageSources = 0;
-
-            int totalSize = Nodes + VoltageSources;
-
-            // (re)create A matrix, or zero if existing matrix is correct size
-            if (_A is null || _A.RowCount != totalSize)
-            {
-                _A = Matrix<Complex>.Build.Dense(totalSize, totalSize);
-            }
-            else
-            {
-                _A.Clear();
-            }
-
-            // (re)create z vector, or zero if existing vector is correct size
-            if (_z is null || _z.RowCount != totalSize)
-            {
-                _z = Matrix<Complex>.Build.Dense(totalSize, 1);
-            }
-            else
-            {
-                _z.Clear();
-            }
-
-            // Clear cached factorization, regardless of if we made a new A matrix or not
-            _A_LU = null;
-        }
+        private Matrix<Complex> _z = Matrix<Complex>.Build.Dense(0, 1);
 
         /// <summary>
         /// Adds the given admittance value between the given nodes.
         /// 
-        /// If n is null, it is assumed to be the common ground node.
+        /// If either node is null, it is assumed to be the common ground node.
         /// 
         /// Admittance is a complex value that describes the ability of electricity to flow between two points.
         /// The real part represents conductance (i.e. reciprocal of resistance).
@@ -133,24 +168,22 @@ namespace Hardwired.Utility
         /// <param name="n"></param>
         /// <param name="m"></param>
         /// <param name="a"></param>
-        public void AddAdmittance(int? n, int? m, Complex value)
+        public void AddAdmittance(Unknown? a, Unknown? b, Complex value)
         {
-            if (_A is null || _z is null) { ThrowNotInitializedException(); }
-
-            if (n != null)
+            if (a != null)
             {
-                _A[n.Value, n.Value] += value;
+                _A[a.Index, a.Index] += value;
             }
 
-            if (m != null)
+            if (b != null)
             {
-                _A[m.Value, m.Value] += value;
+                _A[b.Index, b.Index] += value;
             }
 
-            if (n != null && m != null)
+            if (a != null && b != null)
             {
-                _A[n.Value, m.Value] -= value;
-                _A[m.Value, n.Value] -= value;
+                _A[a.Index, b.Index] -= value;
+                _A[b.Index, a.Index] -= value;
             }
 
             // Since A was modified, invalidate factorization so it will be re-factored on the next solve
@@ -168,8 +201,8 @@ namespace Hardwired.Utility
         /// <param name="n"></param>
         /// <param name="m"></param>
         /// <param name="value"></param>
-        public void AddImpedance(int? n, int? m, Complex value)
-            => AddAdmittance(n, m, 1f / value);
+        public void AddImpedance(Unknown? a, Unknown? b, Complex value)
+            => AddAdmittance(a, b, 1f / value);
 
         /// <summary>
         /// Adds the given resistance value between the given nodes.
@@ -180,8 +213,8 @@ namespace Hardwired.Utility
         /// <param name="n"></param>
         /// <param name="m"></param>
         /// <param name="value"></param>
-        public void AddResistance(int? n, int? m, double value)
-            => AddImpedance(n, m, new Complex(value, 0));
+        public void AddResistance(Unknown? a, Unknown? b, double value)
+            => AddImpedance(a, b, new Complex(value, 0));
 
         /// <summary>
         /// Adds the given reactance value between the given nodes.
@@ -192,8 +225,8 @@ namespace Hardwired.Utility
         /// <param name="n"></param>
         /// <param name="m"></param>
         /// <param name="value"></param>
-        public void AddReactance(int? n, int? m, double value)
-            => AddImpedance(n, m, new Complex(0, value));
+        public void AddReactance(Unknown? a, Unknown? b, double value)
+            => AddImpedance(a, b, new Complex(0, value));
 
         /// <summary>
         /// Adds a voltage source to the system of equations, representing the equation `V(m) - V(n) = z[v]`.
@@ -204,114 +237,97 @@ namespace Hardwired.Utility
         /// 
         /// The return value is the index of the voltage source, which can be used with `SetVoltage()` to set the voltage as an input to the system.
         /// </summary>
-        /// <param name="n"></param>
-        /// <param name="m"></param>
-        public int AddVoltageSource(int? n, int? m)
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        public void AddVoltageSource(Unknown? a, Unknown? b, out Unknown i)
         {
-            if (_A is null || _z is null) { ThrowNotInitializedException(); }
+            // Add an unknown for the current
+            i = AddUnknown();
 
-            int v = VoltageSources;
-            VoltageSources += 1;
-
-            int newSize = Nodes + VoltageSources;
-            _A = _A.Resize(newSize, newSize);
-            _z = _z.Resize(newSize, 1);
-            _A_LU = null;
-
-            // Calculate index for this voltage source - by convention, the equations for each voltage source are put at the end of the matrix,
-            // after node voltage equations
-            int j = Nodes + v;
-
-            if (n != null)
-            {
-                // V(n) ... = V
-                _A[j, n.Value] = -1;
-
-                // Add the voltage source's current to the destination node
-                _A[n.Value, j] = -1;
-            }
-
-            if (m != null)
-            {
-                // ... -V(m) = V
-                _A[j, m.Value] = 1;
-
-                // Subtract the voltage source's current from the source node
-                _A[m.Value, j] = 1;
-            }
-
-            return v;
-        }
-
-        public int AddTransformer(int? a, int? b, int? c, int? d, double l1, double l2, double m)
-        {
-            if (_A is null || _z is null) { ThrowNotInitializedException(); }
-
-            // Add 2 new current variables
-            var v1 = VoltageSources;
-            var v2 = VoltageSources + 1;
-            VoltageSources += 2;
-
-            int newSize = Nodes + VoltageSources;
-            _A = _A.Resize(newSize, newSize);
-            _z = _z.Resize(newSize, 1);
-            _A_LU = null;
-
-            var i1 = Nodes + v1;
-            var i2 = Nodes + v2;
-
-            // Add impedance for inductors
-            var w = 2f * Math.PI * Frequency;
-            
             if (a != null)
             {
-                _A[a.Value, i1] += 1;
-                _A[i1, a.Value] += 1;
+                // V(n) ... = V
+                _A[i.Index, a.Index] = -1;
+
+                // Add the voltage source's current to the destination node
+                _A[a.Index, i.Index] = -1;
             }
 
             if (b != null)
             {
-                _A[b.Value, i1] -= 1;
-                _A[i1, b.Value] -= 1;
+                // ... -V(m) = V
+                _A[i.Index, b.Index] = 1;
+
+                // Subtract the voltage source's current from the source node
+                _A[b.Index, i.Index] = 1;
+            }
+        }
+
+        /// <summary>
+        /// w = 2pi * f
+        /// wl1 = w * l1
+        /// wl2 = w * l2
+        /// wm = w * m
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <param name="c"></param>
+        /// <param name="d"></param>
+        /// <param name="wl1"></param>
+        /// <param name="wl2"></param>
+        /// <param name="wm"></param>
+        /// <param name="i1"></param>
+        /// <param name="i2"></param>
+        public void AddTransformer(Unknown? a, Unknown? b, Unknown? c, Unknown? d, double wL1, double wL2, double wM, out Unknown i1, out Unknown i2)
+        {
+            // Add 2 new unknowns for the current through each inductor
+            var unknowns = AddUnknowns(2);
+            i1 = unknowns[0];
+            i2 = unknowns[1];
+
+            if (a != null)
+            {
+                _A[a.Index, i1.Index] += 1;
+                _A[i1.Index, a.Index] += 1;
+            }
+
+            if (b != null)
+            {
+                _A[b.Index, i1.Index] -= 1;
+                _A[i1.Index, b.Index] -= 1;
             }
 
             if (c != null)
             {
-                _A[c.Value, i2] += 1;
-                _A[i2, c.Value] += 1;
+                _A[c.Index, i2.Index] += 1;
+                _A[i2.Index, c.Index] += 1;
             }
 
             if (d != null)
             {
-                _A[d.Value, i2] -= 1;
-                _A[i2, d.Value] -= 1;
+                _A[d.Index, i2.Index] -= 1;
+                _A[i2.Index, d.Index] -= 1;
             }
 
-            _A[i1, i1] -= new Complex(0, w * l1);
-            _A[i1, i2] -= new Complex(0, w * m);
-            _A[i2, i1] -= new Complex(0, w * m);
-            _A[i2, i2] -= new Complex(0, w * l2);
-
-            return v1;
+            _A[i1.Index, i1.Index] -= new Complex(0, wL1);
+            _A[i1.Index, i2.Index] -= new Complex(0, wM);
+            _A[i2.Index, i1.Index] -= new Complex(0, wM);
+            _A[i2.Index, i2.Index] -= new Complex(0, wL2);
         }
 
         /// <summary>
-        /// Sets the voltage for voltage source `v` to the given value.
+        /// Sets the voltage for the voltage source with unknown current `i` to the given value.
         /// 
-        /// `InitializeVoltageSource()` must be called before this method to ensure the system of equations was correctly set up.
+        /// `AddVoltageSource()` must be called before this method to ensure the system of equations was correctly set up.
         /// </summary>
         /// <param name="v"></param>
         /// <param name="value"></param>
-        public void SetVoltage(int v, Complex value)
+        public void SetVoltage(Unknown? i, Complex value)
         {
-            if (_A is null || _z is null) { ThrowNotInitializedException(); }
-
-            // Calculate index for this voltage source - by convention, the equations for each voltage source are put at the end of the matrix,
-            // after node voltage equations
-            int j = Nodes + v;
+            if (i == null) { return; }
 
             // Set input voltage to the given value
-            _z[j, 0] = value;
+            _z[i.Index, 0] = value;
         }
 
         /// <summary>
@@ -319,21 +335,19 @@ namespace Hardwired.Utility
         /// 
         /// If either n or m is null, it is assumed to be the common ground node.
         /// </summary>
-        /// <param name="n"></param>
-        /// <param name="m"></param>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
         /// <param name="i"></param>
-        public void SetCurrent(int? n, int? m, Complex value)
+        public void SetCurrent(Unknown? a, Unknown? b, Complex value)
         {
-            if (_A is null || _z is null) { ThrowNotInitializedException(); }
-
-            if (n != null)
+            if (a != null)
             {
-                _z[n.Value, 0] = -value;
+                _z[a.Index, 0] = -value;
             }
 
-            if (m != null)
+            if (b != null)
             {
-                _z[m.Value, 0] = value;
+                _z[b.Index, 0] = value;
             }
         }
 
@@ -342,70 +356,11 @@ namespace Hardwired.Utility
         /// </summary>
         public void Solve()
         {
-            if (_A is null || _z is null) { ThrowNotInitializedException(); }
-
-            // If circuit wasn't valid on the last call to solve, don't try to solve it again... (next call to Initialize() will reset IsValid so we can try again)
-            if (!IsValid) { return; }
-
             // Try to factorize A into L & U matricies, if not already set up
             _A_LU ??= _A.LU();
 
-            if (_A_LU == null)
-            {
-                IsValid = false;
-                return;
-            }
-
             // Solve for x
             _x = _A_LU.Solve(_z);
-
-            if (_x == null)
-            {
-                IsValid = false;
-                return;
-            }
-        }
-
-        /// <summary>
-        /// Gets the voltage (relative to common ground) at the given node.
-        /// </summary>
-        /// <param name="n"></param>
-        /// <returns></returns>
-        public Complex GetVoltage(int? n)
-        {
-            if (n != null && _x is not null && _x.RowCount > n.Value)
-            {
-                return _x[n.Value, 0];
-            }
-            else
-            {
-                return Complex.Zero;
-            }
-        }
-
-        /// <summary>
-        /// Gets the current for the given voltage source from the result vector
-        /// </summary>
-        /// <param name="vIndex"></param>
-        /// <returns></returns>
-        public Complex GetCurrent(int v)
-        {
-            int m = Nodes + v;
-
-            if (_x is not null && _x.RowCount > m)
-            {
-                return _x[m, 0];
-            }
-            else
-            {
-                return Complex.Zero;
-            }
-        }
-
-        [DoesNotReturn]
-        private void ThrowNotInitializedException()
-        {
-            throw new InvalidOperationException("MNASolver is not initialized");
         }
     }
 }

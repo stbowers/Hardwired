@@ -29,32 +29,9 @@ namespace Hardwired.Objects.Electrical
 
         public int PinB = -1;
 
-        public Connection? ConnectionA => GetConnection(PinA);
+        protected MNASolver.Unknown? _vA;
 
-        public Connection? ConnectionB => GetConnection(PinB);
-
-        public virtual void ConnectCircuit()
-        {
-            // If we're already connected, disconnect first so we don't end up in two networks...
-            DisconnectCircuit();
-
-            // Check for components connected to each pin
-            var connectedA = GetConnectedComponent(ConnectionA);
-            var connectedB = GetConnectedComponent(ConnectionB);
-
-            // Merge connected circuits if needed, or create a new circuit if no connections
-            Circuit = Circuit.Merge(connectedA?.Circuit, connectedB?.Circuit);
-            Circuit ??= new();
-
-            // Add this component to the circuit
-            Circuit?.AddComponent(this);
-        }
-
-        public void DisconnectCircuit()
-        {
-            Circuit?.RemoveComponent(this);
-            Circuit = null;
-        }
+        protected MNASolver.Unknown? _vB;
 
         /// <summary>
         /// For debugging - add info to the passive tooltip
@@ -68,7 +45,7 @@ namespace Hardwired.Objects.Electrical
             }
             else
             {
-                stringBuilder.AppendLine($"Circuit network: {Circuit.ReferenceId}");
+                stringBuilder.AppendLine($"Circuit network: {Circuit.Id}");
             }
         }
 
@@ -82,8 +59,27 @@ namespace Hardwired.Objects.Electrical
         /// should happen in `UpdateSolverInputs()`.
         /// </summary>
         /// <param name="solver"></param>
-        public virtual void InitializeSolver(MNASolver solver)
+        public virtual void Initialize(Circuit circuit)
         {
+            // Remove from previous circuit if initializing for a new one
+            if (Circuit != null && Circuit != circuit)
+            {
+                Remove(Circuit);
+            }
+
+            Circuit = circuit;
+
+            _vA = Circuit.GetNode(this, PinA);
+            _vB = Circuit.GetNode(this, PinB);
+        }
+
+        /// <summary>
+        /// Called by the network manager to remove this component from the given circuit.
+        /// </summary>
+        /// <param name="circuit"></param>
+        public virtual void Remove(Circuit circuit)
+        {
+            Circuit = null;
         }
 
         /// <summary>
@@ -94,7 +90,7 @@ namespace Hardwired.Objects.Electrical
         /// decomposition to quickly solve for the x vector (outputs).
         /// </summary>
         /// <param name="solver"></param>
-        public virtual void UpdateSolverInputs(MNASolver solver)
+        public virtual void UpdateState()
         {
         }
 
@@ -104,42 +100,8 @@ namespace Hardwired.Objects.Electrical
         /// This function should retrieve any required solved values, such as voltage at a given node, in order to update this component.
         /// </summary>
         /// <param name="solver"></param>
-        public virtual void GetSolverOutputs(MNASolver solver)
+        public virtual void ApplyState()
         {
-        }
-
-        protected int? GetNodeIndex(int connectionIndex)
-            => GetNodeIndex(GetConnection(connectionIndex));
-
-        protected int? GetNodeIndex(Connection? connection)
-            => Circuit?.GetNode(connection)?.Index;
-
-        protected int? GetVoltageSourceIndex(VoltageSource voltageSource)
-        {
-            return Circuit?.GetVoltageSourceIndex(voltageSource);
-        }
-
-        protected Connection? GetConnection(int connectionIndex)
-        {
-            if (connectionIndex < 0) { return null; }
-
-            return GetComponent<SmallGrid>()?.OpenEnds.ElementAtOrDefault(connectionIndex);
-        }
-
-        protected ElectricalComponent? GetConnectedComponent(Connection? connection)
-        {
-            if (connection == null) { return null; }
-
-            var peerStructure = connection.GetOther();
-            var peerConnectionIndex = connection.GetPeerIndex();
-
-            if (peerStructure == null || peerConnectionIndex < 0) { return null; }
-
-            // Get electrical components on the peer
-            var components = peerStructure.GetComponents<ElectricalComponent>();
-
-            // Look for the component attached to the peer connection
-            return components.FirstOrDefault(c => c.UsesConnection(peerConnectionIndex));
         }
 
         protected virtual bool UsesConnection(int connection)

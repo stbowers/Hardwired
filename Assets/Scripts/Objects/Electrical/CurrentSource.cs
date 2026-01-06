@@ -4,6 +4,7 @@ using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
 using Hardwired.Utility;
+using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
 using UnityEngine;
 
@@ -11,6 +12,9 @@ namespace Hardwired.Objects.Electrical
 {
     public class CurrentSource : ElectricalComponent
     {
+        /// <summary>
+        /// The DC output current, or RMS AC current
+        /// </summary>
         public double Current;
 
         /// <summary>
@@ -43,58 +47,50 @@ namespace Hardwired.Objects.Electrical
 
             var p = (Voltage * CurrentDraw.Conjugate()).Real;
 
-            stringBuilder.AppendLine($"-- INPUTS:");
-            stringBuilder.AppendLine($"Current (RMS): {Current.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
             stringBuilder.AppendLine($"Frequency: {Frequency.ToStringPrefix("Hz", "yellow")}");
-            stringBuilder.AppendLine($"-- OUTPUTS:");
-            stringBuilder.AppendLine($"Voltage (RMS): {Voltage.Real.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Current Draw (RMS): {CurrentDraw.Real.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Current Draw: {CurrentDraw.ToStringPrefix("A", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {p.ToStringPrefix("W", "yellow")}");
         }
 
-        public override void InitializeSolver(MNASolver solver)
+        public override void Initialize(Circuit circuit)
         {
-            base.InitializeSolver(solver);
+            base.Initialize(circuit);
 
-            var n = GetNodeIndex(PinA);
-            var m = GetNodeIndex(PinB);
+            if (Circuit == null) { return; }
 
             if (InternalResistance != 0f)
             {
-                solver.AddResistance(n, m, InternalResistance);
+                Circuit.Solver.AddResistance(_vA, _vB, InternalResistance);
             }
         }
 
-        public override void UpdateSolverInputs(MNASolver solver)
+        public override void UpdateState()
         {
-            base.UpdateSolverInputs(solver);
+            base.UpdateState();
 
-            var n = GetNodeIndex(PinA);
-            var m = GetNodeIndex(PinB);
+            if (Circuit == null) { return; }
 
-            solver.SetCurrent(n, m, Current);
+            Circuit.Solver.SetCurrent(_vA, _vB, Current);
         }
 
-        public override void GetSolverOutputs(MNASolver solver)
+        public override void ApplyState()
         {
-            base.GetSolverOutputs(solver);
+            base.ApplyState();
 
-            var n = GetNodeIndex(PinA);
-            var m = GetNodeIndex(PinB);
+            if (Circuit == null) { return; }
 
-            var vN = solver.GetVoltage(n);
-            var vM = solver.GetVoltage(m);
+            var vA = Circuit.Solver.GetValueOrDefault(_vA);
+            var vB = Circuit.Solver.GetValueOrDefault(_vA);
+            Voltage = vA - vB;
 
-            Voltage = vM - vN;
-
-            var internalResistorCurrent = Complex.Zero;
+            CurrentDraw = Current;
 
             if (InternalResistance != 0)
             {
-                internalResistorCurrent = Voltage / InternalResistance;
+                CurrentDraw -= Voltage / InternalResistance;
             }
-
-            CurrentDraw = Current - internalResistorCurrent;
         }
     }
 }

@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
 using Hardwired.Utility;
+using Hardwired.Utility.Extensions;
 using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
@@ -40,87 +41,80 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public double Energy;
 
-        private int _v;
+        private MNASolver.Unknown? _i;
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Voltage: {Voltage.Real.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Current: {Current.Real.ToStringPrefix("A", "yellow") ?? "N/A"}");
-
-            // Note - by convention current flow for a voltage source is essentially the current "produced" by the source, not "flowing through"
-            // the source... This means it's generally opposite from what we expect, so we negate it first before displaying.
-            stringBuilder.AppendLine($"Current Phase: {(-Current).Phase.ToStringPrefix("rad", "yellow") ?? "N/A"}");
-
+            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
             stringBuilder.AppendLine($"Inductance: {Inductance.ToStringPrefix("F", "yellow")}");
-            stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow") ?? "N/A"}");
-
-            stringBuilder.AppendLine($"Reactance: {Reactance.ToStringPrefix("Ω", "yellow") ?? "N/A"}");
+            stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow")}");
+            stringBuilder.AppendLine($"Reactance: {Reactance.ToStringPrefix("Ω", "yellow")}");
         }
 
-        public override void InitializeSolver(MNASolver solver)
+        public override void Initialize(Circuit circuit)
         {
-            base.InitializeSolver(solver);
+            base.Initialize(circuit);
 
-            int? n = GetNodeIndex(PinA);
-            int? m = GetNodeIndex(PinB);
+            if (Circuit == null) { return; }
 
             // If circuit has AC current, add impedence based on the frequency
-            if (solver.Frequency != 0)
+            if (Circuit.Frequency != 0)
             {
-                var w = 2f * Math.PI * solver.Frequency;
+                var w = 2f * Math.PI * Circuit.Frequency;
                 Reactance = w * Inductance;
 
-                solver.AddReactance(n, m, Reactance);
+                Circuit.Solver.AddReactance(_vA, _vB, Reactance);
             }
+            // If circuit has DC current, use backwards Euler to solve differential equation
             else
             {
-                // TODO: Add some better documentation about what this is doing...
-                // By adding an extra term to the A matrix and z vector, we're essentially solving the differential equation step-by-step with an approximation similar to
-                // i(t) = i(t-1) + dv.
-                // A similar setup is used for Capacitor as well, and has better comments
-                _v = solver.AddVoltageSource(n, m);
+                // // TODO: Add some better documentation about what this is doing...
+                // // By adding an extra term to the A matrix and z vector, we're essentially solving the differential equation step-by-step with an approximation similar to
+                // // i(t) = i(t-1) + dv.
+                // // A similar setup is used for Capacitor as well, and has better comments
+                // Circuit.Solver.AddVoltageSource(_vA, _vB, out _i);
 
-                var dt = 0.5;
-                var x = Inductance / dt;
+                // var dt = 0.5;
+                // var x = Inductance / dt;
 
-                // TODO: We don't have "direct" access to the part of the A matrix we need to modify for inductors...
-                // It would probably be good to refactor this code at some point to make it more clear what we're adding
-                var j = solver.Nodes + _v;
-                solver.AddAdmittance(j, null, x);
+                // // TODO: We don't have "direct" access to the part of the A matrix we need to modify for inductors...
+                // // It would probably be good to refactor this code at some point to make it more clear what we're adding
+                // var j = Circuit.Solver.Nodes + _v;
+                // solver.AddAdmittance(j, null, x);
             }
         }
 
-        public override void UpdateSolverInputs(MNASolver solver)
+        public override void UpdateState()
         {
-            base.UpdateSolverInputs(solver);
+            base.UpdateState();
 
-            int? n = GetNodeIndex(PinA);
-            int? m = GetNodeIndex(PinB);
+            if (Circuit == null) { return; }
 
-            if (solver.Frequency == 0f)
+            if (Circuit.Frequency == 0f)
             {
-                var dt = 0.5;
-                var x = Inductance * Current / dt;
+                // var dt = 0.5;
+                // var x = Inductance * Current / dt;
 
-                solver.SetVoltage(_v, x);
+                // solver.SetVoltage(_v, x);
             }
         }
 
-        public override void GetSolverOutputs(MNASolver solver)
+        public override void ApplyState()
         {
-            base.GetSolverOutputs(solver);
+            base.ApplyState();
 
-            int? n = GetNodeIndex(PinA);
-            int? m = GetNodeIndex(PinB);
-            var vN = solver.GetVoltage(n);
-            var vM = solver.GetVoltage(m);
-            Voltage = vN - vM;
+            if (Circuit == null) { return; }
 
-            if (solver.Frequency == 0f)
+            var vA = Circuit.Solver.GetValueOrDefault(_vA);
+            var vB = Circuit.Solver.GetValueOrDefault(_vB);
+            Voltage = vA - vB;
+
+            if (Circuit.Frequency == 0f)
             {
-                Current = solver.GetCurrent(_v);
+                Current = Circuit.Solver.GetValueOrDefault(_i);
 
                 Energy = (0.5f * Inductance * Current * Current).Magnitude;
             }

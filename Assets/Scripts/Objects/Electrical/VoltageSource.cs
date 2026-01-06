@@ -4,6 +4,7 @@ using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
 using Hardwired.Utility;
+using Hardwired.Utility.Extensions;
 using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
@@ -19,7 +20,7 @@ namespace Hardwired.Objects.Electrical
     public class VoltageSource : ElectricalComponent
     {
         /// <summary>
-        /// The DC voltage, or maximum AC voltage.
+        /// The DC voltage, or RMS AC voltage.
         /// </summary>
         public double Voltage;
 
@@ -32,9 +33,9 @@ namespace Hardwired.Objects.Electrical
         /// The momentary current across this voltage source calculated by the circuit solver.
         /// </summary>
         [HideInInspector]
-        public Complex? Current;
+        public Complex Current;
 
-        private int? _v;
+        private MNASolver.Unknown? _i;
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
@@ -42,42 +43,34 @@ namespace Hardwired.Objects.Electrical
 
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Frequency: {Frequency.ToStringPrefix("Hz", "yellow")}");
-            stringBuilder.AppendLine($"Current: {Current?.Magnitude.ToStringPrefix("A", "yellow") ?? "N/A"}");
-
-            if (Frequency != 0f)
-            {
-                // Note - by convention current flow for a voltage source is essentially the current "produced" by the source, not "flowing through"
-                // the source... This means it's generally opposite from what we expect, so we negate it first before displaying.
-                stringBuilder.AppendLine($"Current Phase: {(-Current)?.Phase.ToStringPrefix("rad", "yellow") ?? "N/A"}");
-            }
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
         }
 
-        public override void InitializeSolver(MNASolver solver)
+        public override void Initialize(Circuit circuit)
         {
-            base.InitializeSolver(solver);
+            base.Initialize(circuit);
 
-            int? n = GetNodeIndex(PinA);
-            int? m = GetNodeIndex(PinB);
+            if (Circuit == null) { return; }
 
-            _v = solver.AddVoltageSource(n, m);
+            Circuit.Solver.AddVoltageSource(_vA, _vB, out _i);
         }
 
-        public override void UpdateSolverInputs(MNASolver solver)
+        public override void UpdateState()
         {
-            base.UpdateSolverInputs(solver);
+            base.UpdateState();
 
-            if (_v == null) { return; }
+            if (Circuit == null) { return; }
 
-            solver.SetVoltage(_v.Value, Voltage);
+            Circuit.Solver.SetVoltage(_i, Voltage);
         }
 
-        public override void GetSolverOutputs(MNASolver solver)
+        public override void ApplyState()
         {
-            base.GetSolverOutputs(solver);
+            base.ApplyState();
 
-            if (_v == null) { return; }
+            if (Circuit == null) { return; }
 
-            Current = solver.GetCurrent(_v.Value);
+            Current = Circuit.Solver.GetValueOrDefault(_i);
         }
     }
 }

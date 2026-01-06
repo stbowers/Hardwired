@@ -4,6 +4,7 @@ using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
 using Hardwired.Utility;
+using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
 using UnityEngine;
 
@@ -35,32 +36,31 @@ namespace Hardwired.Objects.Electrical
             double p = (Voltage * Current.Conjugate()).Real;
 
             stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
-            stringBuilder.AppendLine($"ΔV: {Voltage.Magnitude.ToStringPrefix("V", "yellow") ?? "N/A"}");
-            stringBuilder.AppendLine($"Current: {Current.Magnitude.ToStringPrefix("A", "yellow") ?? "N/A"}");
-            stringBuilder.AppendLine($"Power: {p.ToStringPrefix("W", "yellow") ?? "N/A"}");
+            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Power: {p.ToStringPrefix("W", "yellow")}");
         }
 
 
-        public override void InitializeSolver(MNASolver solver)
+        public override void Initialize(Circuit circuit)
         {
-            base.InitializeSolver(solver);
+            base.Initialize(circuit);
 
-            int? n = GetNodeIndex(PinA);
-            int? m = GetNodeIndex(PinB);
-            solver.AddResistance(n, m, Resistance);
+            if (Circuit == null) { return; }
+
+            Circuit.Solver.AddResistance(_vA, _vB, Resistance);
         }
 
-        public override void GetSolverOutputs(MNASolver solver)
+        public override void ApplyState()
         {
-            base.GetSolverOutputs(solver);
+            base.ApplyState();
 
-            int? n = GetNodeIndex(PinA);
-            int? m = GetNodeIndex(PinB);
+            if (Circuit == null) { return; }
 
-            Complex vA = solver.GetVoltage(n);
-            Complex vB = solver.GetVoltage(m);
+            var vA = Circuit.Solver.GetValueOrDefault(_vA);
+            var vB = Circuit.Solver.GetValueOrDefault(_vB);
+            Voltage = vA - vB;
 
-            Voltage = vB - vA;
             Current = Voltage / Resistance;
         }
 

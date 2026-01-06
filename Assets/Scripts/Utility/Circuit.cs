@@ -15,214 +15,230 @@ using Hardwired.Objects.Electrical;
 
 namespace Hardwired.Utility
 {
-    public class Circuit : CableNetwork
+    public class Circuit
     {
-        private List<Node> _nodes = new();
+        private static int _nextId = 0;
+
+        int _powerTicks = 0;
+        TimeSpan _timeProcessing = TimeSpan.Zero;
+        DateTime? _lastTickRateReport;
+        private Dictionary<object, MNASolver.Unknown> _nodes = new();
         private List<ElectricalComponent> _components = new();
-        private List<VoltageSource> _voltageSources = new();
-        private MNASolver _solver = new();
-        private bool _solverInitialized;
+        private bool _initialized;
+
+        public int Id { get; } = _nextId++;
+
+        public MNASolver Solver { get; } = new();
 
         public IReadOnlyList<ElectricalComponent> Components => _components.AsReadOnly();
 
-        private void EnsureConnectionHasNode(Connection? connection)
-        {
-            if (connection == null) { return; }
+        /// <summary>
+        /// The frequency of any AC voltages or currents in the circuit.
+        /// </summary>
+        public double Frequency { get; private set; }
 
-            // Try to get an existing node attached to this connection
-            Node? node = GetNode(connection);
-            if (node != null) { return; }
-
-            // Next, try to get an existing node attached to this connection's peer.
-            // If one isn't found, create a new node
-            node = GetNode(connection.GetPeer()); // ?? new();
-
-            if (node == null)
-            {
-                node = new();
-                _nodes.Add(node);
-            }
-
-            // Attach this connection to the node
-            node.Connections.Add(connection);
-        }
+        /// <summary>
+        /// The time delta (dt) to use between each tick.
+        /// </summary>
+        public double TimeDelta { get; private set; } = 0.5;
 
         public void AddComponent(ElectricalComponent component)
         {
-            lock (_solver)
+            lock (Solver)
             {
-                // Create a node (or add the connection to an existing node) for each connection on this component
-                EnsureConnectionHasNode(component.ConnectionA);
-                EnsureConnectionHasNode(component.ConnectionB);
-
-                if (component is Transformer tx)
-                {
-                    EnsureConnectionHasNode(tx.ConnectionC);
-                    EnsureConnectionHasNode(tx.ConnectionD);
-                }
-
-                if (component is VoltageSource voltageSource)
-                {
-                    _voltageSources.Add(voltageSource);
-                }
-
                 _components.Add(component);
+                component.Circuit = this;
 
                 // Circuit topology has changed, so we need to reset solver
-                InvalidateSolver();
+                Invalidate();
             }
         }
 
         public void RemoveComponent(ElectricalComponent component)
         {
-            lock (_solver)
+            lock (Solver)
             {
                 _components.Remove(component);
-
-                if (component is VoltageSource voltageSource)
-                {
-                    _voltageSources.Remove(voltageSource);
-                }
+                component.Circuit = null;
 
                 // Circuit topology has changed, so we need to reset solver
-                InvalidateSolver();
-
-                // Refresh network will clean up and destroy the network if all components are removed...
-                RefreshNetwork();
+                Invalidate();
             }
         }
 
-        int _powerTicks = 0;
-        TimeSpan _timeProcessing = TimeSpan.Zero;
-        public override void OnPowerTick()
+        /// <summary>
+        /// Returns the MNASolver.Unknown object representing the voltage at the node referenced by the given pin on the component.
+        /// 
+        /// If the component is part of a SmallGrid object, the pin is taken to be the index of 
+        /// </summary>
+        /// <param name="component"></param>
+        /// <param name="pin"></param>
+        /// <returns></returns>
+        public MNASolver.Unknown? GetNode(ElectricalComponent component, int pin)
+        {
+            // pin -1 (or any negative pin) is the common ground
+            if (pin < 0) { return null; }
+
+            // If component is attached to a small grid object, use the pin as the index of the open end to check
+            if (component.GetComponent<SmallGrid>() is SmallGrid smallGrid)
+            {
+                return GetNode(smallGrid.OpenEnds[pin]);
+            }
+            // Otherwise, use the pin number itself as the dictionary key
+            // (this is mostly used as a convenience for unit tests - most real components will use connection points, but the
+            // unit tests don't have access to those, so unit tests just use a shared index for pins)
+            else
+            {
+                MNASolver.Unknown? node;
+                node = _nodes.GetValueOrDefault(pin);
+
+                // If node doesn't exist yet, create a new one and add it
+                if (node == null)
+                {
+                    node = Solver.AddUnknown();
+                    _nodes.Add(pin, node);
+                }
+
+                return node;
+            }
+        }
+
+        public MNASolver.Unknown? GetNode(Connection connection)
+        {
+            MNASolver.Unknown? node;
+
+            // If there is already a known node for this connection, return it
+            if (_nodes.TryGetValue(connection, out node))
+            {
+                return node;
+            }
+
+            // Otherwise, first check if the peer to this connection is associated with a node
+            Connection? peer = connection.GetPeer();
+            if (peer == null || !_nodes.TryGetValue(peer, out node))
+            {
+                // If the peer isn't associated to a node (or doesn't exist), create a new node
+                // for this connection
+                node = Solver.AddUnknown();
+            }
+
+            // Associate the node with this connection
+            _nodes.Add(connection, node);
+
+            return node;
+        }
+
+        public void ProcessTick()
         {
             var tick = DateTime.Now;
 
             _powerTicks += 1;
 
-            Solve();
-
-            if ((_powerTicks % 30) == 0)
+            lock (Solver)
             {
-                double averageTickTime = _timeProcessing.Milliseconds / 30.0;
-                _timeProcessing = TimeSpan.Zero;
-                Hardwired.LogDebug($"Circuit.OnPowerTick() -- Network ID: {ReferenceId} -- Average tick time: {averageTickTime} ms -- components: {_components.Count}, nodes: {_nodes.Count}, vsources: {_voltageSources.Count}");
+                Initialize();
+                UpdateState();
+                Solver.Solve();
+                ApplyState();
             }
 
             var tock = DateTime.Now;
             _timeProcessing += tock - tick;
-        }
 
-        public override bool IsNetworkValid()
-        {
-            return Components.Count > 0;
+            ReportTickRate();
         }
 
         /// <summary>
-        /// Marks the solver as uninitialized so it will be re-initialized on the next power tick
+        /// Marks the circuit as uninitialized so it will be re-initialized on the next power tick
         /// </summary>
-        private void InvalidateSolver()
+        public void Invalidate()
         {
-            _solverInitialized = false;
+            _initialized = false;
         }
 
-        private void Solve()
+        private void Initialize()
         {
-            lock (_solver)
+            if (_initialized) { return; }
+
+            InitializeFrequency();
+
+            Hardwired.LogDebug($"Circuit network {Id} - Initializing circuit with {Components.Count} components at {Frequency} Hz");
+
+            foreach (var component in Components)
             {
-                // (re)initialize solver if needed
-                if (!_solverInitialized)
+                component.Initialize(this);
+            }
+
+            _initialized = true;
+        }
+
+        // Determine the AC frequency to use
+        private void InitializeFrequency()
+        {
+            Frequency = 0f;
+            foreach (var component in Components)
+            {
+                double componentFrequency;
+
+                if (component is VoltageSource voltageSource)
                 {
-                    int nNodes = Math.Max(_nodes.Count, 1);
-                    int nVSources = _voltageSources.Count;
-
-                    // Determine the AC frequency to use
-                    double frequency = 0f;
-                    foreach (var component in Components)
-                    {
-                        double componentFrequency = 0f;
-
-                        if (component is VoltageSource voltageSource)
-                        {
-                            componentFrequency = voltageSource.Frequency;
-                        }
-                        else if (component is CurrentSource currentSource)
-                        {
-                            componentFrequency = currentSource.Frequency;
-                        }
-                        else
-                        {
-                            continue;
-                        }
-
-                        if (frequency != 0f && componentFrequency != 0f && componentFrequency != frequency)
-                        {
-                            Hardwired.LogDebug($"Circuit network {ReferenceId} -- Invalid network, cannot have multiple AC sources at different frequencies ({frequency}, {componentFrequency})");
-                            return;
-                        }
-                        else if (componentFrequency != 0f)
-                        {
-                            frequency = componentFrequency;
-                        }
-                    }
-
-                    // Assign indices to each node
-                    for (int i = 0; i < _nodes.Count; i++)
-                    {
-                        _nodes[i].Index = i;
-                    }
-
-                    Hardwired.LogDebug($"Circuit network {ReferenceId} - Initializing solver with {nNodes} nodes and {nVSources} voltage sources, at {frequency} Hz");
-
-                    _solver.Initialize(nNodes, frequency);
-
-                    foreach (var component in Components)
-                    {
-                        component.InitializeSolver(_solver);
-                    }
-
-                    _solverInitialized = true;
+                    componentFrequency = voltageSource.Frequency;
+                }
+                else if (component is CurrentSource currentSource)
+                {
+                    componentFrequency = currentSource.Frequency;
+                }
+                else
+                {
+                    continue;
                 }
 
-                // Update solver inputs (voltage source voltages, current source currents, etc) from each component
-                foreach (var component in Components)
+                if (Frequency != 0f && componentFrequency != 0f && componentFrequency != Frequency)
                 {
-                    component.UpdateSolverInputs(_solver);
+                    throw new InvalidOperationException($"Circuit network {Id} invalid -- cannot have multiple AC sources at different frequencies");
                 }
-
-                // Solve the circuit
-                _solver.Solve();
-
-                // Update components with solver output
-                foreach (var component in Components)
+                else if (componentFrequency != 0f)
                 {
-                    component.GetSolverOutputs(_solver);
+                    Frequency = componentFrequency;
                 }
             }
         }
 
-        public Node? GetNode(Connection? connection)
+        private void UpdateState()
         {
-            if (connection == null) { return null; }
-
-            return _nodes.FirstOrDefault(n => n.Connections.Contains(connection));
+            // Update solver inputs (voltage source voltages, current source currents, etc) from each component
+            foreach (var component in Components)
+            {
+                component.UpdateState();
+            }
         }
 
-        public int? GetVoltageSourceIndex(VoltageSource? voltageSource)
+        private void ApplyState()
         {
-            if (voltageSource == null)
+            // Update components with solver output
+            foreach (var component in Components)
             {
-                return null;
+                component.ApplyState();
             }
+        }
 
-            var result = _voltageSources?.IndexOf(voltageSource);
-
-            if (result < 0)
+        private void ReportTickRate()
+        {
+            if ((_powerTicks % 30) == 0)
             {
-                return null;
-            }
+                double averageTickProcessingTimeMs = _timeProcessing.Milliseconds / 30.0;
+                double averageTickDurationMs = 500;
 
-            return result;
+                if (_lastTickRateReport != null)
+                {
+                    averageTickDurationMs = (DateTime.Now - _lastTickRateReport.Value).TotalMilliseconds / 30f;
+                }
+
+                Hardwired.LogDebug($"Circuit network {Id} -- Average processing time: {averageTickProcessingTimeMs} ms / {averageTickDurationMs} -- components: {Components.Count}");
+
+                _timeProcessing = TimeSpan.Zero;
+                _lastTickRateReport = DateTime.Now;
+            }
         }
 
         public static Circuit? Merge(Circuit? a, Circuit? b)
@@ -245,7 +261,6 @@ namespace Hardwired.Utility
             // Clear circuit B
             b._components.Clear();
             b._nodes.Clear();
-            b._voltageSources.Clear();
 
             return a;
         }
