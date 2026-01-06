@@ -307,7 +307,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   PinA: 0
   PinB: -1
+  MaxPower: 50
   PowerTarget: 50
+  VoltageMin: 50
+  VoltageMax: 200
+  VoltageNominal: 100
+  EnergyBuffer: 0
+  EnergyBufferMax: 0
+  Power: 0
 --- !u!114 &906518863626297998
 MonoBehaviour:
   m_ObjectHideFlags: 0

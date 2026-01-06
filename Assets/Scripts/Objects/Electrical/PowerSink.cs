@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
 using Hardwired.Utility;
+using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
 using UnityEngine;
 
@@ -13,31 +14,69 @@ namespace Hardwired.Objects.Electrical
     public class PowerSink : ElectricalComponent
     {
         /// <summary>
+        /// The maximum designed power consumption of this device.
+        /// Used to calculate the internal resistance value.
+        /// </summary>
+        public double MaxPower;
+
+        /// <summary>
         /// The target power in Watts.
-        /// Each tick this component will adjust its current draw based on I = P / V
+        /// Each tick this component will adjust its current draw based on I = P / V in order to maintain this power target.
         /// </summary>
         public double PowerTarget;
 
         /// <summary>
-        /// The maximum voltage this device can accept.
-        /// If supplied voltage is above this value, the device will not draw any current.
+        /// The minimum operational voltage a device can accept. If the input voltage is below this, the device will enter an undervoltage protection
+        /// state and stop drawing power.
         /// </summary>
-        public double MaxVoltage = 600f;
+        public double VoltageMin = 50;
 
         /// <summary>
-        /// The minimum voltage this device can accept and still draw full power.
-        /// If supplied voltage is below this value, the device will draw less power following `P = (V / BrownoutVoltage) * PowerTarget`, leading to machines slowing down or failing.
+        /// The maximum operational voltage a device can accept. If the input voltage is above this, the device will enter an overvoltage protection
+        /// state and stop drawing power.
         /// </summary>
-        public double BrownoutVoltage = 100f;
+        public double VoltageMax = 200f;
 
         /// <summary>
-        /// The minimum voltage this device can accept and still draw any power.
-        /// If supplied voltage is below this value, the device will not draw any current.
+        /// The nominal operational voltage for a device. If voltage is at this value or above (up to V_max), the device will draw the target power.
+        /// If voltage is below this value (down to V_min), the device enters a "brownout" state where it draws less power in proportion to voltage.
         /// </summary>
-        public double MinVoltage = 50f;
+        public double VoltageNominal = 100f;
 
         /// <summary>
-        /// The actual power being delivered to the device
+        /// The internal impedance of the device - this is always added to the circuit.
+        /// In "brownout" conditions (V_min < V < V_nom), this is the only contribution to current, leading to less power being delivered than was requested.
+        /// In "nominal" conditions (V_nom < V < V_max), if the resistor were the only element it would deliver _too much_ power to the device, so the current
+        /// through the resistor is limited to just what is needed for the current power target.
+        /// </summary>
+        [HideInInspector]
+        public Complex LoadImpedance;
+
+        /// <summary>
+        /// The current charge in the internal energy buffer.
+        /// 
+        /// The energy buffer essentially acts as a capacitor (in theory, not in actual math), padding out sudden changes in current.
+        /// Each tick when power is updated, the energy buffer will "absorb" the difference between the actual power delivered by the circuit and the requested power.
+        /// If the requested power is higher than the actual power delivered, the energy buffer will be drained.
+        /// If the requested power is lower than the actual power delivered, the energy buffer will be filled.
+        /// 
+        /// The device will try to maintain ~80% charge in the energy buffer by slightly increasing or decreasing the actual power "requested" per tick.
+        /// 
+        /// This prevents "phantom power" (i.e. the device drew more power than was actually available) as well as power loss due to the power source sending more power
+        /// to the device than it needed.
+        /// </summary>
+        [HideInInspector]
+        public double EnergyBuffer;
+
+        /// <summary>
+        /// The maximum charge in the internal energy buffer.
+        /// If the energy buffer is filled past this point, any additional energy is lost to the void.
+        /// </summary>
+        [HideInInspector]
+        public double EnergyBufferMax;
+
+        /// <summary>
+        /// The real power being delivered to the device.
         /// </summary>
         [HideInInspector]
         public double Power;
@@ -48,6 +87,21 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public Complex Voltage;
 
+        /// <summary>
+        /// The current being applied to the circuit from the current source (to counteract over-current in the resistor)
+        /// </summary>
+        [HideInInspector]
+        public Complex SourceCurrent;
+
+        /// <summary>
+        /// The current flowing through the resistor
+        /// </summary>
+        [HideInInspector]
+        public Complex ResistorCurrent;
+
+        /// <summary>
+        /// The total current flowing through the device
+        /// </summary>
         [HideInInspector]
         public Complex Current;
 
@@ -57,71 +111,87 @@ namespace Hardwired.Objects.Electrical
 
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Power Delivered: {Power.ToStringPrefix("W", "yellow")}");
-            stringBuilder.AppendLine($"Voltage: {Voltage.Magnitude.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Current: {Current.Magnitude.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Impedance: {LoadImpedance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("J", "yellow")} / {EnergyBufferMax.ToStringPrefix("J", "yellow")}");
         }
 
         public override void InitializeSolver(MNASolver solver)
         {
             base.InitializeSolver(solver);
 
-            var n = GetNodeIndex(PinA);
-            var m = GetNodeIndex(PinB);
+            // Set the max size of the energy buffer such that it can "absorb" a full second of power loss
+            EnergyBufferMax = 1 * MaxPower;
 
-            solver.AddResistance(n, m, 100000);
+            // Calculate the load impedance - the resistor should be sized
+            // such that P_resistor(V_nom) = MaxPower = V_nom^2 / Impedance
+            LoadImpedance = VoltageNominal * VoltageNominal / MaxPower;
+
+            // Add the impedance to the circuit
+            var a = GetNodeIndex(PinA);
+            var b = GetNodeIndex(PinB);
+
+            solver.AddImpedance(a, b, LoadImpedance);
         }
 
         public override void UpdateSolverInputs(MNASolver solver)
         {
             base.UpdateSolverInputs(solver);
 
-            double v = Math.Max(0.01, Voltage.Magnitude);
-            double r, iSlewMax;
+            // Update energy buffer
+            double dt = 0.5;
+            double dE = (Power - PowerTarget) * dt;
+            EnergyBuffer = Math.Clamp(EnergyBuffer + dE, 0, EnergyBufferMax);
+            // TODO -> actually "send" power to the device
 
-            if (v < MinVoltage || v > MaxVoltage)
+            if (Voltage.Magnitude < 0.001)
             {
-                r = 0f;
-                iSlewMax = 5f;
-            }
-            else if (v >= BrownoutVoltage)
-            {
-                r = 1f;
-                iSlewMax = 5f;
+                // If voltage is 0, don't add any current into the circut (avoids dividing by zero in math below)
+                SourceCurrent = 0f;
             }
             else
             {
-                r = (v - MinVoltage) / (BrownoutVoltage - MinVoltage);
-                iSlewMax = 0.01f;
+                // Adjust the "requested" power by however much would be required to fill (or drain) the energy buffer to 80% capacity over the next tick
+                var eRequired = (0.8 * EnergyBufferMax) - EnergyBuffer;
+                var bufferPowerRequired = eRequired / dt;
+                var powerRequested = PowerTarget + bufferPowerRequired;
+
+                // Calculate error in how much current we actually want given the input voltage and how much current is flowing through the resistor
+                var iRequired = powerRequested / Voltage;
+                SourceCurrent = iRequired - ResistorCurrent;
+
+                // Only apply correction current if it counteracts the voltage (i.e. only subtract from the current, never add to make up for there not being enough power)
+                if ((SourceCurrent * Voltage.Conjugate()).Real > 0)
+                {
+                    SourceCurrent = 0;
+                }
             }
 
-            double G = r * PowerTarget / (BrownoutVoltage * BrownoutVoltage);
-
-            double iResistive = G * v;
-            double iPower = PowerTarget / v;
-
-            double i = r * iPower + (1 - r) * iResistive;
-            i = Math.Clamp(i, Current.Magnitude - iSlewMax, Current.Magnitude + iSlewMax);
-
-            Complex vUnit = Voltage / v;
-            Current = i * vUnit;
-
-            var n = GetNodeIndex(PinA);
-            var m = GetNodeIndex(PinB);
-
-            solver.SetCurrent(n, m, Current);
+            // Add current to counteract the resistor to the circuit
+            var a = GetNodeIndex(PinA);
+            var b = GetNodeIndex(PinB);
+            solver.SetCurrent(a, b, SourceCurrent);
         }
 
         public override void GetSolverOutputs(MNASolver solver)
         {
             base.GetSolverOutputs(solver);
 
-            var n = GetNodeIndex(PinA);
-            var m = GetNodeIndex(PinB);
+            // Get node voltages
+            var a = GetNodeIndex(PinA);
+            var b = GetNodeIndex(PinB);
+            var vA = solver.GetVoltage(a);
+            var vB = solver.GetVoltage(b);
 
-            var vN = solver.GetVoltage(n);
-            var vM = solver.GetVoltage(m);
+            // Get voltage across the device, and calculate current going through the resistor
+            Voltage = vA - vB;
+            ResistorCurrent = Voltage / LoadImpedance;
 
-            Voltage = vN - vM;
+            // Determine the total current flowing through the device (current source is in parallel to resistor)
+            Current = SourceCurrent + ResistorCurrent;
+
+            // Calculate real power delivered to the device
             Power = (Voltage * Current.Conjugate()).Real;
         }
     }
