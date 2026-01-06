@@ -4,7 +4,7 @@ using System;
 using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
-using Hardwired.Utility;
+using Hardwired.Simulation.Electrical;
 using Hardwired.Utility.Extensions;
 using UnityEngine;
 
@@ -75,7 +75,7 @@ namespace Hardwired.Objects.Electrical
                 // // By adding an extra term to the A matrix and z vector, we're essentially solving the differential equation step-by-step with an approximation similar to
                 // // i(t) = i(t-1) + dv.
                 // // A similar setup is used for Capacitor as well, and has better comments
-                // Circuit.Solver.AddVoltageSource(_vA, _vB, out _i);
+                Circuit.Solver.AddVoltageSource(_vA, _vB, out _i);
 
                 // var dt = 0.5;
                 // var x = Inductance / dt;

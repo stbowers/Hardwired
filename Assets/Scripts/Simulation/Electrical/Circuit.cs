@@ -13,7 +13,7 @@ using Assets.Scripts.Objects;
 using Hardwired.Objects;
 using Hardwired.Objects.Electrical;
 
-namespace Hardwired.Utility
+namespace Hardwired.Simulation.Electrical
 {
     public class Circuit
     {

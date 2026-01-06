@@ -1,10 +1,8 @@
 #nullable enable
 
-using System.Linq;
 using System.Text;
-using Assets.Scripts.Objects;
 using Assets.Scripts.UI.HelperHints.Extensions;
-using Hardwired.Utility;
+using Hardwired.Simulation.Electrical;
 using UnityEngine;
 
 namespace Hardwired.Objects.Electrical

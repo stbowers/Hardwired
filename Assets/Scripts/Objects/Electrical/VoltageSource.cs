@@ -3,7 +3,7 @@
 using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
-using Hardwired.Utility;
+using Hardwired.Simulation.Electrical;
 using Hardwired.Utility.Extensions;
 using UnityEngine;
 

@@ -9,7 +9,7 @@ using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Factorization;
 using Complex = System.Numerics.Complex;
 
-namespace Hardwired.Utility
+namespace Hardwired.Simulation.Electrical
 {
     /// <summary>
     /// A Modified Node Analysis solver which can solve most linear circuits, both AC and DC, by using a system of equations built up using Kirchoff's laws.

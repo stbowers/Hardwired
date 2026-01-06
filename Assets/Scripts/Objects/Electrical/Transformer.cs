@@ -3,9 +3,8 @@
 using System;
 using System.Numerics;
 using System.Text;
-using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
-using Hardwired.Utility;
+using Hardwired.Simulation.Electrical;
 using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
 using UnityEngine;
