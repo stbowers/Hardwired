@@ -11,7 +11,7 @@ namespace Hardwired.Patches
     public class PatchBuildStateTools : MonoBehaviour
     {
         // Add prefab patch setup
-        static PatchBuildStateTools()
+        public static void ApplyPatch()
         {
             Hardwired.LogDebug("Adding PatchBuildStateTools prefab setup...");
 
