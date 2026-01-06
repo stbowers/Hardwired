@@ -18,7 +18,8 @@
         "0Harmony.dll",
         "RW.RocketNet.dll",
         "LaunchPadBooster.dll",
-        "MathNet.Numerics.dll"
+        "MathNet.Numerics.dll",
+        "UniTask.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [],

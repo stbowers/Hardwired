@@ -34,5 +34,18 @@ namespace Hardwired.Networks
             hardwiredPowerTick.CalculateState();
             return false;
         }
+
+        [HarmonyPrefix, HarmonyPatch(nameof(PowerTick.ApplyState))]
+        private static bool __Prefix_ApplyState(PowerTick __instance)
+        {
+            // If injection failed, run original code
+            if (__instance is not HardwiredPowerTick hardwiredPowerTick)
+            {
+                return true;
+            }
+
+            hardwiredPowerTick.ApplyState();
+            return false;
+        }
     }
 }

@@ -17,7 +17,6 @@ namespace Hardwired.Networks
     [HarmonyPatch(typeof(CableNetwork))]
     public static class CableNetworkPatches
     {
-        // private static readonly FieldInfo TickSetter = typeof(CableNetwork).GetField(nameof(CableNetwork.PowerTick));
         private static readonly FieldInfo _powerTickField = AccessTools.Field(typeof(CableNetwork), nameof(CableNetwork.PowerTick));
 
         [HarmonyPostfix, HarmonyPatch(MethodType.Constructor, new Type[0])]
@@ -29,6 +28,13 @@ namespace Hardwired.Networks
         [HarmonyPostfix, HarmonyPatch(MethodType.Constructor, new Type[1] { typeof(long) })]
         private static void __Postfix_Constructor_Long(CableNetwork __instance) => Inject(__instance);
 
-        private static void Inject(CableNetwork instance) => _powerTickField.SetValue(instance, new HardwiredPowerTick());
+        private static void Inject(CableNetwork instance)
+        {
+            // Don't modify wireless networks...
+            if (instance is WirelessNetwork) { return; }
+
+            // Replace PowerTick with our own implementation
+            _powerTickField.SetValue(instance, new HardwiredPowerTick());
+        }
     }
 }

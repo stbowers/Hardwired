@@ -19,11 +19,10 @@ namespace Hardwired.Simulation.Electrical
     {
         private static int _nextId = 0;
 
-        int _powerTicks = 0;
-        TimeSpan _timeProcessing = TimeSpan.Zero;
-        DateTime? _lastTickRateReport;
         private Dictionary<object, MNASolver.Unknown> _nodes = new();
         private List<ElectricalComponent> _components = new();
+        private List<PowerSink> _powerSinks = new();
+        private List<PowerSource> _powerSources = new();
         private bool _initialized;
 
         public int Id { get; } = _nextId++;
@@ -31,6 +30,8 @@ namespace Hardwired.Simulation.Electrical
         public MNASolver Solver { get; } = new();
 
         public IReadOnlyList<ElectricalComponent> Components => _components.AsReadOnly();
+        public IReadOnlyList<PowerSink> PowerSinks => _powerSinks.AsReadOnly();
+        public IReadOnlyList<PowerSource> PowerSources => _powerSources.AsReadOnly();
 
         /// <summary>
         /// The frequency of any AC voltages or currents in the circuit.
@@ -48,6 +49,11 @@ namespace Hardwired.Simulation.Electrical
             {
                 _components.Add(component);
 
+                if (component is PowerSink powerSink)
+                {
+                    _powerSinks.Add(powerSink);
+                }
+
                 // If the circuit is already initialized, initialize this component now...
                 // Otherwise, it will be initialized on the next power tick
                 if (_initialized)
@@ -63,6 +69,11 @@ namespace Hardwired.Simulation.Electrical
             {
                 _components.Remove(component);
                 component.Remove(this);
+
+                if (component is PowerSink powerSink)
+                {
+                    _powerSinks.Remove(powerSink);
+                }
             }
         }
 
@@ -175,10 +186,6 @@ namespace Hardwired.Simulation.Electrical
 
         public void ProcessTick()
         {
-            var tick = DateTime.Now;
-
-            _powerTicks += 1;
-
             lock (Solver)
             {
                 try
@@ -194,11 +201,6 @@ namespace Hardwired.Simulation.Electrical
                     Hardwired.LogDebug($"Error processing tick! {e}");
                 }
             }
-
-            var tock = DateTime.Now;
-            _timeProcessing += tock - tick;
-
-            ReportTickRate();
         }
 
         /// <summary>
@@ -276,25 +278,6 @@ namespace Hardwired.Simulation.Electrical
             foreach (var component in Components)
             {
                 component.ApplyState();
-            }
-        }
-
-        private void ReportTickRate()
-        {
-            if ((_powerTicks % 30) == 0)
-            {
-                double averageTickProcessingTimeMs = _timeProcessing.Milliseconds / 30.0;
-                double averageTickDurationMs = 500;
-
-                if (_lastTickRateReport != null)
-                {
-                    averageTickDurationMs = (DateTime.Now - _lastTickRateReport.Value).TotalMilliseconds / 30f;
-                }
-
-                Hardwired.LogDebug($"Circuit network {Id} -- Average processing time: {averageTickProcessingTimeMs} ms / {averageTickDurationMs} -- components: {Components.Count}");
-
-                _timeProcessing = TimeSpan.Zero;
-                _lastTickRateReport = DateTime.Now;
             }
         }
 
