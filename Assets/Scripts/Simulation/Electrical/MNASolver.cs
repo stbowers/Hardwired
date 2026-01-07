@@ -56,24 +56,26 @@ namespace Hardwired.Simulation.Electrical
             }
 
             var newSize = _unknownValues.Count;
-            _A = _A.Resize(newSize, newSize);
-            _z = _z.Resize(newSize, 1);
+            A = A.Resize(newSize, newSize);
+            Z = Z.Resize(newSize, 1);
 
             _A_LU = null;
-            _x = null;
+            X = null;
 
             return newUnknowns;
         }
 
-        public void RemoveUnknown(Unknown unknown)
+        public void RemoveUnknown(Unknown? unknown)
         {
+            if (unknown == null) { return; }
+
             _unknownValues.Remove(unknown);
 
-            _A = _A.RemoveRowColumn(unknown.Index, unknown.Index);
-            _z = _z.RemoveRow(unknown.Index);
+            A = A.RemoveRowColumn(unknown.Index, unknown.Index);
+            Z = Z.RemoveRow(unknown.Index);
 
             _A_LU = null;
-            _x = null;
+            X = null;
 
             for (int i = unknown.Index; i < _unknownValues.Count; i++)
             {
@@ -88,10 +90,10 @@ namespace Hardwired.Simulation.Electrical
         /// <returns></returns>
         public Complex? GetValue(Unknown? unknown)
         {
-            if (unknown == null || _x == null) { return null; }
-            if (unknown.Index < 0 || unknown.Index > _x.RowCount) { return null; }
+            if (unknown == null || X == null) { return null; }
+            if (unknown.Index < 0 || unknown.Index > X.RowCount) { return null; }
 
-            return _x[unknown.Index, 0];
+            return X[unknown.Index, 0];
         }
 
         /// <summary>
@@ -136,7 +138,7 @@ namespace Hardwired.Simulation.Electrical
         /// Column A[n, (_nodes + v)] for values of v between 0 and `_voltageSources` represents the contribution
         /// of voltage source `v`'s current to node n.
         /// </summary>
-        private Matrix<Complex> _A = Matrix<Complex>.Build.Dense(0, 0);
+        public Matrix<Complex> A = Matrix<Complex>.Build.Dense(0, 0);
 
         private LU<Complex>? _A_LU;
 
@@ -145,14 +147,16 @@ namespace Hardwired.Simulation.Electrical
         /// The first `_nodes` values will be the voltages at each node.
         /// The next `_voltageSources` values will be the currents across each voltage source.
         /// </summary>
-        private Matrix<Complex>? _x;
+        public Matrix<Complex>? X;
 
         /// <summary>
         /// Vector of known values to be used as inputs.
         /// The first `_nodes` values will be the current flowing through each node from current sources (positive values indicate current flowing out of the node).
         /// The next `_voltageSources` values will be the voltage of each voltage source.
         /// </summary>
-        private Matrix<Complex> _z = Matrix<Complex>.Build.Dense(0, 1);
+        public Matrix<Complex> Z = Matrix<Complex>.Build.Dense(0, 1);
+
+        public IReadOnlyList<Unknown> Unknowns => _unknownValues.AsReadOnly();
 
         /// <summary>
         /// Adds the given admittance value between the given nodes.
@@ -172,18 +176,18 @@ namespace Hardwired.Simulation.Electrical
         {
             if (a != null)
             {
-                _A[a.Index, a.Index] += value;
+                A[a.Index, a.Index] += value;
             }
 
             if (b != null)
             {
-                _A[b.Index, b.Index] += value;
+                A[b.Index, b.Index] += value;
             }
 
             if (a != null && b != null)
             {
-                _A[a.Index, b.Index] -= value;
-                _A[b.Index, a.Index] -= value;
+                A[a.Index, b.Index] -= value;
+                A[b.Index, a.Index] -= value;
             }
 
             // Since A was modified, invalidate factorization so it will be re-factored on the next solve
@@ -247,19 +251,19 @@ namespace Hardwired.Simulation.Electrical
             if (a != null)
             {
                 // V(n) ... = V
-                _A[i.Index, a.Index] = -1;
+                A[i.Index, a.Index] = -1;
 
                 // Add the voltage source's current to the destination node
-                _A[a.Index, i.Index] = -1;
+                A[a.Index, i.Index] = -1;
             }
 
             if (b != null)
             {
                 // ... -V(m) = V
-                _A[i.Index, b.Index] = 1;
+                A[i.Index, b.Index] = 1;
 
                 // Subtract the voltage source's current from the source node
-                _A[b.Index, i.Index] = 1;
+                A[b.Index, i.Index] = 1;
             }
         }
 
@@ -287,32 +291,32 @@ namespace Hardwired.Simulation.Electrical
 
             if (a != null)
             {
-                _A[a.Index, i1.Index] += 1;
-                _A[i1.Index, a.Index] += 1;
+                A[a.Index, i1.Index] += 1;
+                A[i1.Index, a.Index] += 1;
             }
 
             if (b != null)
             {
-                _A[b.Index, i1.Index] -= 1;
-                _A[i1.Index, b.Index] -= 1;
+                A[b.Index, i1.Index] -= 1;
+                A[i1.Index, b.Index] -= 1;
             }
 
             if (c != null)
             {
-                _A[c.Index, i2.Index] += 1;
-                _A[i2.Index, c.Index] += 1;
+                A[c.Index, i2.Index] += 1;
+                A[i2.Index, c.Index] += 1;
             }
 
             if (d != null)
             {
-                _A[d.Index, i2.Index] -= 1;
-                _A[i2.Index, d.Index] -= 1;
+                A[d.Index, i2.Index] -= 1;
+                A[i2.Index, d.Index] -= 1;
             }
 
-            _A[i1.Index, i1.Index] -= new Complex(0, wL1);
-            _A[i1.Index, i2.Index] -= new Complex(0, wM);
-            _A[i2.Index, i1.Index] -= new Complex(0, wM);
-            _A[i2.Index, i2.Index] -= new Complex(0, wL2);
+            A[i1.Index, i1.Index] -= new Complex(0, wL1);
+            A[i1.Index, i2.Index] -= new Complex(0, wM);
+            A[i2.Index, i1.Index] -= new Complex(0, wM);
+            A[i2.Index, i2.Index] -= new Complex(0, wL2);
         }
 
         /// <summary>
@@ -327,7 +331,7 @@ namespace Hardwired.Simulation.Electrical
             if (i == null) { return; }
 
             // Set input voltage to the given value
-            _z[i.Index, 0] = value;
+            Z[i.Index, 0] = value;
         }
 
         /// <summary>
@@ -338,16 +342,16 @@ namespace Hardwired.Simulation.Electrical
         /// <param name="a"></param>
         /// <param name="b"></param>
         /// <param name="i"></param>
-        public void SetCurrent(Unknown? a, Unknown? b, Complex value)
+        public void AddCurrent(Unknown? a, Unknown? b, Complex value)
         {
             if (a != null)
             {
-                _z[a.Index, 0] = -value;
+                Z[a.Index, 0] -= value;
             }
 
             if (b != null)
             {
-                _z[b.Index, 0] = value;
+                Z[b.Index, 0] += value;
             }
         }
 
@@ -357,10 +361,10 @@ namespace Hardwired.Simulation.Electrical
         public void Solve()
         {
             // Try to factorize A into L & U matricies, if not already set up
-            _A_LU ??= _A.LU();
+            _A_LU ??= A.LU();
 
             // Solve for x
-            _x = _A_LU.Solve(_z);
+            X = _A_LU.Solve(Z);
         }
     }
 }

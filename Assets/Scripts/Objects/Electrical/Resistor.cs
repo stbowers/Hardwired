@@ -51,6 +51,12 @@ namespace Hardwired.Objects.Electrical
             Circuit.Solver.AddResistance(_vA, _vB, Resistance);
         }
 
+        public override void Remove(Circuit circuit)
+        {
+            Circuit?.Solver.AddResistance(_vA, _vB, -Resistance);
+            base.Remove(circuit);
+        }
+
         public override void ApplyState()
         {
             base.ApplyState();

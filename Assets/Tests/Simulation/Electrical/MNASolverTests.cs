@@ -6,7 +6,7 @@ using System.Numerics;
 using Hardwired.Simulation.Electrical;
 using NUnit.Framework;
 
-namespace Hardwired.Tests
+namespace Hardwired.Tests.Simulation.Electrical
 {
     public class MNASolverTests
     {
@@ -143,7 +143,7 @@ namespace Hardwired.Tests
 
             foreach ((int? n, int? m, Complex i) in circuit.CurrentSources)
             {
-                solver.SetCurrent(GetNode(n), GetNode(m), i);
+                solver.AddCurrent(GetNode(n), GetNode(m), i);
             }
 
             for (int vi = 0; vi < circuit.VoltageSources.Count; vi++)

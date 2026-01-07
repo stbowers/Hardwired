@@ -41,17 +41,21 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public Complex CurrentDraw;
 
+        /// <summary>
+        /// The momentary "power draw" from the rest of the circuit, based on CurrentDraw and Voltage.
+        /// </summary>
+        [HideInInspector]
+        public double PowerDraw;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
-
-            var p = (Voltage * CurrentDraw.Conjugate()).Real;
 
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
             stringBuilder.AppendLine($"Frequency: {Frequency.ToStringPrefix("Hz", "yellow")}");
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Current Draw: {CurrentDraw.ToStringPrefix("A", "yellow")}");
-            stringBuilder.AppendLine($"Power Draw: {p.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")}");
         }
 
         public override void Initialize(Circuit circuit)
@@ -72,7 +76,7 @@ namespace Hardwired.Objects.Electrical
 
             if (Circuit == null) { return; }
 
-            Circuit.Solver.SetCurrent(_vA, _vB, Current);
+            Circuit.Solver.AddCurrent(_vA, _vB, Current);
         }
 
         public override void ApplyState()
@@ -82,8 +86,8 @@ namespace Hardwired.Objects.Electrical
             if (Circuit == null) { return; }
 
             var vA = Circuit.Solver.GetValueOrDefault(_vA);
-            var vB = Circuit.Solver.GetValueOrDefault(_vA);
-            Voltage = vA - vB;
+            var vB = Circuit.Solver.GetValueOrDefault(_vB);
+            Voltage = vB - vA;
 
             CurrentDraw = Current;
 
@@ -91,6 +95,8 @@ namespace Hardwired.Objects.Electrical
             {
                 CurrentDraw -= Voltage / InternalResistance;
             }
+
+            PowerDraw = (Voltage * CurrentDraw.Conjugate()).Real;
         }
     }
 }

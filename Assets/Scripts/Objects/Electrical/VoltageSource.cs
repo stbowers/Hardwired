@@ -55,6 +55,14 @@ namespace Hardwired.Objects.Electrical
             Circuit.Solver.AddVoltageSource(_vA, _vB, out _i);
         }
 
+        public override void Remove(Circuit circuit)
+        {
+            Circuit?.Solver.RemoveUnknown(_i);
+            _i = null;
+
+            base.Remove(circuit);
+        }
+
         public override void UpdateState()
         {
             base.UpdateState();

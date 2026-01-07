@@ -76,6 +76,12 @@ namespace Hardwired.Objects.Electrical
         public double EnergyBufferMax;
 
         /// <summary>
+        /// Updated each tick with the amount of energy (in Joules) that this power sink was able to output
+        /// </summary>
+        [HideInInspector]
+        public double EnergyOutput;
+
+        /// <summary>
         /// The real power being delivered to the device.
         /// </summary>
         [HideInInspector]
@@ -140,11 +146,6 @@ namespace Hardwired.Objects.Electrical
 
             if (Circuit == null) { return; }
 
-            // Update energy buffer
-            double dt = 0.5;
-            double dE = (Power - PowerTarget) * dt;
-            EnergyBuffer = Math.Clamp(EnergyBuffer + dE, 0, EnergyBufferMax);
-            // TODO -> actually "send" power to the device
 
             if (Voltage.Magnitude < 0.001)
             {
@@ -155,7 +156,7 @@ namespace Hardwired.Objects.Electrical
             {
                 // Adjust the "requested" power by however much would be required to fill (or drain) the energy buffer to 80% capacity over the next tick
                 var eRequired = (0.8 * EnergyBufferMax) - EnergyBuffer;
-                var bufferPowerRequired = eRequired / dt;
+                var bufferPowerRequired = eRequired / Circuit.TimeDelta;
                 var powerRequested = PowerTarget + bufferPowerRequired;
 
                 // Calculate error in how much current we actually want given the input voltage and how much current is flowing through the resistor
@@ -170,7 +171,7 @@ namespace Hardwired.Objects.Electrical
             }
 
             // Add current to counteract the resistor to the circuit
-            Circuit.Solver.SetCurrent(_vA, _vB, SourceCurrent);
+            Circuit.Solver.AddCurrent(_vA, _vB, SourceCurrent);
         }
 
         public override void ApplyState()
@@ -192,6 +193,12 @@ namespace Hardwired.Objects.Electrical
 
             // Calculate real power delivered to the device
             Power = (Voltage * Current.Conjugate()).Real;
+
+            // Update energy buffer and energy output
+            double dE = (Power - PowerTarget) * Circuit.TimeDelta;
+            dE = Math.Clamp(dE, -EnergyBuffer, EnergyBufferMax - EnergyBuffer);
+            EnergyBuffer += dE;
+            EnergyOutput = (Power * Circuit.TimeDelta) - dE;
         }
     }
 }

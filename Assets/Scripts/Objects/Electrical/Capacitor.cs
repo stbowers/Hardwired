@@ -114,7 +114,7 @@ namespace Hardwired.Objects.Electrical
                 var dt = 0.5;
                 var x = Capacitance * Voltage / dt;
 
-                Circuit?.Solver.SetCurrent(_vA, _vB, x);
+                Circuit?.Solver.AddCurrent(_vA, _vB, x);
             }
         }
 
