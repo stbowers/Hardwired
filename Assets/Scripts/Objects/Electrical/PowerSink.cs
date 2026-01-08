@@ -147,10 +147,20 @@ namespace Hardwired.Objects.Electrical
             if (Circuit == null) { return; }
 
 
+            // If voltage is 0, don't add any current into the circut (avoids dividing by zero in math below)
             if (Voltage.Magnitude < 0.001)
             {
-                // If voltage is 0, don't add any current into the circut (avoids dividing by zero in math below)
                 SourceCurrent = 0f;
+            }
+            // If voltage is less than the min voltage, draw no power
+            else if (Voltage.Magnitude < VoltageMin)
+            {
+                SourceCurrent = -ResistorCurrent;
+            }
+            // If voltage is more than the max voltage, draw no power
+            else if (Voltage.Magnitude > VoltageMax)
+            {
+                SourceCurrent = -ResistorCurrent;
             }
             else
             {
