@@ -12,6 +12,7 @@ using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Hardwired.Objects;
 using Hardwired.Objects.Electrical;
+using UnityEngine;
 
 namespace Hardwired.Simulation.Electrical
 {
@@ -19,7 +20,7 @@ namespace Hardwired.Simulation.Electrical
     {
         private static int _nextId = 0;
 
-        private Dictionary<(ElectricalComponent component, int pin), MNASolver.Unknown> _nodes = new();
+        private Dictionary<(GameObject parent, int pin), MNASolver.Unknown> _nodes = new();
         private List<ElectricalComponent> _components = new();
         private List<PowerSink> _powerSinks = new();
         private List<PowerSource> _powerSources = new();
@@ -117,20 +118,21 @@ namespace Hardwired.Simulation.Electrical
             if (pin < 0) { return null; }
 
             MNASolver.Unknown? node;
+            GameObject gameObject = component.gameObject;
 
-            if (_nodes.TryGetValue((component, pin), out node))
+            if (_nodes.TryGetValue((gameObject, pin), out node))
             {
                 return node;
             }
 
-            var peer = TryGetPeer(component, pin);
+            var peer = TryGetPeer(gameObject, pin);
             if (peer != null)
             {
                 node = _nodes.GetValueOrDefault(peer.Value);
             }
 
             node ??= Solver.AddUnknown();
-            _nodes.Add((component, pin), node);
+            _nodes.Add((gameObject, pin), node);
 
             return node;
         }
@@ -147,15 +149,17 @@ namespace Hardwired.Simulation.Electrical
             // pin -1 (or any negative pin) is the common ground
             if (pin < 0) { return; }
 
+            GameObject gameObject = component.gameObject;
+
             // Get the node registered for this connection, if one exists
-            if (!_nodes.TryGetValue((component, pin), out MNASolver.Unknown node))
+            if (!_nodes.TryGetValue((gameObject, pin), out MNASolver.Unknown node))
             {
                 // No node registered for this connection, nothing to do...
                 return;
             }
 
             // Remove the reference for this connection
-            _nodes.Remove((component, pin));
+            _nodes.Remove((gameObject, pin));
 
             Hardwired.LogDebug($"Removing node reference for node {node.Index} - remaining references: {_nodes.Count(e => e.Value == node)}");
 
@@ -169,18 +173,18 @@ namespace Hardwired.Simulation.Electrical
             }
         }
 
-        private (ElectricalComponent component, int pin)? TryGetPeer(ElectricalComponent component, int pin)
+        private (GameObject component, int pin)? TryGetPeer(GameObject component, int pin)
         {
             if (pin < 0) { return null; }
 
-            if (component.TryGetComponent<SmallGrid>(out SmallGrid smallGrid))
+            if (component.TryGetComponent(out SmallGrid smallGrid))
             {
                 var connection = smallGrid.OpenEnds[pin];
                 var peerIndex = connection.GetPeerIndex();
                 var peer = connection.GetOther(false)?.GetComponents<ElectricalComponent>().FirstOrDefault(c => c.UsesConnection(peerIndex));
                 if (peer != null)
                 {
-                    return (peer, peerIndex);
+                    return (peer.gameObject, peerIndex);
                 }
                 else
                 {
