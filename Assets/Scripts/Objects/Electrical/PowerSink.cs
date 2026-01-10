@@ -126,9 +126,9 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("J", "yellow")} / {EnergyBufferMax.ToStringPrefix("J", "yellow")}");
         }
 
-        public override void Initialize(Circuit circuit)
+        public override void Initialize()
         {
-            base.Initialize(circuit);
+            base.Initialize();
 
             if (Circuit == null) { return; }
 
@@ -141,6 +141,13 @@ namespace Hardwired.Objects.Electrical
 
             // Add the impedance to the circuit
             Circuit.Solver.AddImpedance(_vA, _vB, LoadImpedance);
+        }
+
+        public override void Deinitialize()
+        {
+            base.Deinitialize();
+
+            Circuit?.Solver.AddImpedance(_vA, _vB, -LoadImpedance);
         }
 
         public override void UpdateState()

@@ -23,6 +23,15 @@ namespace Hardwired.Objects.Electrical
         public double Frequency;
 
         /// <summary>
+        /// True if this voltage source "drives" the circuit frequency and therefore the circuit _must_ match the set frequency or cause an error.
+        /// This is the case for most generators or other power "sources".
+        /// 
+        /// False if this voltage source doesn't require its specific frequency, and can change to match whatever the circuit's frequency is.
+        /// This is the case for most devices or other power "sinks".
+        /// </summary>
+        public bool IsFrequencyDriver = false;
+
+        /// <summary>
         /// The internal resistance across the pins of this current source (i.e. in parallel)
         /// </summary>
         public double InternalResistance;
@@ -60,15 +69,27 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")}");
         }
 
-        public override void Initialize(Circuit circuit)
+        public override void Initialize()
         {
-            base.Initialize(circuit);
+            base.Initialize();
 
             if (Circuit == null) { return; }
 
             if (InternalResistance != 0f)
             {
                 Circuit.Solver.AddResistance(_vA, _vB, InternalResistance);
+            }
+        }
+
+        public override void Deinitialize()
+        {
+            base.Deinitialize();
+
+            if (Circuit == null) { return; }
+
+            if (InternalResistance != 0f)
+            {
+                Circuit.Solver.AddResistance(_vA, _vB, -InternalResistance);
             }
         }
 

@@ -49,25 +49,21 @@ namespace Hardwired.Objects.Electrical
         }
 
         /// <summary>
-        /// Called by the network manager during a power update to (re)initialize the MNA solver's A matrix with this component's values.
-        /// 
-        /// This function is only called once after a network change in order to initialize the solver's A matrix.
-        /// Since decomposing the A matrix is the most costly step of simulating the circuit, we want to avoid changing the A matrix
-        /// when possible. In general we should only need to change the A matrix (and therefore call this function) when the network
-        /// topology changes (i.e. a component is added/removed, etc). Otherwise changes to components that have already been initialized
-        /// should happen in `UpdateSolverInputs()`.
+        /// Called by the network manager to add this component to a circuit
         /// </summary>
         /// <param name="solver"></param>
-        public virtual void Initialize(Circuit circuit)
+        public virtual void AddTo(Circuit circuit)
         {
             // Remove from previous circuit if initializing for a new one
             if (Circuit != null && Circuit != circuit)
             {
-                Remove(Circuit);
+                RemoveFrom(Circuit);
             }
 
+            // Add to new circuit
             Circuit = circuit;
 
+            // Initialize pins
             _vA = Circuit.GetNode(this, PinA);
             _vB = Circuit.GetNode(this, PinB);
         }
@@ -76,11 +72,34 @@ namespace Hardwired.Objects.Electrical
         /// Called by the network manager to remove this component from the given circuit.
         /// </summary>
         /// <param name="circuit"></param>
-        public virtual void Remove(Circuit circuit)
+        public virtual void RemoveFrom(Circuit circuit)
         {
-            Circuit?.RemoveNodeReference(this, PinA);
-            Circuit?.RemoveNodeReference(this, PinB);
+            // Clean up
+            Deinitialize();
+
+            // Remove from circuit
+            circuit.RemoveComponent(this);
+            circuit.RemoveNodeReference(this, PinA);
+            circuit.RemoveNodeReference(this, PinB);
+
             Circuit = null;
+        }
+
+        /// <summary>
+        /// Called by the network manager during a power update to (re)initialize the MNA solver's A matrix with this component's values.
+        /// 
+        /// This method is only called once whenever the circuit topology changes, but otherwise each tick tries to re-use the existing matrix for efficiency.
+        /// If a re-initialization is required (such as when changing resistance values or other values in the A matrix), call Circuit.Reinitialize().
+        /// </summary>
+        public virtual void Initialize()
+        {
+        }
+
+        /// <summary>
+        /// Removes this component from the solver (i.e. remove admittance from the A matrix, clean up systems, etc).
+        /// </summary>
+        public virtual void Deinitialize()
+        {
         }
 
         /// <summary>

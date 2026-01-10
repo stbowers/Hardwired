@@ -67,9 +67,9 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow")}");
         }
 
-        public override void Initialize(Circuit circuit)
+        public override void Initialize()
         {
-            base.Initialize(circuit);
+            base.Initialize();
 
             if (Circuit == null) { return; }
 

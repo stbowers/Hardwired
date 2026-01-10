@@ -30,6 +30,15 @@ namespace Hardwired.Objects.Electrical
         public double Frequency;
 
         /// <summary>
+        /// True if this voltage source "drives" the circuit frequency and therefore the circuit _must_ match the set frequency or cause an error.
+        /// This is the case for most generators or other power "sources".
+        /// 
+        /// False if this voltage source doesn't require its specific frequency, and can change to match whatever the circuit's frequency is.
+        /// This is the case for most devices or other power "sinks".
+        /// </summary>
+        public bool IsFrequencyDriver = false;
+
+        /// <summary>
         /// The momentary current across this voltage source calculated by the circuit solver.
         /// </summary>
         [HideInInspector]
@@ -46,21 +55,21 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
         }
 
-        public override void Initialize(Circuit circuit)
+        public override void Initialize()
         {
-            base.Initialize(circuit);
+            base.Initialize();
 
             if (Circuit == null) { return; }
 
             Circuit.Solver.AddVoltageSource(_vA, _vB, out _i);
         }
 
-        public override void Remove(Circuit circuit)
+        public override void Deinitialize()
         {
             Circuit?.Solver.RemoveUnknown(_i);
             _i = null;
 
-            base.Remove(circuit);
+            base.Deinitialize();
         }
 
         public override void UpdateState()

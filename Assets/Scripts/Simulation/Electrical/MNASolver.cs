@@ -102,7 +102,16 @@ namespace Hardwired.Simulation.Electrical
         /// <param name="unknown"></param>
         /// <returns></returns>
         public Complex GetValueOrDefault(Unknown? unknown)
-            => GetValue(unknown) ?? default;
+        {
+            Complex? value = GetValue(unknown);
+
+            if (value == null || double.IsNaN(value.Value.Real) || double.IsNaN(value.Value.Imaginary))
+            {
+                return 0;
+            }
+            
+            return value.Value;
+        }
 
 
 

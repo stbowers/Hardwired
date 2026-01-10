@@ -43,19 +43,19 @@ namespace Hardwired.Objects.Electrical
         }
 
 
-        public override void Initialize(Circuit circuit)
+        public override void Initialize()
         {
-            base.Initialize(circuit);
+            base.Initialize();
 
             if (Circuit == null) { return; }
 
             Circuit.Solver.AddResistance(_vA, _vB, Resistance);
         }
 
-        public override void Remove(Circuit circuit)
+        public override void Deinitialize()
         {
             Circuit?.Solver.AddResistance(_vA, _vB, -Resistance);
-            base.Remove(circuit);
+            base.Deinitialize();
         }
 
         public override void ApplyState()

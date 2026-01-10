@@ -42,13 +42,13 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power setting: {PowerSetting.ToStringPrefix("W", "yellow")}");
         }
 
-        public override void Initialize(Circuit circuit)
+        public override void Initialize()
         {
             // P = I * V :. 1/2 * I = P_max / V_nom (1/2 current will go through resitor, other half through the circuit)
             // R = V / I :. R = V_nom / (2 * P_max / V_nom) = V_nom^2 / 2 * P_max
             InternalResistance = VoltageNominal * VoltageNominal / (2 * NominalPower);
 
-            base.Initialize(circuit);
+            base.Initialize();
         }
 
         public override void UpdateState()

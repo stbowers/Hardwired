@@ -71,9 +71,18 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Secondary Coil Power: {secondaryPower.ToStringPrefix("W", "yellow")}");
         }
 
-        public override void Initialize(Circuit circuit)
+        public override void AddTo(Circuit circuit)
         {
-            base.Initialize(circuit);
+            base.AddTo(circuit);
+
+            // Initialize pins
+            _vC = Circuit?.GetNode(this, PinC);
+            _vD = Circuit?.GetNode(this, PinD);
+        }
+
+        public override void Initialize()
+        {
+            base.Initialize();
 
             if (Circuit == null) { return; }
 
@@ -92,6 +101,17 @@ namespace Hardwired.Objects.Electrical
 
                 Circuit.Solver.AddTransformer(_vA, _vB, _vC, _vD, wL1, wL2, wM, out _i1, out _i2);
             }
+        }
+
+        public override void Deinitialize()
+        {
+            base.Deinitialize();
+
+            Circuit?.Solver.RemoveUnknown(_i1);
+            Circuit?.Solver.RemoveUnknown(_i2);
+
+            // TODO: Add MNASolver.RemoveTransformer() method so we don't have to force the entire circuit to re-initialize
+            Circuit?.Invalidate();
         }
 
         public override void ApplyState()

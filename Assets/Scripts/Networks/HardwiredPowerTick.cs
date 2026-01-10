@@ -68,7 +68,7 @@ namespace Hardwired.Networks
             // Now "knownComponents" will only contain components that were in the circuit last tick but have since been removed
             foreach (var component in knownComponents)
             {
-                Circuit.RemoveComponent(component);
+                component.RemoveFrom(Circuit);
             }
 
             // Update power sources/sinks

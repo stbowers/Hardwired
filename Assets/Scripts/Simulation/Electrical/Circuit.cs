@@ -23,6 +23,7 @@ namespace Hardwired.Simulation.Electrical
         private List<ElectricalComponent> _components = new();
         private List<PowerSink> _powerSinks = new();
         private List<PowerSource> _powerSources = new();
+        private bool _frequencyInitialized;
         private bool _initialized;
 
         public int Id { get; } = _nextId++;
@@ -45,36 +46,61 @@ namespace Hardwired.Simulation.Electrical
 
         public void AddComponent(ElectricalComponent component)
         {
-            lock (Solver)
+            Hardwired.LogDebug($"Adding component: {component.GetType()}");
+
+            _components.Add(component);
+
+            if (component is PowerSink powerSink)
             {
-                _components.Add(component);
+                _powerSinks.Add(powerSink);
+            }
 
-                if (component is PowerSink powerSink)
-                {
-                    _powerSinks.Add(powerSink);
-                }
+            // If the component is a frequency "driver", re-evaluate the frequency on the next power tick
+            if (component is VoltageSource vs && vs.IsFrequencyDriver)
+            {
+                _frequencyInitialized = false;
+            }
+            else if (component is CurrentSource cs && cs.IsFrequencyDriver)
+            {
+                _frequencyInitialized = false;
+            }
 
-                // If the circuit is already initialized, initialize this component now...
-                // Otherwise, it will be initialized on the next power tick
-                if (_initialized)
-                {
-                    component.Initialize(this);
-                }
+            // Initialize component
+            component.AddTo(this);
+            if (_initialized)
+            {
+                component.Initialize();
             }
         }
 
         public void RemoveComponent(ElectricalComponent component)
         {
-            lock (Solver)
-            {
-                _components.Remove(component);
-                component.Remove(this);
+            Hardwired.LogDebug($"Removing component: {component.GetType()}");
 
-                if (component is PowerSink powerSink)
-                {
-                    _powerSinks.Remove(powerSink);
-                }
+            // Remove from components list
+            if (!_components.Remove(component))
+            {
+                // If the component wasn't in this circuit to begin with, we don't have anything else to clean up...
+                return;
             }
+
+            if (component is PowerSink powerSink)
+            {
+                _powerSinks.Remove(powerSink);
+            }
+
+            // If the component was a frequency "driver", re-evaluate the frequency on the next power tick
+            if (component is VoltageSource vs && vs.IsFrequencyDriver)
+            {
+                _frequencyInitialized = false;
+            }
+            else if (component is CurrentSource cs && cs.IsFrequencyDriver)
+            {
+                _frequencyInitialized = false;
+            }
+
+            // Deinitialize
+            component.RemoveFrom(this);
         }
 
         /// <summary>
@@ -131,10 +157,13 @@ namespace Hardwired.Simulation.Electrical
             // Remove the reference for this connection
             _nodes.Remove((component, pin));
 
+            Hardwired.LogDebug($"Removing node reference for node {node.Index} - remaining references: {_nodes.Count(e => e.Value == node)}");
+
             // Check if there are any other references left to this node
             bool stillAlive = _nodes.Any(entry => entry.Value == node);
             if (!stillAlive)
             {
+                Hardwired.LogDebug($"Removing node {node.Index}");
                 // If no more references, remove the node from the MNA solver
                 Solver.RemoveUnknown(node);
             }
@@ -166,21 +195,23 @@ namespace Hardwired.Simulation.Electrical
 
         public void ProcessTick()
         {
-            lock (Solver)
+            try
             {
-                try
-                {
-                    Initialize();
-                    Solver.Z.Clear();
-                    UpdateState();
-                    Solver.Solve();
-                    ApplyState();
-                }
-                catch (Exception e)
-                {
-                    Hardwired.LogDebug($"Error processing tick! {e}");
-                }
+                InitializeFrequency();
+                Initialize();
+                Solver.Z.Clear();
+                UpdateState();
+                Solver.Solve();
             }
+            catch (Exception e)
+            {
+                Hardwired.LogDebug($"Error processing tick! {e}");
+
+                Solver?.Z?.Clear();
+                Solver?.X?.Clear();
+            }
+
+            ApplyState();
         }
 
         /// <summary>
@@ -195,17 +226,14 @@ namespace Hardwired.Simulation.Electrical
         {
             if (_initialized) { return; }
 
-            InitializeFrequency();
-
             Hardwired.LogDebug($"Circuit network {Id} - Initializing circuit with {Components.Count} components at {Frequency} Hz");
 
             // Clear MNA matrix
             Solver.A.Clear();
-            Solver.Z.Clear();
 
             foreach (var component in Components)
             {
-                component.Initialize(this);
+                component.Initialize();
             }
 
             _initialized = true;
@@ -214,16 +242,25 @@ namespace Hardwired.Simulation.Electrical
         // Determine the AC frequency to use
         private void InitializeFrequency()
         {
-            Frequency = 0f;
+            // Check if frequency is already initialized
+            if (_frequencyInitialized) { return; }
+
+            // Set to true if the frequncy is changed and thus the circuit needs to be reinitialized
+            bool frequencyChanged = false;
+
+            // Set to true if any components are "driving" the frequency, and thus it must stay the same
+            // (two components can't "drive" the circuit at different frequencies)
+            bool frequencyDriven = false;
+
             foreach (var component in Components)
             {
                 double componentFrequency;
 
-                if (component is VoltageSource voltageSource)
+                if (component is VoltageSource voltageSource && voltageSource.IsFrequencyDriver)
                 {
                     componentFrequency = voltageSource.Frequency;
                 }
-                else if (component is CurrentSource currentSource)
+                else if (component is CurrentSource currentSource && currentSource.IsFrequencyDriver)
                 {
                     componentFrequency = currentSource.Frequency;
                 }
@@ -232,15 +269,23 @@ namespace Hardwired.Simulation.Electrical
                     continue;
                 }
 
-                if (Frequency != 0f && componentFrequency != 0f && componentFrequency != Frequency)
+                if (frequencyDriven && componentFrequency != Frequency)
                 {
                     throw new InvalidOperationException($"Circuit network {Id} invalid -- cannot have multiple AC sources at different frequencies");
                 }
-                else if (componentFrequency != 0f)
-                {
-                    Frequency = componentFrequency;
-                }
+
+                frequencyDriven = true;
+                frequencyChanged = componentFrequency != Frequency;
+                Frequency = componentFrequency;
             }
+
+            // If the circuit freqency was changed, re-initialize the circuit
+            if (frequencyChanged)
+            {
+                _initialized = false;
+            }
+
+            _frequencyInitialized = true;
         }
 
         private void UpdateState()

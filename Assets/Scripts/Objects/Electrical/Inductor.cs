@@ -55,9 +55,9 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow")}");
         }
 
-        public override void Initialize(Circuit circuit)
+        public override void Initialize()
         {
-            base.Initialize(circuit);
+            base.Initialize();
 
             if (Circuit == null) { return; }
 
@@ -85,6 +85,29 @@ namespace Hardwired.Objects.Electrical
                 // // It would probably be good to refactor this code at some point to make it more clear what we're adding
                 // var j = Circuit.Solver.Nodes + _v;
                 // solver.AddAdmittance(j, null, x);
+            }
+            // TODO: Add MNASolver.RemoveTransformer() method so we don't have to force the entire circuit to re-initialize
+            Circuit?.Invalidate();
+        }
+
+        public override void Deinitialize()
+        {
+            base.Deinitialize();
+
+            if (Circuit == null) { return; }
+
+            if (Circuit.Frequency != 0)
+            {
+                var w = 2f * Math.PI * Circuit.Frequency;
+                Reactance = w * Inductance;
+
+                Circuit.Solver.AddReactance(_vA, _vB, -Reactance);
+            }
+            else
+            {
+                Circuit.Solver.RemoveUnknown(_i);
+                // TODO: Add MNASolver.RemoveVoltageSource() method so we don't have to force the entire circuit to re-initialize
+                Circuit.Invalidate();
             }
         }
 
