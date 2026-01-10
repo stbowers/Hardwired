@@ -104,7 +104,7 @@ namespace Hardwired.Tests.Objects.Electrical
                 ComplexAssert.AreEqual(iSource.PowerDraw, pSink.Power);
 
                 // Energy output by the sink should always exactly match the expected energy given the power target
-                Assert.AreEqual(pSink.EnergyOutput, pSink.PowerTarget * circuit.TimeDelta);
+                Assert.AreEqual(pSink.EnergyInput, pSink.PowerTarget * circuit.TimeDelta);
             }
         }
     }

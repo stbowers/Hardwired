@@ -51,10 +51,12 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"-- Current Source --");
+            stringBuilder.AppendLine($"Current: {new Complex(Current, 0).ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Frequency: {Frequency.ToStringPrefix("Hz", "yellow")}");
-            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Current Draw: {CurrentDraw.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Internal Resistance: {InternalResistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Current Draw: {CurrentDraw.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")}");
         }
 

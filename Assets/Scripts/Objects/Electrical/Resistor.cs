@@ -35,10 +35,11 @@ namespace Hardwired.Objects.Electrical
 
             double p = (Voltage * Current.Conjugate()).Real;
 
+            stringBuilder.AppendLine($"-- Resistor --");
             stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
-            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
-            stringBuilder.AppendLine($"Power: {p.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"Power dissipated: {p.ToStringPrefix("W", "yellow")}");
         }
 
 

@@ -76,10 +76,11 @@ namespace Hardwired.Objects.Electrical
         public double EnergyBufferMax;
 
         /// <summary>
-        /// Updated each tick with the amount of energy (in Joules) that this power sink was able to output
+        /// The calculated energy consumed from the circuit by this power sink for this tick.
+        /// (note that devices generally provide/consume power in Watts, i.e. via Device.UsePower(), so this value needs to be divided by dt to get the power used this tick)
         /// </summary>
         [HideInInspector]
-        public double EnergyOutput;
+        public double EnergyInput;
 
         /// <summary>
         /// The real power being delivered to the device.
@@ -115,11 +116,13 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
+            stringBuilder.AppendLine($"-- Power Sink --");
+            stringBuilder.AppendLine($"Nominal Power: {MaxPower.ToStringPrefix("W", "yellow")} (@ {VoltageNominal.ToStringPrefix("V", "yellow")})");
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Power Delivered: {Power.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Impedance: {LoadImpedance.ToStringPrefix("Ω", "yellow")}");
-            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("J", "yellow")} / {EnergyBufferMax.ToStringPrefix("J", "yellow")}");
         }
 
@@ -208,7 +211,7 @@ namespace Hardwired.Objects.Electrical
             double dE = (Power - PowerTarget) * Circuit.TimeDelta;
             dE = Math.Clamp(dE, -EnergyBuffer, EnergyBufferMax - EnergyBuffer);
             EnergyBuffer += dE;
-            EnergyOutput = (Power * Circuit.TimeDelta) - dE;
+            EnergyInput = (Power * Circuit.TimeDelta) - dE;
         }
     }
 }

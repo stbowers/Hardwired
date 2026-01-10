@@ -58,12 +58,13 @@ namespace Hardwired.Objects.Electrical
 
             if (Circuit == null) { return; }
 
-            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"-- Capacitor --");
             stringBuilder.AppendLine($"Capacitance: {Capacitance.ToStringPrefix("F", "yellow")}");
+            stringBuilder.AppendLine($"Reactance: {Reactance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix(Circuit.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("C", "yellow")}");
             stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow")}");
-            stringBuilder.AppendLine($"Reactance: {Reactance.ToStringPrefix("Ω", "yellow")}");
         }
 
         public override void Initialize(Circuit circuit)

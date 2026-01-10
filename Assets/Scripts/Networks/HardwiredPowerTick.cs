@@ -84,7 +84,7 @@ namespace Hardwired.Networks
                 {
                     powerSource = device.gameObject.AddComponent<PowerSource>();
 
-                    powerSource.MaxPower = 500;
+                    powerSource.NominalPower = 500;
                     powerSource.VoltageNominal = 200;
 
                     powerSource.PinA = -1;
@@ -187,7 +187,7 @@ namespace Hardwired.Networks
 
                 // Note - Device.UsePower()/ReceivePower() expect power in Watts, but for easier energy calculations the power source/sink
                 // calculate the actual energy used in this tick, so we need to convert back when sending to the device.
-                device.UsePower(CableNetwork, (float)(source.EnergyInput / Circuit.TimeDelta));
+                device.UsePower(CableNetwork, (float)(source.EnergyOutput / Circuit.TimeDelta));
             }
 
             // Apply power to sinks
@@ -198,9 +198,9 @@ namespace Hardwired.Networks
 
                 // Note - Device.UsePower()/ReceivePower() expect power in Watts, but for easier energy calculations the power source/sink
                 // calculate the actual energy used in this tick, so we need to convert back when sending to the device.
-                device.ReceivePower(CableNetwork, (float)(sink.EnergyOutput / Circuit.TimeDelta));
+                device.ReceivePower(CableNetwork, (float)(sink.EnergyInput / Circuit.TimeDelta));
 
-                if (sink.EnergyOutput > 0)
+                if (sink.EnergyInput > 0)
                 {
                     device.SetPowerFromThread(CableNetwork, true).Forget();
                 }

@@ -12,12 +12,12 @@ namespace Hardwired.Objects.Electrical
     public class PowerSource : CurrentSource
     {
         /// <summary>
-        /// The maximum designed power output of the power source (used to size the internal resistance)
+        /// The nominal designed power output of the power source (used to size the internal resistance along with VoltageNominal)
         /// </summary>
-        public double MaxPower;
+        public double NominalPower;
 
         /// <summary>
-        /// The actual power being supplied by this power source this tick
+        /// The actual power being supplied by this power source this tick (note that this is the total power _available_, regardless of if it gets used or not)
         /// </summary>
         public double PowerSetting;
 
@@ -28,24 +28,25 @@ namespace Hardwired.Objects.Electrical
         public double VoltageNominal;
 
         /// <summary>
-        /// The calculated energy input into the circuit by this power source for this tick
+        /// The calculated energy output into the circuit by this power source for this tick
+        /// (note that devices generally provide/consume power in Watts, i.e. via Device.UsePower(), so this value needs to be divided by dt to get the power output for the tick)
         /// </summary>
-        public double EnergyInput;
+        public double EnergyOutput;
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
 
             stringBuilder.AppendLine($"-- Power Source --");
+            stringBuilder.AppendLine($"Nominal Power Output: {NominalPower.ToStringPrefix("W", "yellow")} (@ {VoltageNominal.ToStringPrefix("V", "yellow")})");
             stringBuilder.AppendLine($"Power setting: {PowerSetting.ToStringPrefix("W", "yellow")}");
-            stringBuilder.AppendLine($"Energy Input: {EnergyInput.ToStringPrefix("J", "yellow")}");
         }
 
         public override void Initialize(Circuit circuit)
         {
             // P = I * V :. 1/2 * I = P_max / V_nom (1/2 current will go through resitor, other half through the circuit)
             // R = V / I :. R = V_nom / (2 * P_max / V_nom) = V_nom^2 / 2 * P_max
-            InternalResistance = VoltageNominal * VoltageNominal / (2 * MaxPower);
+            InternalResistance = VoltageNominal * VoltageNominal / (2 * NominalPower);
 
             base.Initialize(circuit);
         }
@@ -64,7 +65,7 @@ namespace Hardwired.Objects.Electrical
 
             if (Circuit == null) { return; }
 
-            EnergyInput = PowerDraw * Circuit.TimeDelta;
+            EnergyOutput = PowerDraw * Circuit.TimeDelta;
         }
     }
 }

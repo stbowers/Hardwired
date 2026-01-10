@@ -61,11 +61,12 @@ namespace Hardwired.Objects.Electrical
             var primaryPower = (PrimaryVoltage * PrimaryCurrent.Conjugate()).Real;
             var secondaryPower = (SecondaryVoltage * SecondaryCurrent.Conjugate()).Real;
 
+            stringBuilder.AppendLine($"-- Transformer --");
             stringBuilder.AppendLine($"N: {N}");
-            stringBuilder.AppendLine($"Primary Coil Voltage: {PrimaryVoltage.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Secondary Coil Voltage: {SecondaryVoltage.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Primary Coil Current: {PrimaryCurrent.ToStringPrefix("A", "yellow")}");
-            stringBuilder.AppendLine($"Secondary Coil Current: {SecondaryCurrent.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Primary Coil Voltage: {PrimaryVoltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Secondary Coil Voltage: {SecondaryVoltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Primary Coil Current: {PrimaryCurrent.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"Secondary Coil Current: {SecondaryCurrent.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Primary Coil Power: {primaryPower.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Secondary Coil Power: {secondaryPower.ToStringPrefix("W", "yellow")}");
         }

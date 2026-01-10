@@ -47,11 +47,12 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"-- Inductor --");
             stringBuilder.AppendLine($"Inductance: {Inductance.ToStringPrefix("F", "yellow")}");
-            stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow")}");
             stringBuilder.AppendLine($"Reactance: {Reactance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow")}");
         }
 
         public override void Initialize(Circuit circuit)
