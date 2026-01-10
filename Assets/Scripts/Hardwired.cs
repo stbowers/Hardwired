@@ -6,6 +6,9 @@ using System.Collections.Generic;
 using LaunchPadBooster.Utils;
 using HarmonyLib;
 using Hardwired.Patches;
+using Assets.Scripts.Objects.Electrical;
+using Assets.Scripts.UI;
+using System.Linq;
 
 namespace Hardwired
 {
@@ -19,7 +22,6 @@ namespace Hardwired
             LogDebug("Loading Hardwired...");
 
             PatchBuildStateTools.ApplyPatch();
-            PatchElectricalPrefabs.ApplyPatch();
 
             MOD.AddPrefabs(prefabs);
             HARMONY.PatchAll();

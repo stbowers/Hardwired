@@ -51,7 +51,7 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public Complex SecondaryCurrent;
 
-        protected override bool UsesConnection(int connection)
+        public override bool UsesConnection(int connection)
             => PinC == connection || PinD == connection || base.UsesConnection(connection);
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)

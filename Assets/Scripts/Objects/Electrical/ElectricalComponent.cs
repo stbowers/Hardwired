@@ -43,7 +43,8 @@ namespace Hardwired.Objects.Electrical
             }
             else
             {
-                stringBuilder.AppendLine($"Circuit network: {Circuit.Id}");
+                stringBuilder.AppendLine($"-- Circuit network: {Circuit.Id} --");
+                stringBuilder.AppendLine($"Node A: {_vA?.Index ?? -1} (connection {PinA}) | Node B: {_vB?.Index ?? -1} (connection {PinB})");
             }
         }
 
@@ -104,7 +105,7 @@ namespace Hardwired.Objects.Electrical
         {
         }
 
-        protected virtual bool UsesConnection(int connection)
+        public virtual bool UsesConnection(int connection)
             => PinA == connection || PinB == connection;
     }
 }

@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
@@ -15,7 +16,8 @@ namespace Hardwired.Objects
         /// <returns></returns>
         public static Connection? GetPeer(this Connection? connection)
         {
-            var peerStructure = connection?.GetOther();
+            connection?.Initialize();
+            var peerStructure = connection?.GetOther(false);
             return peerStructure?.OpenEnds.FirstOrDefault(c => c.LocalGrid == connection?.FacingGrid);
         }
 
@@ -26,7 +28,7 @@ namespace Hardwired.Objects
         /// <returns></returns>
         public static int GetPeerIndex(this Connection? connection)
         {
-            var peerStructure = connection?.GetOther();
+            var peerStructure = connection?.GetOther(false);
             var peerIndex = peerStructure?.OpenEnds.FindIndex(c => c.LocalGrid == connection?.FacingGrid);
 
             return peerIndex ?? -1;

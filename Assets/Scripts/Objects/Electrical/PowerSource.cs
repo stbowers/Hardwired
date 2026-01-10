@@ -1,5 +1,7 @@
 #nullable enable
 
+using System.Text;
+using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
 
 namespace Hardwired.Objects.Electrical
@@ -30,11 +32,20 @@ namespace Hardwired.Objects.Electrical
         /// </summary>
         public double EnergyInput;
 
+        public override void BuildPassiveToolTip(StringBuilder stringBuilder)
+        {
+            base.BuildPassiveToolTip(stringBuilder);
+
+            stringBuilder.AppendLine($"-- Power Source --");
+            stringBuilder.AppendLine($"Power setting: {PowerSetting.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Energy Input: {EnergyInput.ToStringPrefix("J", "yellow")}");
+        }
+
         public override void Initialize(Circuit circuit)
         {
             // P = I * V :. 1/2 * I = P_max / V_nom (1/2 current will go through resitor, other half through the circuit)
             // R = V / I :. R = V_nom / (2 * P_max / V_nom) = V_nom^2 / 2 * P_max
-            InternalResistance = VoltageNominal * VoltageNominal / 2 * MaxPower;
+            InternalResistance = VoltageNominal * VoltageNominal / (2 * MaxPower);
 
             base.Initialize(circuit);
         }

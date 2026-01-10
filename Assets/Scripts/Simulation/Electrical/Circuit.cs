@@ -19,7 +19,7 @@ namespace Hardwired.Simulation.Electrical
     {
         private static int _nextId = 0;
 
-        private Dictionary<object, MNASolver.Unknown> _nodes = new();
+        private Dictionary<(ElectricalComponent component, int pin), MNASolver.Unknown> _nodes = new();
         private List<ElectricalComponent> _components = new();
         private List<PowerSink> _powerSinks = new();
         private List<PowerSource> _powerSources = new();
@@ -90,51 +90,21 @@ namespace Hardwired.Simulation.Electrical
             // pin -1 (or any negative pin) is the common ground
             if (pin < 0) { return null; }
 
-            // If component is attached to a small grid object, use the pin as the index of the open end to check
-            if (component.GetComponent<SmallGrid>() is SmallGrid smallGrid)
-            {
-                return GetNode(smallGrid.OpenEnds[pin]);
-            }
-            // Otherwise, use the component and pin number itself as the dictionary key
-            // (this is mostly used as a convenience for unit tests - most real components will use connection points, but the
-            // unit tests don't have access to those, so unit tests just use a shared index for pins)
-            else
-            {
-                return GetNode((component, pin));
-            }
-        }
-
-        public MNASolver.Unknown? GetNode(object key)
-        {
             MNASolver.Unknown? node;
 
-            // If there is already a known node for this connection, return it
-            if (_nodes.TryGetValue(key, out node))
+            if (_nodes.TryGetValue((component, pin), out node))
             {
                 return node;
             }
 
-            // Otherwise, first check if the peer to this connection is associated with a node
-            object? peer = null;
-
-            if (key is Connection connection)
+            var peer = TryGetPeer(component, pin);
+            if (peer != null)
             {
-                peer = connection.GetPeer();
-            }
-            else if (key is (_, int pin))
-            {
-                peer = _nodes.Keys.FirstOrDefault(k => k is (_, int p) && p == pin);
+                node = _nodes.GetValueOrDefault(peer.Value);
             }
 
-            if (peer == null || !_nodes.TryGetValue(peer, out node))
-            {
-                // If the peer isn't associated to a node (or doesn't exist), create a new node
-                // for this connection
-                node = Solver.AddUnknown();
-            }
-
-            // Associate the node with this connection
-            _nodes.Add(key, node);
+            node ??= Solver.AddUnknown();
+            _nodes.Add((component, pin), node);
 
             return node;
         }
@@ -151,29 +121,15 @@ namespace Hardwired.Simulation.Electrical
             // pin -1 (or any negative pin) is the common ground
             if (pin < 0) { return; }
 
-            // If component is attached to a small grid object, use the pin as the index of the open end to check
-            if (component.GetComponent<SmallGrid>() is SmallGrid smallGrid)
-            {
-                RemoveNodeReference(smallGrid.OpenEnds[pin]);
-            }
-            // Otherwise, use the pin number itself as the dictionary key
-            else
-            {
-                RemoveNodeReference((component, pin));
-            }
-        }
-
-        private void RemoveNodeReference(object key)
-        {
             // Get the node registered for this connection, if one exists
-            if (!_nodes.TryGetValue(key, out MNASolver.Unknown node))
+            if (!_nodes.TryGetValue((component, pin), out MNASolver.Unknown node))
             {
                 // No node registered for this connection, nothing to do...
                 return;
             }
 
             // Remove the reference for this connection
-            _nodes.Remove(key);
+            _nodes.Remove((component, pin));
 
             // Check if there are any other references left to this node
             bool stillAlive = _nodes.Any(entry => entry.Value == node);
@@ -181,6 +137,30 @@ namespace Hardwired.Simulation.Electrical
             {
                 // If no more references, remove the node from the MNA solver
                 Solver.RemoveUnknown(node);
+            }
+        }
+
+        private (ElectricalComponent component, int pin)? TryGetPeer(ElectricalComponent component, int pin)
+        {
+            if (pin < 0) { return null; }
+
+            if (component.TryGetComponent<SmallGrid>(out SmallGrid smallGrid))
+            {
+                var connection = smallGrid.OpenEnds[pin];
+                var peerIndex = connection.GetPeerIndex();
+                var peer = connection.GetOther(false)?.GetComponents<ElectricalComponent>().FirstOrDefault(c => c.UsesConnection(peerIndex));
+                if (peer != null)
+                {
+                    return (peer, peerIndex);
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                return _nodes.Keys.FirstOrDefault(k => k.pin == pin);
             }
         }
 

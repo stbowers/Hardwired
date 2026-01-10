@@ -5,10 +5,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Assets.Scripts.Networks;
+using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using Hardwired.Objects.Electrical;
 using Hardwired.Simulation.Electrical;
+using Objects.Rockets;
 
 namespace Hardwired.Networks
 {
@@ -43,8 +45,18 @@ namespace Hardwired.Networks
             // Get list of components already added to the circuit
             List<ElectricalComponent> knownComponents = Circuit.Components.ToList();
 
-            // Iterate over all components in the cable network
-            foreach (var component in cableNetwork.DeviceList.SelectMany(d => d.GetComponents<ElectricalComponent>()))
+            // Iterate over all devices in the cable network
+            foreach (var component in cableNetwork.PowerDeviceList.SelectMany(d => d.GetComponents<ElectricalComponent>()))
+            {
+                // Skip components that are already in the circuit; but remove them from "knownComponents" list
+                if (knownComponents.Remove(component)) { continue; }
+
+                // If a component wasn't already in the circuit, add it now
+                Circuit.AddComponent(component);
+            }
+
+            // Iterate over all cables in the cable network
+            foreach (var component in cableNetwork.CableList.SelectMany(d => d.GetComponents<ElectricalComponent>()))
             {
                 // Skip components that are already in the circuit; but remove them from "knownComponents" list
                 if (knownComponents.Remove(component)) { continue; }
@@ -57,6 +69,79 @@ namespace Hardwired.Networks
             foreach (var component in knownComponents)
             {
                 Circuit.RemoveComponent(component);
+            }
+
+            // Update power sources/sinks
+            foreach (var device in CableNetwork.PowerDeviceList)
+            {
+                var generatedPower = device.GetGeneratedPower(CableNetwork);
+                var usedPower = device.GetUsedPower(CableNetwork);
+
+                PowerSource? powerSource = device.GetComponent<PowerSource>();
+                PowerSink? powerSink = device.GetComponent<PowerSink>();
+
+                if (generatedPower > 0.1 && powerSource == null)
+                {
+                    powerSource = device.gameObject.AddComponent<PowerSource>();
+
+                    powerSource.MaxPower = 500;
+                    powerSource.VoltageNominal = 200;
+
+                    powerSource.PinA = -1;
+                    powerSource.PinB = device.OpenEnds.FindIndex(c => (c.ConnectionType & NetworkType.Power) != NetworkType.None);
+
+                    Circuit.AddComponent(powerSource);
+                }
+
+                if (usedPower > 0.1 && powerSink == null)
+                {
+                    powerSink = device.gameObject.AddComponent<PowerSink>();
+
+                    powerSink.VoltageMin = 100;
+                    powerSink.VoltageNominal = 200;
+                    powerSink.VoltageMax = 400;
+                    powerSink.MaxPower = 500;
+
+                    powerSink.PinA = device.OpenEnds.FindIndex(c => (c.ConnectionType & NetworkType.Power) != NetworkType.None);
+                    powerSink.PinB = -1;
+
+                    Circuit.AddComponent(powerSink);
+                }
+
+                // Update power source
+                if (powerSource != null)
+                {
+                    powerSource.PowerSetting = generatedPower;
+                }
+
+                // Update power sink
+                if (powerSink != null)
+                {
+                    powerSink.PowerTarget = generatedPower;
+                }
+            }
+
+            // Update cables
+            foreach (var cable in CableNetwork.CableList)
+            {
+                if (cable.GetComponent<Resistor>() is Resistor resistor) { continue; }
+
+                for (int i = 0; i < cable.OpenEnds.Count; i++)
+                {
+                    for (int j = i + 1; j < cable.OpenEnds.Count; j++)
+                    {
+                        resistor = cable.gameObject.AddComponent<Resistor>();
+                        resistor.Resistance = 0.001;
+
+                        resistor.PinA = i;
+                        resistor.PinB = j;
+
+                        Hardwired.LogDebug($"Added resistor to cable between connection {i} and {j}");
+
+                        Circuit.AddComponent(resistor);
+                    }
+                }
+                
             }
 
             // Update power sources based on how much power they will generate this tick
@@ -100,7 +185,9 @@ namespace Hardwired.Networks
             {
                 if (source.GetComponent<Device>() is not Device device){ continue; }
 
-                device.UsePower(CableNetwork, (float)source.EnergyInput);
+                // Note - Device.UsePower()/ReceivePower() expect power in Watts, but for easier energy calculations the power source/sink
+                // calculate the actual energy used in this tick, so we need to convert back when sending to the device.
+                device.UsePower(CableNetwork, (float)(source.EnergyInput / Circuit.TimeDelta));
             }
 
             // Apply power to sinks
@@ -109,7 +196,9 @@ namespace Hardwired.Networks
                 // Get device this sink is attached to
                 if (sink.GetComponent<Device>() is not Device device){ continue; }
 
-                device.ReceivePower(CableNetwork, (float)sink.EnergyOutput);
+                // Note - Device.UsePower()/ReceivePower() expect power in Watts, but for easier energy calculations the power source/sink
+                // calculate the actual energy used in this tick, so we need to convert back when sending to the device.
+                device.ReceivePower(CableNetwork, (float)(sink.EnergyOutput / Circuit.TimeDelta));
 
                 if (sink.EnergyOutput > 0)
                 {
