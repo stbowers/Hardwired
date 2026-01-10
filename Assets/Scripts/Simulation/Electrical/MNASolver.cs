@@ -26,108 +26,7 @@ namespace Hardwired.Simulation.Electrical
     /// </summary>
     public class MNASolver
     {
-        /// <summary>
-        /// Represents an unknown value and its corresponding equation in the system of equations.
-        /// 
-        /// For example, nodes in the circuit are an Unknown value representing the voltage at that node, and the KCL equation for that node.
-        /// 
-        /// Typical unknown values in MNA include:
-        /// - Node voltages
-        /// - Branch currents (i.e. for voltage source, transformer, etc)
-        /// </summary>
-        public class Unknown
-        {
-            public int Index;
-        }
-
         private List<Unknown> _unknownValues = new();
-
-        public Unknown AddUnknown()
-            => AddUnknowns(1)[0];
-
-        public Unknown[] AddUnknowns(int count)
-        {
-            Unknown[] newUnknowns = new Unknown[count];
-
-            for (int i = 0; i < count; i++)
-            {
-                newUnknowns[i] = new() { Index = _unknownValues.Count };
-                _unknownValues.Add(newUnknowns[i]);
-            }
-
-            var newSize = _unknownValues.Count;
-            A = A.Resize(newSize, newSize);
-            Z = Z.Resize(newSize, 1);
-
-            _A_LU = null;
-            X = null;
-
-            return newUnknowns;
-        }
-
-        public void RemoveUnknown(Unknown? unknown)
-        {
-            if (unknown == null) { return; }
-
-            _unknownValues.Remove(unknown);
-
-            A = A.RemoveRowColumn(unknown.Index, unknown.Index);
-            Z = Z.RemoveRow(unknown.Index);
-
-            _A_LU = null;
-            X = null;
-
-            for (int i = unknown.Index; i < _unknownValues.Count; i++)
-            {
-                _unknownValues[i].Index = i;
-            }
-        }
-
-        /// <summary>
-        /// Gets the solved value of the given unknown, or null if the unknown is invalid or the system has not been solved yet.
-        /// </summary>
-        /// <param name="unknown"></param>
-        /// <returns></returns>
-        public Complex? GetValue(Unknown? unknown)
-        {
-            if (unknown == null || X == null) { return null; }
-            if (unknown.Index < 0 || unknown.Index > X.RowCount) { return null; }
-
-            return X[unknown.Index, 0];
-        }
-
-        /// <summary>
-        /// Gets the solved value of the given unknown, or 0 if the unknown is invalid or the system has not been solved yet.
-        /// </summary>
-        /// <param name="unknown"></param>
-        /// <returns></returns>
-        public Complex GetValueOrDefault(Unknown? unknown)
-        {
-            Complex? value = GetValue(unknown);
-
-            if (value == null || double.IsNaN(value.Value.Real) || double.IsNaN(value.Value.Imaginary))
-            {
-                return 0;
-            }
-            
-            return value.Value;
-        }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         /// <summary>
         /// Matrix of coefficients for the system of equations.
@@ -374,6 +273,91 @@ namespace Hardwired.Simulation.Electrical
 
             // Solve for x
             X = _A_LU.Solve(Z);
+        }
+
+        public Unknown AddUnknown()
+            => AddUnknowns(1)[0];
+
+        public Unknown[] AddUnknowns(int count)
+        {
+            Unknown[] newUnknowns = new Unknown[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                newUnknowns[i] = new() { Index = _unknownValues.Count };
+                _unknownValues.Add(newUnknowns[i]);
+            }
+
+            var newSize = _unknownValues.Count;
+            A = A.Resize(newSize, newSize);
+            Z = Z.Resize(newSize, 1);
+
+            _A_LU = null;
+            X = null;
+
+            return newUnknowns;
+        }
+
+        public void RemoveUnknown(Unknown? unknown)
+        {
+            if (unknown == null) { return; }
+
+            _unknownValues.Remove(unknown);
+
+            A = A.RemoveRowColumn(unknown.Index, unknown.Index);
+            Z = Z.RemoveRow(unknown.Index);
+
+            _A_LU = null;
+            X = null;
+
+            for (int i = unknown.Index; i < _unknownValues.Count; i++)
+            {
+                _unknownValues[i].Index = i;
+            }
+        }
+
+        /// <summary>
+        /// Gets the solved value of the given unknown, or null if the unknown is invalid or the system has not been solved yet.
+        /// </summary>
+        /// <param name="unknown"></param>
+        /// <returns></returns>
+        public Complex? GetValue(Unknown? unknown)
+        {
+            if (unknown == null || X == null) { return null; }
+            if (unknown.Index < 0 || unknown.Index > X.RowCount) { return null; }
+
+            return X[unknown.Index, 0];
+        }
+
+        /// <summary>
+        /// Gets the solved value of the given unknown, or 0 if the unknown is invalid or the system has not been solved yet.
+        /// </summary>
+        /// <param name="unknown"></param>
+        /// <returns></returns>
+        public Complex GetValueOrDefault(Unknown? unknown)
+        {
+            Complex? value = GetValue(unknown);
+
+            if (value == null || double.IsNaN(value.Value.Real) || double.IsNaN(value.Value.Imaginary))
+            {
+                return 0;
+            }
+            
+            return value.Value;
+        }
+
+        /// <summary>
+        /// Represents an unknown value and its corresponding equation in the system of equations.
+        /// 
+        /// For example, nodes in the circuit are an Unknown value representing the voltage at that node, and the KCL equation for that node.
+        /// 
+        /// Typical unknown values in MNA include:
+        /// - Node voltages
+        /// - Branch currents (i.e. for voltage source, transformer, etc)
+        /// </summary>
+        public class Unknown
+        {
+            public int Index;
         }
     }
 }
