@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Assets.Scripts;
+using Assets.Scripts.Atmospherics;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -131,12 +133,13 @@ namespace Hardwired.Networks
                     for (int j = i + 1; j < cable.OpenEnds.Count; j++)
                     {
                         line = cable.gameObject.AddComponent<Line>();
-                        line.Resistance = 0.001;
 
-                        // Copper
-                        line.VolumetricSpecificHeat = 3.450;
-                        line.Diameter = 5;
-                        line.Length = 50;
+                        // Partially based on physical properties of copper wire ~2mm diameter
+                        // Partially balanced around 25A max for normal cables (~5 kW @ 200V)
+                        line.Resistance = 0.002;
+                        line.SpecificHeat = 0.005;
+                        line.Temperature = 293.15;
+                        line.DissipationCapacity = 0.003;
 
                         line.PinA = i;
                         line.PinB = j;
@@ -182,8 +185,6 @@ namespace Hardwired.Networks
             TimeApplying.Start();
 
             // TODO: Check fuses/breakers/etc
-            // TODO: Check cable temperatures; burn out if too hot
-            // TODO: Apply power to devices
 
             // Use power from sources
             foreach (var source in Circuit.PowerSources)
@@ -212,6 +213,32 @@ namespace Hardwired.Networks
                 else
                 {
                     device.SetPowerFromThread(CableNetwork, false).Forget();
+                }
+            }
+
+            // Update cable heat
+            foreach (var cable in CableNetwork.CableList)
+            {
+                Line[] lines = cable.GetComponents<Line>();
+                if (lines.Length == 0) { continue; }
+
+                // Set all cables to average temp (in case more current is going down one path)
+                var cableTemp = lines.Average(l => l.Temperature);
+                foreach (var line in lines)
+                {
+                    line.Temperature = cableTemp;
+                }
+
+                // Randomly break cables that are over temp, with a higher chance the hotter they are
+                // 100 C ~ 0%
+                // 150 C ~ 100%
+                double breakChance = (cableTemp - 373.15) / 50f;
+                breakChance = Math.Clamp(breakChance, 0f, 1f);
+
+                bool shouldBreak = breakChance >= UnityEngine.Random.Range(0f, 1f);
+                if (shouldBreak)
+                {
+                    cable.Break();
                 }
             }
 

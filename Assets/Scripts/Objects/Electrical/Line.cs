@@ -20,21 +20,9 @@ namespace Hardwired.Objects.Electrical
     public class Line : Resistor
     {
         /// <summary>
-        /// The volumetric specific heat capacity of the material this cable is made out of (J/cm^3/K)
+        /// The specific heat capacity of this cable, in J/K (i.e. how much energy needs to be added to the cable in order to raise it's temperature by 1 K)
         /// </summary>
-        public double VolumetricSpecificHeat;
-
-        /// <summary>
-        /// The length of this segment of cable in cm.
-        /// </summary>
-        public double Length;
-
-        /// <summary>
-        /// The diameter of one "wire" in the cable in mm.
-        /// (note that this model assumes there are two "wires" in each cable - a positive and negative; or hot and neutral... The resistance is only actually modeled in the circuit
-        /// on the "positive" wire, and all devices share a common ground, so the resistance will be twice what would normally be calculated from one wire.)
-        /// </summary>
-        public double Diameter;
+        public double SpecificHeat;
 
         /// <summary>
         /// The current temperature (K) of this segment of cable.
@@ -44,29 +32,26 @@ namespace Hardwired.Objects.Electrical
         public double Temperature;
 
         /// <summary>
-        /// The volume of wire being modeled (based on diameter & length) in cm^3
-        /// Used to calculate how fast the temperature should rise given the specific heat and power being dissipated.
+        /// How much power can this cable dissipate into the void, based on it's temperature (W/K).
+        /// 
+        /// Each tick, if PowerDissipated is greater than this, the temperature will increase.
+        /// If PowerDissipated is lower, the temperature will decrease (to ~20 C)
+        /// 
+        /// This is a temporary system that approximates the power dissipation of a cable, but eventually I'd like to
+        /// replace this with a more accurate calculation (in particular, cables should heat up the room they're in, and
+        /// the temperature around them will determine how effectively they can convect heat)
         /// </summary>
         [HideInInspector]
-        public double WireVolume;
+        public double DissipationCapacity;
 
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Temperature: {Temperature.ToStringPrefix("°C", "yellow")}");
-        }
+            double tCelsius = Temperature - 273.15;
 
-
-        public override void Initialize()
-        {
-            // Calculate volume of wire in the cable (2 wires per cable)
-            var dCm = Diameter / 10;
-            var area = 0.25f * Math.PI * dCm * dCm;
-            WireVolume = 2 * area * Length;
-
-            base.Initialize();
+            stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")}");
         }
 
         public override void ApplyState()
@@ -76,10 +61,13 @@ namespace Hardwired.Objects.Electrical
             if (Circuit == null) { return; }
 
             // Calculate temperature change due to resistive heating
-            double dE = PowerDissipated * Circuit.TimeDelta;
-            double dT = dE / VolumetricSpecificHeat * WireVolume;
+            // double dE = PowerDissipated * Circuit.TimeDelta;
+            double pRadiated = DissipationCapacity * Temperature;
+            double dE = (PowerDissipated - pRadiated) * Circuit.TimeDelta;
+            double dT = dE / SpecificHeat;
 
-            Temperature += dT;
+            // Update temperature (with min temp ~20 C, to avoid DissipationCapacity bringing the temp down to absolute zero)
+            Temperature = Math.Max(Temperature + dT, 293f);
         }
 
     }
