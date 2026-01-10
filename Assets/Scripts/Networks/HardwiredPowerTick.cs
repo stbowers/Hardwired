@@ -124,21 +124,26 @@ namespace Hardwired.Networks
             // Update cables
             foreach (var cable in CableNetwork.CableList)
             {
-                if (cable.GetComponent<Resistor>() is Resistor resistor) { continue; }
+                if (cable.GetComponent<Line>() is Line line) { continue; }
 
                 for (int i = 0; i < cable.OpenEnds.Count; i++)
                 {
                     for (int j = i + 1; j < cable.OpenEnds.Count; j++)
                     {
-                        resistor = cable.gameObject.AddComponent<Resistor>();
-                        resistor.Resistance = 0.001;
+                        line = cable.gameObject.AddComponent<Line>();
+                        line.Resistance = 0.001;
 
-                        resistor.PinA = i;
-                        resistor.PinB = j;
+                        // Copper
+                        line.VolumetricSpecificHeat = 3.450;
+                        line.Diameter = 5;
+                        line.Length = 50;
+
+                        line.PinA = i;
+                        line.PinB = j;
 
                         Hardwired.LogDebug($"Added resistor to cable between connection {i} and {j}");
 
-                        Circuit.AddComponent(resistor);
+                        Circuit.AddComponent(line);
                     }
                 }
                 

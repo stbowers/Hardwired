@@ -29,17 +29,21 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public Complex Current;
 
+        /// <summary>
+        /// The amount of power (W) dissipated by this resistor due to resistive heating.
+        /// </summary>
+        [HideInInspector]
+        public double PowerDissipated;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
-
-            double p = (Voltage * Current.Conjugate()).Real;
 
             stringBuilder.AppendLine($"-- Resistor --");
             stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"Power dissipated: {p.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Power dissipated: {PowerDissipated.ToStringPrefix("W", "yellow")}");
         }
 
 
@@ -69,6 +73,8 @@ namespace Hardwired.Objects.Electrical
             Voltage = vA - vB;
 
             Current = Voltage / Resistance;
+
+            PowerDissipated = (Voltage * Current.Conjugate()).Real;
         }
 
     }
