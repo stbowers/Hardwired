@@ -74,15 +74,17 @@ namespace Hardwired.Objects.Electrical
         /// <param name="circuit"></param>
         public virtual void RemoveFrom(Circuit circuit)
         {
+            if (circuit != Circuit) { return; }
+
             // Clean up
             Deinitialize();
 
             // Remove from circuit
+            Circuit = null;
             circuit.RemoveComponent(this);
             circuit.RemoveNodeReference(this, PinA);
             circuit.RemoveNodeReference(this, PinB);
 
-            Circuit = null;
         }
 
         /// <summary>

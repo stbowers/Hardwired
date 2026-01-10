@@ -20,7 +20,7 @@ namespace Hardwired.Simulation.Electrical
     {
         private static int _nextId = 0;
 
-        private Dictionary<(GameObject parent, int pin), MNASolver.Unknown> _nodes = new();
+        private Dictionary<(ElectricalComponent component, int pin), MNASolver.Unknown> _nodes = new();
         private List<ElectricalComponent> _components = new();
         private List<PowerSink> _powerSinks = new();
         private List<PowerSource> _powerSources = new();
@@ -118,21 +118,20 @@ namespace Hardwired.Simulation.Electrical
             if (pin < 0) { return null; }
 
             MNASolver.Unknown? node;
-            GameObject gameObject = component.gameObject;
 
-            if (_nodes.TryGetValue((gameObject, pin), out node))
+            if (_nodes.TryGetValue((component, pin), out node))
             {
                 return node;
             }
 
-            var peer = TryGetPeer(gameObject, pin);
-            if (peer != null)
-            {
-                node = _nodes.GetValueOrDefault(peer.Value);
-            }
+            // Look for any references from the "peers" of this connection (i.e. other components on this object or the connected object that share the connection)
+            node = GetPeers(component, pin)
+                .Select(key => _nodes.GetValueOrDefault(key))
+                .FirstOrDefault(n => n != null)
+                // If no reference from a peer is found, add a new node to the solver
+                ?? Solver.AddUnknown();
 
-            node ??= Solver.AddUnknown();
-            _nodes.Add((gameObject, pin), node);
+            _nodes.Add((component, pin), node);
 
             return node;
         }
@@ -149,17 +148,15 @@ namespace Hardwired.Simulation.Electrical
             // pin -1 (or any negative pin) is the common ground
             if (pin < 0) { return; }
 
-            GameObject gameObject = component.gameObject;
-
             // Get the node registered for this connection, if one exists
-            if (!_nodes.TryGetValue((gameObject, pin), out MNASolver.Unknown node))
+            if (!_nodes.TryGetValue((component, pin), out MNASolver.Unknown node))
             {
                 // No node registered for this connection, nothing to do...
                 return;
             }
 
             // Remove the reference for this connection
-            _nodes.Remove((gameObject, pin));
+            _nodes.Remove((component, pin));
 
             Hardwired.LogDebug($"Removing node reference for node {node.Index} - remaining references: {_nodes.Count(e => e.Value == node)}");
 
@@ -173,27 +170,35 @@ namespace Hardwired.Simulation.Electrical
             }
         }
 
-        private (GameObject component, int pin)? TryGetPeer(GameObject component, int pin)
+        private IEnumerable<(ElectricalComponent component, int pin)> GetPeers(ElectricalComponent component, int pin)
         {
-            if (pin < 0) { return null; }
+            if (pin < 0) { yield break; }
 
+            // Look for any other components on the same object that share this pin
+            foreach (var otherComponent in component.GetComponents<ElectricalComponent>().Where(c => c != component && c.UsesConnection(pin)))
+            {
+                yield return (otherComponent, pin);
+            }
+
+            // Look for components on the "peer" to this connection (i.e. other device we're connected to, if any)
             if (component.TryGetComponent(out SmallGrid smallGrid))
             {
                 var connection = smallGrid.OpenEnds[pin];
                 var peerIndex = connection.GetPeerIndex();
-                var peer = connection.GetOther(false)?.GetComponents<ElectricalComponent>().FirstOrDefault(c => c.UsesConnection(peerIndex));
-                if (peer != null)
+                var peerComponents = connection.GetOther(false)?.GetComponents<ElectricalComponent>().Where(c => c.UsesConnection(peerIndex));
+                foreach (var peer in peerComponents ?? Enumerable.Empty<ElectricalComponent>())
                 {
-                    return (peer.gameObject, peerIndex);
-                }
-                else
-                {
-                    return null;
+                    yield return (peer, peerIndex);
                 }
             }
+            // If we're not actually on a device (and so don't have connections), assume the pin is a global index, and look for other node references to the same pin
+            // (this is mostly used as a unit test tool, so the unit tests don't have to set up a full game object/cable network, and can instead use global node indecies)
             else
             {
-                return _nodes.Keys.FirstOrDefault(k => k.pin == pin);
+                foreach (var key in _nodes.Keys.Where(k => k.pin == pin))
+                {
+                    yield return key;
+                }
             }
         }
 

@@ -5,6 +5,7 @@ using System.Numerics;
 using Hardwired.Objects.Electrical;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Tests.Utility;
+using MathNet.Numerics;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -65,6 +66,9 @@ namespace Hardwired.Tests.Objects.Electrical
             for (int i = 0; i < 50; i++)
             {
                 circuit.ProcessTick();
+
+                // The source current should only ever counteract the voltage, never add to it
+                Assert.That(pSink.SourceCurrent.Real <= 0);
             }
 
             Assert.AreEqual(pExpected, pSink.Power, 0.0001);
@@ -105,6 +109,58 @@ namespace Hardwired.Tests.Objects.Electrical
 
                 // Energy output by the sink should always exactly match the expected energy given the power target
                 Assert.AreEqual(pSink.EnergyInput, pSink.PowerTarget * circuit.TimeDelta);
+            }
+        }
+
+        /// <summary>
+        /// This is testing a specific bug I ran in to - the bug ended up having more to do with cleaning up components from the circuit than with the power source/sink itself,
+        /// but it wasn't worth rewriting a more representative test in CircuitTests.cs...
+        /// </summary>
+        [Test]
+        public void RemoveFromCircuitWorks()
+        {
+            var circuit = new Circuit();
+
+            var gameObject = new GameObject();
+            var pSource = gameObject.AddComponent<PowerSource>();
+            var pSink = gameObject.AddComponent<PowerSink>();
+
+            // Provides ~160 V max; 320 W max (@ ~ 80 V)
+            pSource.NominalPower = 500;
+            pSource.VoltageNominal = 200;
+            pSource.PowerSetting = 800;
+            pSource.PinA = -1;
+            pSource.PinB = 0;
+
+            pSink.PowerTarget = 100;
+            pSink.MaxPower = 500;
+            pSink.VoltageMin = 100;
+            pSink.VoltageNominal = 200;
+            pSink.VoltageMax = 400;
+            pSink.PinA = 0;
+            pSink.PinB = -1;
+
+            circuit.AddComponent(pSource);
+            circuit.AddComponent(pSink);
+
+            // Allow a few ticks to settle
+            for (int i = 0; i < 20; i++)
+            {
+                Hardwired.LogDebug($"{pSink.Power} - {pSink.EnergyBuffer}");
+                circuit.ProcessTick();
+            }
+
+            // Remove power source
+            // circuit.RemoveComponent(pSource);
+            pSource.RemoveFrom(circuit);
+
+            // Check power draw over several ticks
+            for (int i = 0; i < 100; i++)
+            {
+                Hardwired.LogDebug($"{pSink.Power} - {pSink.EnergyBuffer}");
+                circuit.ProcessTick();
+
+                Assert.AreEqual(pSink.Power, 0, 0.1);
             }
         }
     }
