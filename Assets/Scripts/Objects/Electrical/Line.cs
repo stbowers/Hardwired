@@ -66,6 +66,15 @@ namespace Hardwired.Objects.Electrical
             double dE = (PowerDissipated - pRadiated) * Circuit.TimeDelta;
             double dT = dE / SpecificHeat;
 
+            // Cap max change in temperature per tick
+            // NOTE: this is a workaround for a bug caused by the current implementation of the power sink... If a circuit is suddenly disconnected
+            // from any other power sources, and a power sink's current source becomes the only source of voltage in the circuit, a wire may have
+            // the full voltage of the power sink applied, so Voltage would be much higher than usual (i.e. ~100-200 V, when it's usually < 1 V, since
+            // it's the voltage drop across the resistor), causing current/power to be much higher than it should be.
+            // Eventually I'd like to replace the power sink with a non-linear solution that can exactly determine the voltage/current/power draw in
+            // one tick, after which this shouldn't be an issue.
+            dT = Math.Min(dT, 10f);
+
             // Update temperature (with min temp ~20 C, to avoid DissipationCapacity bringing the temp down to absolute zero)
             Temperature += dT;
         }

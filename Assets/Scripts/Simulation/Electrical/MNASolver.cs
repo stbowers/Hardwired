@@ -151,10 +151,10 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         /// <param name="a"></param>
         /// <param name="b"></param>
-        public void AddVoltageSource(Unknown? a, Unknown? b, out Unknown i)
+        public void AddVoltageSource(Unknown? a, Unknown? b, ref Unknown? i)
         {
             // Add an unknown for the current
-            i = AddUnknown();
+            i ??= AddUnknown();
 
             if (a != null)
             {
@@ -190,12 +190,11 @@ namespace Hardwired.Simulation.Electrical
         /// <param name="wm"></param>
         /// <param name="i1"></param>
         /// <param name="i2"></param>
-        public void AddTransformer(Unknown? a, Unknown? b, Unknown? c, Unknown? d, double wL1, double wL2, double wM, out Unknown i1, out Unknown i2)
+        public void AddTransformer(Unknown? a, Unknown? b, Unknown? c, Unknown? d, double wL1, double wL2, double wM, ref Unknown? i1, ref Unknown? i2)
         {
             // Add 2 new unknowns for the current through each inductor
-            var unknowns = AddUnknowns(2);
-            i1 = unknowns[0];
-            i2 = unknowns[1];
+            i1 ??= AddUnknown();
+            i2 ??= AddUnknown();
 
             if (a != null)
             {
@@ -271,8 +270,15 @@ namespace Hardwired.Simulation.Electrical
             // Try to factorize A into L & U matricies, if not already set up
             _A_LU ??= A.LU();
 
+            if (_A_LU.Determinant == 0)
+            {
+                X = null;
+                throw new InvalidOperationException($"Can't solve matrix\n{A}");
+            }
+
             // Solve for x
             X = _A_LU.Solve(Z);
+
         }
 
         public Unknown AddUnknown()
@@ -300,9 +306,13 @@ namespace Hardwired.Simulation.Electrical
 
         public void RemoveUnknown(Unknown? unknown)
         {
-            if (unknown == null) { return; }
+            if (unknown == null || unknown.Index < 0) { return; }
 
-            _unknownValues.Remove(unknown);
+            if (!_unknownValues.Remove(unknown))
+            {
+                Hardwired.LogDebug($"Couldn't remove node {unknown.Index}, not in circuit");
+                return;
+            }
 
             A = A.RemoveRowColumn(unknown.Index, unknown.Index);
             Z = Z.RemoveRow(unknown.Index);
@@ -314,6 +324,8 @@ namespace Hardwired.Simulation.Electrical
             {
                 _unknownValues[i].Index = i;
             }
+
+            unknown.Index = -1;
         }
 
         /// <summary>

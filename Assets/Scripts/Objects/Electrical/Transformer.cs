@@ -80,6 +80,15 @@ namespace Hardwired.Objects.Electrical
             _vD = Circuit?.GetNode(this, PinD);
         }
 
+        public override void RemoveFrom(Circuit circuit)
+        {
+            // Remove from circuit
+            circuit.RemoveNodeReference(this, PinC);
+            circuit.RemoveNodeReference(this, PinD);
+
+            base.RemoveFrom(circuit);
+        }
+
         public override void Initialize()
         {
             base.Initialize();
@@ -99,7 +108,7 @@ namespace Hardwired.Objects.Electrical
                 var wL2 = w * l2;
                 var wM = w * m;
 
-                Circuit.Solver.AddTransformer(_vA, _vB, _vC, _vD, wL1, wL2, wM, out _i1, out _i2);
+                Circuit.Solver.AddTransformer(_vA, _vB, _vC, _vD, wL1, wL2, wM, ref _i1, ref _i2);
             }
         }
 
@@ -109,6 +118,8 @@ namespace Hardwired.Objects.Electrical
 
             Circuit?.Solver.RemoveUnknown(_i1);
             Circuit?.Solver.RemoveUnknown(_i2);
+            _i1 = null;
+            _i2 = null;
 
             // TODO: Add MNASolver.RemoveTransformer() method so we don't have to force the entire circuit to re-initialize
             Circuit?.Invalidate();
@@ -118,10 +129,15 @@ namespace Hardwired.Objects.Electrical
         {
             base.ApplyState();
 
-            if (Circuit == null) { return; }
+            if (Circuit == null)
+            {
+                PrimaryVoltage = 0f;
+                SecondaryVoltage = 0f;
+                PrimaryCurrent = 0f;
+                SecondaryCurrent = 0f;
 
-            // Do nothing for DC
-            if (Circuit.Frequency == 0f) { return; }
+                return;
+            }
 
             var vA = Circuit.Solver.GetValueOrDefault(_vA);
             var vB = Circuit.Solver.GetValueOrDefault(_vB);

@@ -18,8 +18,6 @@ namespace Hardwired.Simulation.Electrical
 {
     public class Circuit
     {
-        private static int _nextId = 0;
-
         private Dictionary<(ElectricalComponent component, int pin), MNASolver.Unknown> _nodes = new();
         private List<ElectricalComponent> _components = new();
         private List<PowerSink> _powerSinks = new();
@@ -27,7 +25,7 @@ namespace Hardwired.Simulation.Electrical
         private bool _frequencyInitialized;
         private bool _initialized;
 
-        public int Id { get; } = _nextId++;
+        public int Id { get; } = (new System.Random()).Next();
 
         public MNASolver Solver { get; } = new();
 
@@ -47,7 +45,7 @@ namespace Hardwired.Simulation.Electrical
 
         public void AddComponent(ElectricalComponent component)
         {
-            Hardwired.LogDebug($"Adding component: {component.GetType()}");
+            Hardwired.LogDebug($"Circuit {Id} - Adding component: {component.GetType()}");
 
             _components.Add(component);
 
@@ -76,7 +74,7 @@ namespace Hardwired.Simulation.Electrical
 
         public void RemoveComponent(ElectricalComponent component)
         {
-            Hardwired.LogDebug($"Removing component: {component.GetType()}");
+            Hardwired.LogDebug($"Circuit {Id} - Removing component: {component.GetType()}");
 
             // Remove from components list
             if (!_components.Remove(component))
@@ -114,26 +112,29 @@ namespace Hardwired.Simulation.Electrical
         /// <returns></returns>
         public MNASolver.Unknown? GetNode(ElectricalComponent component, int pin)
         {
-            // pin -1 (or any negative pin) is the common ground
-            if (pin < 0) { return null; }
-
-            MNASolver.Unknown? node;
-
-            if (_nodes.TryGetValue((component, pin), out node))
+            lock (_nodes)
             {
+                // pin -1 (or any negative pin) is the common ground
+                if (pin < 0) { return null; }
+
+                MNASolver.Unknown? node;
+
+                if (_nodes.TryGetValue((component, pin), out node))
+                {
+                    return node;
+                }
+
+                // Look for any references from the "peers" of this connection (i.e. other components on this object or the connected object that share the connection)
+                node = GetPeers(component, pin)
+                    .Select(key => _nodes.GetValueOrDefault(key))
+                    .FirstOrDefault(n => n != null)
+                    // If no reference from a peer is found, add a new node to the solver
+                    ?? Solver.AddUnknown();
+
+                _nodes.Add((component, pin), node);
+
                 return node;
             }
-
-            // Look for any references from the "peers" of this connection (i.e. other components on this object or the connected object that share the connection)
-            node = GetPeers(component, pin)
-                .Select(key => _nodes.GetValueOrDefault(key))
-                .FirstOrDefault(n => n != null)
-                // If no reference from a peer is found, add a new node to the solver
-                ?? Solver.AddUnknown();
-
-            _nodes.Add((component, pin), node);
-
-            return node;
         }
 
         /// <summary>
@@ -145,28 +146,31 @@ namespace Hardwired.Simulation.Electrical
         /// <param name="node"></param>
         public void RemoveNodeReference(ElectricalComponent component, int pin)
         {
-            // pin -1 (or any negative pin) is the common ground
-            if (pin < 0) { return; }
-
-            // Get the node registered for this connection, if one exists
-            if (!_nodes.TryGetValue((component, pin), out MNASolver.Unknown node))
+            lock (_nodes)
             {
-                // No node registered for this connection, nothing to do...
-                return;
-            }
+                // pin -1 (or any negative pin) is the common ground
+                if (pin < 0) { return; }
 
-            // Remove the reference for this connection
-            _nodes.Remove((component, pin));
+                // Get the node registered for this connection, if one exists
+                if (!_nodes.TryGetValue((component, pin), out MNASolver.Unknown node))
+                {
+                    // No node registered for this connection, nothing to do...
+                    return;
+                }
 
-            Hardwired.LogDebug($"Removing node reference for node {node.Index} - remaining references: {_nodes.Count(e => e.Value == node)}");
+                // Remove the reference for this connection
+                _nodes.Remove((component, pin));
 
-            // Check if there are any other references left to this node
-            bool stillAlive = _nodes.Any(entry => entry.Value == node);
-            if (!stillAlive)
-            {
-                Hardwired.LogDebug($"Removing node {node.Index}");
-                // If no more references, remove the node from the MNA solver
-                Solver.RemoveUnknown(node);
+                Hardwired.LogDebug($"Circuit {Id} - Removing node reference for node {node.Index} - remaining references: {_nodes.Count(e => e.Value.Index == node.Index)}");
+
+                // Check if there are any other references left to this node
+                bool stillAlive = _nodes.Any(entry => entry.Value.Index == node.Index);
+                if (!stillAlive)
+                {
+                    Hardwired.LogDebug($"Circuit {Id} - Removing node {node.Index} ({node.GetHashCode()})");
+                    // If no more references, remove the node from the MNA solver
+                    Solver.RemoveUnknown(node);
+                }
             }
         }
 
@@ -214,7 +218,7 @@ namespace Hardwired.Simulation.Electrical
             }
             catch (Exception e)
             {
-                Hardwired.LogDebug($"Error processing tick! {e}");
+                Hardwired.LogDebug($"Circuit {Id} -- Error processing tick! {e}");
 
                 Solver?.Z?.Clear();
                 Solver?.X?.Clear();

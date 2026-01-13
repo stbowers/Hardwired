@@ -61,7 +61,7 @@ namespace Hardwired.Objects.Electrical
 
             if (Circuit == null) { return; }
 
-            Circuit.Solver.AddVoltageSource(_vA, _vB, out _i);
+            Circuit.Solver.AddVoltageSource(_vA, _vB, ref _i);
         }
 
         public override void Deinitialize()

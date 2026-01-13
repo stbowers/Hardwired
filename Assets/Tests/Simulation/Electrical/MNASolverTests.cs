@@ -148,11 +148,13 @@ namespace Hardwired.Tests.Simulation.Electrical
 
             for (int vi = 0; vi < circuit.VoltageSources.Count; vi++)
             {
+                MNASolver.Unknown? i = null;
+
                 var v = circuit.VoltageSources[vi];
-                solver.AddVoltageSource(GetNode(v.n), GetNode(v.m), out MNASolver.Unknown i);
+                solver.AddVoltageSource(GetNode(v.n), GetNode(v.m), ref i);
                 solver.SetVoltage(i, v.e);
 
-                _vsources[vi] = i;
+                _vsources[vi] = i!;
             }
 
             solver.Solve();

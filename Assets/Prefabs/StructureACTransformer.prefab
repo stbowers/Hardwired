@@ -275,10 +275,10 @@ MonoBehaviour:
   ForceGridBounds: []
   BoundsExpand: 0
   OpenEnds:
-  - ConnectionType: -1
+  - ConnectionType: 2
     Transform: {fileID: 9046234498090118830}
     Collider: {fileID: 6945949541167116376}
-    ConnectionRole: 0
+    ConnectionRole: 1
     HelperRenderer: {fileID: 0}
     Parent: {fileID: 8670393510292924329}
     LocalGrid:
@@ -289,10 +289,10 @@ MonoBehaviour:
       x: 0
       y: 0
       z: 0
-  - ConnectionType: -1
+  - ConnectionType: 2
     Transform: {fileID: 8048634268821788550}
     Collider: {fileID: 5077213693546918630}
-    ConnectionRole: 0
+    ConnectionRole: 3
     HelperRenderer: {fileID: 0}
     Parent: {fileID: 8670393510292924329}
     LocalGrid:
@@ -303,12 +303,14 @@ MonoBehaviour:
       x: 0
       y: 0
       z: 0
-  SmallCollisionType: 0
+  SmallCollisionType: -1
   DualRegister: 0
   requiresFrame: 0
   HasDataConnection: 0
-  ConnectionType: 8
-  OpenEndsPermutation: 000000000100000002000000030000000400000005000000
+  UsedPower: 10
+  AttachedCables: []
+  _infoScreen: {fileID: 0}
+  wreckagePrefabs: []
 --- !u!114 &1549894164689491804
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -421,7 +423,7 @@ Transform:
   m_GameObject: {fileID: 6478424996001752475}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 0.5, y: 0, z: 0}
+  m_LocalPosition: {x: 0.3, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -446,7 +448,7 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 0.25
+  m_Radius: 0.05
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8191464751563088839
 GameObject:
@@ -474,7 +476,7 @@ Transform:
   m_GameObject: {fileID: 8191464751563088839}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: -0.5, y: 0, z: 0}
+  m_LocalPosition: {x: -0.3, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -499,7 +501,7 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 0.25
+  m_Radius: 0.05
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1001 &3870897920767981619
 PrefabInstance:

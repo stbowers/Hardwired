@@ -84,7 +84,6 @@ namespace Hardwired.Objects.Electrical
             circuit.RemoveComponent(this);
             circuit.RemoveNodeReference(this, PinA);
             circuit.RemoveNodeReference(this, PinB);
-
         }
 
         /// <summary>
