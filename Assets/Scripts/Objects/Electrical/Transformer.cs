@@ -89,7 +89,7 @@ namespace Hardwired.Objects.Electrical
             // Only works in AC
             if (Circuit.Frequency != 0f)
             {
-                var l1 = 0.1;
+                var l1 = 10;
                 var l2 = l1 * N * N;
                 var k = 0.999;
                 var m = k * l1 * N;
