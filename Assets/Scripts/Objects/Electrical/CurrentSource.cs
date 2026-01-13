@@ -56,6 +56,12 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public double PowerDraw;
 
+        /// <summary>
+        /// The ratio of real power to apparent power
+        /// </summary>
+        [HideInInspector]
+        public double PowerFactor;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -66,7 +72,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Internal Resistance: {InternalResistance.ToStringPrefix("Ω", "yellow")}");
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Current Draw: {CurrentDraw.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor:F3}");
         }
 
         public override void Initialize()
@@ -119,7 +125,9 @@ namespace Hardwired.Objects.Electrical
                 CurrentDraw -= Voltage / InternalResistance;
             }
 
-            PowerDraw = (Voltage * CurrentDraw.Conjugate()).Real;
+            var s = Voltage * CurrentDraw.Conjugate();
+            PowerDraw = s.Real;
+            PowerFactor = s.Real / s.Magnitude;
         }
     }
 }

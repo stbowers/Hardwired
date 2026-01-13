@@ -12,6 +12,7 @@ using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using Hardwired.Objects.Electrical;
 using Hardwired.Simulation.Electrical;
+using Objects.Pipes;
 using Objects.Rockets;
 
 namespace Hardwired.Networks
@@ -88,6 +89,8 @@ namespace Hardwired.Networks
 
                     powerSource.NominalPower = 500;
                     powerSource.VoltageNominal = 200;
+                    powerSource.Frequency = 60;
+                    powerSource.IsFrequencyDriver = true;
 
                     powerSource.PinA = -1;
                     powerSource.PinB = device.OpenEnds.FindIndex(c => (c.ConnectionType & NetworkType.Power) != NetworkType.None);
@@ -102,10 +105,15 @@ namespace Hardwired.Networks
                     powerSink.VoltageMin = 100;
                     powerSink.VoltageNominal = 200;
                     powerSink.VoltageMax = 400;
-                    powerSink.MaxPower = 500;
 
                     powerSink.PinA = device.OpenEnds.FindIndex(c => (c.ConnectionType & NetworkType.Power) != NetworkType.None);
                     powerSink.PinB = -1;
+
+                    // Make volume pumps inductive (this is just an example - eventually I'd like to have data-driven power profiles for devices)
+                    if (device is VolumePump volPump)
+                    {
+                        powerSink.Inductance = 2;
+                    }
 
                     Circuit.AddComponent(powerSink);
                 }
@@ -119,6 +127,13 @@ namespace Hardwired.Networks
                 // Update power sink
                 if (powerSink != null)
                 {
+                    if (powerSink.MaxPower < usedPower)
+                    {
+                        powerSink.MaxPower = usedPower;
+                        powerSink.Deinitialize();
+                        powerSink.Initialize();
+                    }
+
                     powerSink.PowerTarget = generatedPower;
                 }
             }
@@ -137,7 +152,7 @@ namespace Hardwired.Networks
                         // Partially based on physical properties of copper wire ~2mm diameter
                         // Partially balanced around 25A max for normal cables (~5 kW @ 200V)
                         line.Resistance = 0.002;
-                        line.SpecificHeat = 0.005;
+                        line.SpecificHeat = 0.05;
                         line.Temperature = 293.15;
                         line.DissipationCapacity = 0.003;
 

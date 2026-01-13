@@ -53,6 +53,12 @@ namespace Hardwired.Objects.Electrical
         public Complex LoadImpedance;
 
         /// <summary>
+        /// The inductance in this load (or 0 for a purely resistive load)
+        /// </summary>
+        [HideInInspector]
+        public double Inductance;
+
+        /// <summary>
         /// The current charge in the internal energy buffer.
         /// 
         /// The energy buffer essentially acts as a capacitor (in theory, not in actual math), padding out sudden changes in current.
@@ -89,6 +95,12 @@ namespace Hardwired.Objects.Electrical
         public double Power;
 
         /// <summary>
+        /// The ratio of real power to apparent power
+        /// </summary>
+        [HideInInspector]
+        public double PowerFactor;
+
+        /// <summary>
         /// The momentary voltage across this current source calculated by the circuit solver.
         /// </summary>
         [HideInInspector]
@@ -119,7 +131,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"-- Power Sink --");
             stringBuilder.AppendLine($"Nominal Power: {MaxPower.ToStringPrefix("W", "yellow")} (@ {VoltageNominal.ToStringPrefix("V", "yellow")})");
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
-            stringBuilder.AppendLine($"Power Delivered: {Power.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Power Delivered: {Power.ToStringPrefix("W", "yellow")} | PF: {PowerFactor:F3}");
             stringBuilder.AppendLine($"Impedance: {LoadImpedance.ToStringPrefix("Ω", "yellow")}");
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
@@ -138,6 +150,10 @@ namespace Hardwired.Objects.Electrical
             // Calculate the load impedance - the resistor should be sized
             // such that P_resistor(V_nom) = MaxPower = V_nom^2 / Impedance
             LoadImpedance = VoltageNominal * VoltageNominal / MaxPower;
+
+            // Add inductance
+            var w = 2f * Math.PI * Circuit.Frequency;
+            LoadImpedance += new Complex(0, w * Inductance);
 
             // Add the impedance to the circuit
             Circuit.Solver.AddImpedance(_vA, _vB, LoadImpedance);
@@ -180,11 +196,11 @@ namespace Hardwired.Objects.Electrical
                 var powerRequested = PowerTarget + bufferPowerRequired;
 
                 // Calculate error in how much current we actually want given the input voltage and how much current is flowing through the resistor
-                var iRequired = powerRequested / Voltage;
-                SourceCurrent = iRequired - ResistorCurrent;
+                var iRequired = (powerRequested / Voltage).Conjugate();
+                SourceCurrent = iRequired - ResistorCurrent.Conjugate();
 
                 // Only apply correction current if it counteracts the voltage (i.e. only subtract from the current, never add to make up for there not being enough power)
-                if ((SourceCurrent * Voltage.Conjugate()).Real > 0)
+                if ((SourceCurrent * Voltage.Conjugate()).Real < 0)
                 {
                     SourceCurrent = 0;
                 }
@@ -212,7 +228,9 @@ namespace Hardwired.Objects.Electrical
             Current = SourceCurrent + ResistorCurrent;
 
             // Calculate real power delivered to the device
-            Power = (Voltage * Current.Conjugate()).Real;
+            var s = Voltage * Current.Conjugate();
+            Power = s.Real;
+            PowerFactor = s.Real / s.Magnitude;
 
             // Update energy buffer and energy output
             double dE = (Power - PowerTarget) * Circuit.TimeDelta;
