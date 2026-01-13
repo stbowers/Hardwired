@@ -152,9 +152,9 @@ namespace Hardwired.Networks
                         // Partially based on physical properties of copper wire ~2mm diameter
                         // Partially balanced around 25A max for normal cables (~5 kW @ 200V)
                         line.Resistance = 0.002;
-                        line.SpecificHeat = 0.05;
+                        line.SpecificHeat = 0.025;
                         line.Temperature = 293.15;
-                        line.DissipationCapacity = 0.003;
+                        line.DissipationCapacity = 0.0138;
 
                         line.PinA = i;
                         line.PinB = j;
