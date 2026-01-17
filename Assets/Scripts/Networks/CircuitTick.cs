@@ -39,6 +39,42 @@ namespace Hardwired.Networks
 
         public int CurrentTick = 0;
 
+        /// <summary>
+        /// Processes a tick, given a "root" cable network.
+        /// 
+        /// Devices/components will be initialized/added to the circuit starting in the root cable network, and continuing to any other attached cable networks.
+        /// 
+        /// All cable networks in the circuit will be "ticked" at the same time, even though only one cable network's "PowerTick" will actually call ProcessTick().
+        /// Any other PowerTicks should check `CurrentTick` and compare it to a local value so only one PowerTick will actually call ProcessTick() per tick. 
+        /// </summary>
+        /// <param name="root"></param>
+        public void ProcessTick(CableNetwork root)
+        {
+            using var _ = TimeProcessingTick.BeginScope();
+            CurrentTick += 1;
+
+            Initialize(root);
+
+            using (TimeSolving.BeginScope())
+            {
+                Circuit.ProcessTick();
+            }
+
+            foreach (var network in CableNetworks)
+            {
+                ApplyState(network);
+            }
+        }
+
+
+        /// <summary>
+        /// Initialize/update the cable networks and components that are a part of this circuit, given a "root" cable network.
+        /// 
+        /// Any devices or cables in the root cable network, or in any cable network attached to a device already in the circuit,
+        /// will be added to the circuit; any components that were in the circuit last tick but are no longer found will be removed
+        /// from the circut.
+        /// </summary>
+        /// <param name="cableNetwork"></param>
         private void Initialize(CableNetwork cableNetwork)
         {
             using var _ = TimeInitializing.BeginScope();
@@ -47,9 +83,11 @@ namespace Hardwired.Networks
             // handle them immediately (or at the very least, save a list of components that would need to be added/removed 
             // from the circuit on the next power tick), rather than iterate over the lists every time...
 
-            // Get list of components already added to the circuit
+            // Get a list of components and networks that were part of the circuit last tick -- if they're not
+            // found this tick we consider them "orphaned" and remove them from the circuit
             List<ElectricalComponent> orphanedComponents = Circuit.Components.ToList();
             List<CableNetwork> orphanedNetworks = CableNetworks.ToList();
+
             Queue<CableNetwork> toCheck = new();
 
             CableNetworks.Clear();
@@ -57,6 +95,7 @@ namespace Hardwired.Networks
             orphanedNetworks.Remove(cableNetwork);
             toCheck.Enqueue(cableNetwork);
 
+            // Get all cable networks that should also be in this circuit, due to being connected to a device in the circuit
             while (toCheck.TryDequeue(out CableNetwork network))
             {
                 CableNetworks.Add(network);
@@ -77,6 +116,7 @@ namespace Hardwired.Networks
 
             }
 
+            // For any "orphaned" networks - unlink this CircuitTick so it will create a new circuit as needed
             foreach (var orphanedNetwork in orphanedNetworks)
             {
                 (orphanedNetwork.PowerTick as HardwiredPowerTick)?.SetCircuit(null);
@@ -112,6 +152,15 @@ namespace Hardwired.Networks
             }
         }
 
+        /// <summary>
+        /// Initializes/updates the devices/cables in the given network by adding any components to the circuit (or creating them, if neccesary).
+        /// 
+        /// Also removes components that should be in the circuit from "orphanedComponets", which is a list of components that were in the circuit
+        /// last tick. After all cable networks are initialized, any components left in "orphanedComponents" are no longer attached to the circuit,
+        /// and should be removed.
+        /// </summary>
+        /// <param name="cableNetwork"></param>
+        /// <param name="orphanedComponents"></param>
         private void InitializeNetwork(CableNetwork cableNetwork, List<ElectricalComponent> orphanedComponents)
         {
             // Iterate over all devices in the cable network
@@ -232,29 +281,14 @@ namespace Hardwired.Networks
                         Circuit.AddComponent(line);
                     }
                 }
-                
-            }
-
-        }
-
-        public void ProcessTick(CableNetwork root)
-        {
-            using var _ = TimeProcessingTick.BeginScope();
-            CurrentTick += 1;
-
-            Initialize(root);
-
-            using (TimeSolving.BeginScope())
-            {
-                Circuit.ProcessTick();
-            }
-
-            foreach (var network in CableNetworks)
-            {
-                ApplyState(network);
             }
         }
 
+        /// <summary>
+        /// Once the circuit has been solved, ApplyState() is called for all cable networks that are a part of the circuit to update their devices/cables,
+        /// including setting the power draw/consumption, burning out overloaded cables, tripping breakers, etc.
+        /// </summary>
+        /// <param name="cableNetwork"></param>
         private void ApplyState(CableNetwork cableNetwork)
         {
             using var _ = TimeApplying.BeginScope();

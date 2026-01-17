@@ -45,7 +45,7 @@ namespace Hardwired.Simulation.Electrical
 
         public void AddComponent(ElectricalComponent component)
         {
-            Hardwired.LogDebug($"Circuit {Id} - Adding component: {component.GetType()}");
+            // Hardwired.LogDebug($"Circuit {Id} - Adding component: {component.GetType()}");
 
             _components.Add(component);
 
@@ -74,7 +74,7 @@ namespace Hardwired.Simulation.Electrical
 
         public void RemoveComponent(ElectricalComponent component)
         {
-            Hardwired.LogDebug($"Circuit {Id} - Removing component: {component.GetType()}");
+            // Hardwired.LogDebug($"Circuit {Id} - Removing component: {component.GetType()}");
 
             // Remove from components list
             if (!_components.Remove(component))
@@ -161,13 +161,13 @@ namespace Hardwired.Simulation.Electrical
                 // Remove the reference for this connection
                 _nodes.Remove((component, pin));
 
-                Hardwired.LogDebug($"Circuit {Id} - Removing node reference for node {node.Index} - remaining references: {_nodes.Count(e => e.Value.Index == node.Index)}");
+                // Hardwired.LogDebug($"Circuit {Id} - Removing node reference for node {node.Index} - remaining references: {_nodes.Count(e => e.Value.Index == node.Index)}");
 
                 // Check if there are any other references left to this node
                 bool stillAlive = _nodes.Any(entry => entry.Value.Index == node.Index);
                 if (!stillAlive)
                 {
-                    Hardwired.LogDebug($"Circuit {Id} - Removing node {node.Index} ({node.GetHashCode()})");
+                    // Hardwired.LogDebug($"Circuit {Id} - Removing node {node.Index} ({node.GetHashCode()})");
                     // If no more references, remove the node from the MNA solver
                     Solver.RemoveUnknown(node);
                 }
@@ -218,7 +218,7 @@ namespace Hardwired.Simulation.Electrical
             }
             catch (Exception e)
             {
-                Hardwired.LogDebug($"Circuit {Id} -- Error processing tick! {e}");
+                Hardwired.LogDebug($"Circuit {Id} -- Error processing tick! {e.Message}");
 
                 Solver?.Z?.Clear();
                 Solver?.X?.Clear();

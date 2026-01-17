@@ -273,7 +273,7 @@ namespace Hardwired.Simulation.Electrical
             if (_A_LU.Determinant == 0)
             {
                 X = null;
-                throw new InvalidOperationException($"Can't solve matrix\n{A}");
+                throw new InvalidOperationException($"Circuit cannot be solved (singular matrix)!");
             }
 
             // Solve for x
@@ -310,7 +310,7 @@ namespace Hardwired.Simulation.Electrical
 
             if (!_unknownValues.Remove(unknown))
             {
-                Hardwired.LogDebug($"Couldn't remove node {unknown.Index}, not in circuit");
+                Hardwired.LogDebug($"Warning: Couldn't remove node {unknown.Index}, not in circuit");
                 return;
             }
 
