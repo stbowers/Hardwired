@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using Hardwired.Objects.Electrical;
 using Hardwired.Simulation.Electrical;
@@ -200,93 +201,16 @@ namespace Hardwired.Networks
                 PowerSource? powerSource = device.GetComponent<PowerSource>();
                 PowerSink? powerSink = device.GetComponent<PowerSink>();
 
-                if (generatedPower > 0.1 && powerSource == null)
-                {
-                    powerSource = device.gameObject.AddComponent<PowerSource>();
-
-                    powerSource.NominalPower = 500;
-                    powerSource.VoltageNominal = 200;
-                    powerSource.Frequency = 60;
-                    powerSource.IsFrequencyDriver = true;
-
-                    powerSource.PinA = -1;
-                    powerSource.PinB = device.OpenEnds.FindIndex(c => (c.ConnectionType & NetworkType.Power) != NetworkType.None);
-
-                    Circuit.AddComponent(powerSource);
-                }
-
-                if (usedPower > 0.1 && powerSink == null)
-                {
-                    powerSink = device.gameObject.AddComponent<PowerSink>();
-
-                    powerSink.VoltageMin = 100;
-                    powerSink.VoltageNominal = 200;
-                    powerSink.VoltageMax = 400;
-
-                    powerSink.PinA = device.OpenEnds.FindIndex(c => (c.ConnectionType & NetworkType.Power) != NetworkType.None);
-                    powerSink.PinB = -1;
-
-                    // Make volume pumps inductive (this is just an example - eventually I'd like to have data-driven power profiles for devices)
-                    if (device is VolumePump volPump)
-                    {
-                        powerSink.Inductance = 2;
-                    }
-
-                    Circuit.AddComponent(powerSink);
-                }
-
                 // Update power source
                 if (powerSource != null)
                 {
-                    powerSource.PowerSetting = generatedPower;
+                    powerSource.PowerSetting = Math.Min(generatedPower, powerSource.NominalPower);
                 }
 
                 // Update power sink
                 if (powerSink != null)
                 {
-                    if (powerSink.MaxPower < usedPower)
-                    {
-                        powerSink.MaxPower = usedPower;
-                        powerSink.Deinitialize();
-                        powerSink.Initialize();
-                    }
-
-                    powerSink.PowerTarget = generatedPower;
-                }
-            }
-
-            // Update cables
-            foreach (var cable in cableNetwork.CableList)
-            {
-                // If cable already has a component, don't add anything else
-                if (cable.GetComponent<ElectricalComponent>() != null) { continue; }
-
-                // Otherwise, add a "line" component between each connection
-                for (int i = 0; i < cable.OpenEnds.Count; i++)
-                {
-                    for (int j = i + 1; j < cable.OpenEnds.Count; j++)
-                    {
-                        Line line = cable.gameObject.AddComponent<Line>();
-
-                        // Partially based on physical properties of copper wire ~2mm diameter
-                        // Partially balanced around 25A max for normal cables (~5 kW @ 200V)
-                        line.Resistance = 0.002;
-                        line.SpecificHeat = 0.025; // how fast should a cable heat up with load
-                        line.Temperature = 293.15;
-
-                        // I^2 * R = D * T_c
-                        // --> balance point @ 90 C, 10A --> D ~= 0.002
-                        var iTarget = 10;
-                        var tTarget = 90;
-                        line.DissipationCapacity = iTarget * iTarget * line.Resistance / tTarget;
-
-                        line.PinA = i;
-                        line.PinB = j;
-
-                        Hardwired.LogDebug($"Added resistor to cable between connection {i} and {j}");
-
-                        Circuit.AddComponent(line);
-                    }
+                    powerSink.PowerTarget = usedPower;
                 }
             }
         }
