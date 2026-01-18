@@ -198,12 +198,12 @@ namespace Hardwired.Objects.Electrical
                 // Calculate error in how much current we actually want given the input voltage and how much current is flowing through the resistor
                 var iRequired = (powerRequested / Voltage).Conjugate();
                 SourceCurrent = iRequired - ResistorCurrent.Conjugate();
+            }
 
-                // Only apply correction current if it counteracts the voltage (i.e. only subtract from the current, never add to make up for there not being enough power)
-                if ((SourceCurrent * Voltage.Conjugate()).Real < 0)
-                {
-                    SourceCurrent = 0;
-                }
+            // Only apply correction current if it counteracts the voltage (i.e. only subtract from the current, never add to make up for there not being enough power)
+            if ((SourceCurrent * Voltage.Conjugate()).Real < 0)
+            {
+                SourceCurrent = 0;
             }
 
             // Add current to counteract the resistor to the circuit

@@ -273,7 +273,8 @@ namespace Hardwired.Simulation.Electrical
             if (_A_LU.Determinant == 0)
             {
                 X = null;
-                throw new InvalidOperationException($"Circuit cannot be solved (singular matrix)!");
+                return;
+                // debug -- throw new InvalidOperationException($"Circuit cannot be solved (singular matrix)!");
             }
 
             // Solve for x
