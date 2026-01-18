@@ -62,7 +62,7 @@ namespace Hardwired.Objects.Electrical
 
             // Calculate temperature change due to resistive heating
             // double dE = PowerDissipated * Circuit.TimeDelta;
-            double pRadiated = Math.Max(DissipationCapacity * (Temperature - 293f), 0f);
+            double pRadiated = Math.Max(DissipationCapacity * (Temperature - 273.15f), 0f);
             double dE = (PowerDissipated - pRadiated) * Circuit.TimeDelta;
             double dT = dE / SpecificHeat;
 

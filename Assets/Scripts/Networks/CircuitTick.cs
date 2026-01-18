@@ -271,9 +271,14 @@ namespace Hardwired.Networks
                         // Partially based on physical properties of copper wire ~2mm diameter
                         // Partially balanced around 25A max for normal cables (~5 kW @ 200V)
                         line.Resistance = 0.002;
-                        line.SpecificHeat = 0.05;
+                        line.SpecificHeat = 0.025; // how fast should a cable heat up with load
                         line.Temperature = 293.15;
-                        line.DissipationCapacity = 0.0138;
+
+                        // I^2 * R = D * T_c
+                        // --> balance point @ 90 C, 10A --> D ~= 0.002
+                        var iTarget = 10;
+                        var tTarget = 90;
+                        line.DissipationCapacity = iTarget * iTarget * line.Resistance / tTarget;
 
                         line.PinA = i;
                         line.PinB = j;
