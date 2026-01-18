@@ -172,6 +172,7 @@ namespace Hardwired.Objects.Electrical
 
             if (Circuit == null) { return; }
 
+            var previousSourceCurrent = SourceCurrent;
 
             // If voltage is 0, don't add any current into the circut (avoids dividing by zero in math below)
             if (Voltage.Magnitude < 0.001)
@@ -198,6 +199,11 @@ namespace Hardwired.Objects.Electrical
                 // Calculate error in how much current we actually want given the input voltage and how much current is flowing through the resistor
                 var iRequired = (powerRequested / Voltage).Conjugate();
                 SourceCurrent = iRequired - ResistorCurrent.Conjugate();
+
+                // Limit how fast current can change (slew)
+                var dI = SourceCurrent - previousSourceCurrent;
+                var r = Math.Max(0.1f, -dI.Magnitude / 2f  + 2f);
+                SourceCurrent *= r;
             }
 
             // Only apply correction current if it counteracts the voltage (i.e. only subtract from the current, never add to make up for there not being enough power)
