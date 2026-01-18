@@ -64,6 +64,8 @@ namespace Hardwired.Networks
             {
                 ApplyState(network);
             }
+
+            LogMetrics();
         }
 
 
@@ -357,8 +359,6 @@ namespace Hardwired.Networks
                     cable.Break();
                 }
             }
-
-            LogMetrics();
         }
 
         private void LogMetrics()
@@ -371,9 +371,9 @@ namespace Hardwired.Networks
             TimeSpan averageTimeApplying = TimeApplying.Elapsed / 120;
             TimeSpan averageTickProcessingTime = TimeProcessingTick.Elapsed / 120;
 
-            Hardwired.LogDebug($"Circuit {Circuit.Id} performance -- components: {Circuit.Components.Count}");
-            Hardwired.LogDebug($"  Initialise(): {averageTimeInitializing.TotalMilliseconds} ms");
-            Hardwired.LogDebug($"  CalculateState(): {averageTimeSolving.TotalMilliseconds} ms");
+            Hardwired.LogDebug($"Circuit {Circuit.Id} performance (average per tick) -- components: {Circuit.Components.Count}");
+            Hardwired.LogDebug($"  Initialize(): {averageTimeInitializing.TotalMilliseconds} ms");
+            Hardwired.LogDebug($"  Circuit.ProcessTick(): {averageTimeSolving.TotalMilliseconds} ms");
             Hardwired.LogDebug($"  ApplyState(): {averageTimeApplying.TotalMilliseconds} ms");
             Hardwired.LogDebug($"  Total: {averageTickProcessingTime.TotalMilliseconds} ms");
 
