@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 100314003505065121}
   m_Layer: 0
-  m_Name: StructureBreaker_blueprint
+  m_Name: StructureCircuitBreaker_blueprint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
