@@ -1,5 +1,7 @@
 #nullable enable
 
+using Assets.Scripts.Objects;
+
 namespace Hardwired.Objects
 {
     /// <summary>
