@@ -53,6 +53,59 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 0.05
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &929958007302370892
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 218762530061152263}
+  - component: {fileID: 2044400033649923310}
+  m_Layer: 0
+  m_Name: Screw Decrease Collider
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &218762530061152263
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 929958007302370892}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5767755378565546406}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &2044400033649923310
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 929958007302370892}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.05, y: 0.04, z: 0.12}
+  m_Center: {x: -0.206, y: 0.2, z: -0.1275}
 --- !u!1 &4835751953347327203
 GameObject:
   m_ObjectHideFlags: 0
@@ -170,7 +223,7 @@ GameObject:
   - component: {fileID: 3295053940152278074}
   - component: {fileID: 2394212926783810559}
   m_Layer: 0
-  m_Name: Screw Collider
+  m_Name: Screw Increase Collider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -210,8 +263,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.1, y: 0.04, z: 0.1}
-  m_Center: {x: -0.176, y: 0.22, z: -0.1175}
+  m_Size: {x: 0.05, y: 0.04, z: 0.12}
+  m_Center: {x: -0.156, y: 0.2, z: -0.1275}
 --- !u!1 &9117168523046935726
 GameObject:
   m_ObjectHideFlags: 0
@@ -263,8 +316,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.5, y: 0.3, z: 0.5}
-  m_Center: {x: 0, y: 0.1, z: 0}
+  m_Size: {x: 0.5, y: 0.2, z: 0.5}
+  m_Center: {x: 0, y: 0.08, z: 0}
 --- !u!1001 &6305487564807792205
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -339,6 +392,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: dea41d817f5a735f18e683beb976321e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 3295053940152278074}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: dea41d817f5a735f18e683beb976321e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 218762530061152263}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: dea41d817f5a735f18e683beb976321e, type: 3}
       insertIndex: -1
@@ -421,14 +477,14 @@ MonoBehaviour:
     Light: {r: 1, g: 1, b: 1, a: 1}
     Color: {r: 1, g: 1, b: 1, a: 1}
   Interactables:
-  - StringKey: Toggle State
-    StringHash: 1907093476
+  - StringKey: Toggle
+    StringHash: 0
     Parent: {fileID: 7076581379351363869}
     Collider: {fileID: 329902467498763460}
     FakeCollider: {fileID: 0}
     Bounds:
-      m_Center: {x: 0, y: 0, z: 0}
-      m_Extent: {x: 0, y: 0, z: 0}
+      m_Center: {x: 0, y: 0.28, z: 0}
+      m_Extent: {x: 0.1, y: 0.1, z: 0.125}
     Action: 31
     Animator: {fileID: 1326346193527564499}
     JoinInProgressSync: 0
@@ -437,6 +493,40 @@ MonoBehaviour:
     KeyMap: 
     AssociatedAudioEvents: []
     ActionName: ToggleOpenClose
+    _state: 0
+  - StringKey: Increase
+    StringHash: 0
+    Parent: {fileID: 7076581379351363869}
+    Collider: {fileID: 2394212926783810559}
+    FakeCollider: {fileID: 0}
+    Bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 0, y: 0, z: 0}
+    Action: 32
+    Animator: {fileID: 1326346193527564499}
+    JoinInProgressSync: 0
+    Layer: 0
+    CanKeyInteract: 0
+    KeyMap: 
+    AssociatedAudioEvents: []
+    ActionName: SetCurrent
+    _state: 0
+  - StringKey: Decrease
+    StringHash: 0
+    Parent: {fileID: 7076581379351363869}
+    Collider: {fileID: 2044400033649923310}
+    FakeCollider: {fileID: 0}
+    Bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 0, y: 0, z: 0}
+    Action: 33
+    Animator: {fileID: 1326346193527564499}
+    JoinInProgressSync: 0
+    Layer: 0
+    CanKeyInteract: 0
+    KeyMap: 
+    AssociatedAudioEvents: []
+    ActionName: SetCurrent
     _state: 0
   AudioEvents: []
   AudioSources: []
@@ -448,7 +538,7 @@ MonoBehaviour:
   IsCustomThing: 0
   ThumbnailOffset: {x: 0, y: 0, z: 0}
   ThumbnailRotation: {x: 0, y: 0, z: 0, w: 0}
-  Thumbnail: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  Thumbnail: {fileID: 21300000, guid: 5390735f7b6d4e313821ba7c24e3bd93, type: 3}
   Thumbnails: []
   IsEntity: 0
   _isOccluded: 0
@@ -493,7 +583,7 @@ MonoBehaviour:
   maxPressureDelta: -1
   BuildingTip: 
   BuildStates:
-  - Thumbnail: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  - Thumbnail: {fileID: 21300000, guid: 5390735f7b6d4e313821ba7c24e3bd93, type: 3}
     DamagedBuildState: 0
     BlockAir: 0
     AlwaysBlockAir: 0
@@ -533,7 +623,7 @@ MonoBehaviour:
       ItemSpawnMultiplier: 0
       EnergyCostMultiplier: 0
       MaterialCostMultiplier: 0
-    InteractableParent: {fileID: 0}
+    InteractableParent: {fileID: 6575535116851862300}
     Interactables: []
     initialDrawData:
       mesh: {fileID: 0}
@@ -646,6 +736,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   PinA: 0
   PinB: 1
+  MaxCurrent: 0
   Closed: 0
 --- !u!114 &8353711774321850121
 MonoBehaviour:

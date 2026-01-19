@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
@@ -15,6 +16,12 @@ namespace Hardwired.Objects.Electrical
     {
         private bool _internalState;
 
+        public double MaxCurrent = 1;
+
+        public Complex Voltage { get; private set; }
+
+        public Complex Current { get; private set; }
+
         public bool Closed;
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
@@ -23,6 +30,9 @@ namespace Hardwired.Objects.Electrical
 
             stringBuilder.AppendLine($"-- Breaker --");
             stringBuilder.AppendLine($"Closed: {Closed}");
+            stringBuilder.AppendLine($"Vcc: {Voltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Max current: {MaxCurrent.ToStringPrefix("A", "yellow")}");
             //stringBuilder.AppendLine($"Resistance: {InternalResistance.ToStringPrefix("Ω", "yellow")}");
         }
 
@@ -68,6 +78,30 @@ namespace Hardwired.Objects.Electrical
             }
 
             base.UpdateState();
+        }
+
+        public override void ApplyState()
+        {
+            base.ApplyState();
+
+            var vA = Circuit?.Solver.GetValue(_vA) ?? Complex.Zero;
+            var vB = Circuit?.Solver.GetValue(_vB) ?? Complex.Zero;
+            Voltage = vA.Magnitude > vB.Magnitude ? vA : vB;
+
+            if (Closed)
+            {
+                var dV = vA - vB;
+                Current = dV / 1e-10;
+            }
+            else
+            {
+                Current = Complex.Zero;
+            }
+
+            if (Current.Magnitude > MaxCurrent)
+            {
+                Closed = false;
+            }
         }
     }
 }
