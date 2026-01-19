@@ -16,8 +16,6 @@ namespace Hardwired.Objects.Electrical
     {
         private bool _internalState;
 
-        public double MaxCurrent = 1;
-
         public Complex Voltage { get; private set; }
 
         public Complex Current { get; private set; }
@@ -32,8 +30,6 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Closed: {Closed}");
             stringBuilder.AppendLine($"Vcc: {Voltage.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
-            stringBuilder.AppendLine($"Max current: {MaxCurrent.ToStringPrefix("A", "yellow")}");
-            //stringBuilder.AppendLine($"Resistance: {InternalResistance.ToStringPrefix("Ω", "yellow")}");
         }
 
         public override void Initialize()
@@ -96,11 +92,6 @@ namespace Hardwired.Objects.Electrical
             else
             {
                 Current = Complex.Zero;
-            }
-
-            if (Current.Magnitude > MaxCurrent)
-            {
-                Closed = false;
             }
         }
     }

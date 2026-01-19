@@ -17,6 +17,12 @@ namespace Hardwired.Prefabs.CircuitBreaker
 
         public Breaker? Breaker;
 
+        public CircuitBreakerType Type;
+
+        public double MaxCurrent = 20f;
+
+        public double MinVoltage = 200f;
+
         public override DelayedActionInstance InteractWith(Interactable interactable, Interaction interaction, bool doAction = true)
         {
             DelayedActionInstance actionMessage = new()
@@ -41,15 +47,26 @@ namespace Hardwired.Prefabs.CircuitBreaker
 
                 case InteractableType.Button2:
                 case InteractableType.Button3:
-                    var maxCurrent = Breaker?.MaxCurrent ?? 0f;
-                    actionMessage.ExtendedMessage = $"Max current: {maxCurrent.ToStringPrefix("A", "yellow")}";
+                    if (Type == CircuitBreakerType.OverCurrent)
+                    {
+                        actionMessage.ExtendedMessage = $"Max current: {MaxCurrent.ToStringPrefix("A", "yellow")}";
+                    }
+                    else
+                    {
+                        actionMessage.ExtendedMessage = $"Min voltage: {MinVoltage.ToStringPrefix("V", "yellow")}";
+                    }
 
                     if (!doAction) { return actionMessage.Succeed(); }
 
-                    if (GameManager.RunSimulation && Breaker != null)
+                    if (GameManager.RunSimulation && Breaker != null && Type == CircuitBreakerType.OverCurrent)
                     {
-                        Breaker.MaxCurrent += interactable.Action == InteractableType.Button2 ? 1f : -1f;
-                        Breaker.MaxCurrent = Math.Clamp(Breaker.MaxCurrent, 0f, 20f);
+                        MaxCurrent += interactable.Action == InteractableType.Button2 ? 1f : -1f;
+                        MaxCurrent = Math.Clamp(MaxCurrent, 0f, 20f);
+                    }
+                    else if (GameManager.RunSimulation && Breaker != null && Type == CircuitBreakerType.UnderVoltage)
+                    {
+                        MinVoltage += interactable.Action == InteractableType.Button2 ? 5f : -5f;
+                        MinVoltage = Math.Clamp(MinVoltage, 0f, 1000f);
                     }
 
                     return actionMessage.Succeed();
@@ -72,7 +89,29 @@ namespace Hardwired.Prefabs.CircuitBreaker
         {
             base.OnPowerTick();
 
+            if (Type == CircuitBreakerType.OverCurrent && Breaker?.Current.Magnitude > MaxCurrent)
+            {
+                Breaker.Closed = false;
+            }
+            else if (Type == CircuitBreakerType.UnderVoltage && Breaker?.Voltage.Magnitude < MinVoltage)
+            {
+                Breaker.Closed = false;
+            }
+
             OnServer.Interact(InteractButton1, (Breaker?.Closed == true) ? 1 : 0);
+        }
+
+        public enum CircuitBreakerType
+        {
+            /// <summary>
+            /// Trips if the current goes above the set value
+            /// </summary>
+            OverCurrent,
+
+            /// <summary>
+            /// Trips if the voltage goes below the set value
+            /// </summary>
+            UnderVoltage
         }
     }
 }
