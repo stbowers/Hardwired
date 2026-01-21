@@ -2,9 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Drawing.Drawing2D;
 using System.Numerics;
 using Hardwired.Simulation.Electrical;
+using MathNet.Numerics.LinearAlgebra;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Hardwired.Tests.Simulation.Electrical
 {
@@ -157,7 +160,7 @@ namespace Hardwired.Tests.Simulation.Electrical
                 _vsources[vi] = i!;
             }
 
-            solver.Solve();
+            solver.SolveInitial();
 
             // Check outputs
             for (int n = 0; n < expectedOutputs.NodeVoltages.Count; n++)

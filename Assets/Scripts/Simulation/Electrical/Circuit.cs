@@ -22,6 +22,7 @@ namespace Hardwired.Simulation.Electrical
         private List<ElectricalComponent> _components = new();
         private List<PowerSink> _powerSinks = new();
         private List<PowerSource> _powerSources = new();
+        private List<INonlinearComponent> _nonlinearComponents = new();
         private bool _frequencyInitialized;
         private bool _initialized;
 
@@ -32,6 +33,7 @@ namespace Hardwired.Simulation.Electrical
         public IReadOnlyList<ElectricalComponent> Components => _components.AsReadOnly();
         public IReadOnlyList<PowerSink> PowerSinks => _powerSinks.AsReadOnly();
         public IReadOnlyList<PowerSource> PowerSources => _powerSources.AsReadOnly();
+        public IReadOnlyList<INonlinearComponent> NonlinearComponents => _nonlinearComponents.AsReadOnly();
 
         /// <summary>
         /// The frequency of any AC voltages or currents in the circuit.
@@ -52,6 +54,11 @@ namespace Hardwired.Simulation.Electrical
             if (component is PowerSink powerSink)
             {
                 _powerSinks.Add(powerSink);
+            }
+
+            if (component is INonlinearComponent nonlinearComponent)
+            {
+                _nonlinearComponents.Add(nonlinearComponent);
             }
 
             // If the component is a frequency "driver", re-evaluate the frequency on the next power tick
@@ -86,6 +93,11 @@ namespace Hardwired.Simulation.Electrical
             if (component is PowerSink powerSink)
             {
                 _powerSinks.Remove(powerSink);
+            }
+
+            if (component is INonlinearComponent nonlinearComponent)
+            {
+                _nonlinearComponents.Remove(nonlinearComponent);
             }
 
             // If the component was a frequency "driver", re-evaluate the frequency on the next power tick
@@ -210,11 +222,43 @@ namespace Hardwired.Simulation.Electrical
         {
             try
             {
+                // Initialize
                 InitializeFrequency();
                 Initialize();
+
+                // Clear/reset values
                 Solver.Z.Clear();
+
+                foreach (var unknown in Solver.Unknowns)
+                {
+                    unknown.HasNonLinearComponent = false;
+                }
+
+                // Update A matrix & Z vector
                 UpdateState();
-                Solver.Solve();
+
+                // Solve initial state (x_0)
+                Solver.SolveInitial();
+
+                // Iterate
+                bool hasConverged = false;
+                int i = 0;
+                for (; i < 50 && !hasConverged; i++)
+                {
+                    // clear/reset values
+                    Solver.BeginNRIteration();
+
+                    // Update J matrix & F vector
+                    foreach (var nonlinearComponent in NonlinearComponents)
+                    {
+                        nonlinearComponent.UpdateDifferentialState();
+                    }
+
+                    // Solve for x(i + 1)
+                    hasConverged = Solver.SolveNRIteration();
+                }
+
+                Hardwired.LogDebug($"Circuit {Id} -- finished solving after {i} iterations -- converged: {hasConverged}");
             }
             catch (Exception e)
             {

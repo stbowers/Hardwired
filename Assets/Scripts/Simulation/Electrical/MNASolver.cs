@@ -48,14 +48,24 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         public Matrix<Complex> A = Matrix<Complex>.Build.Dense(0, 0);
 
-        private LU<Complex>? _A_LU;
+        private QR<Complex>? _A_QR;
+
+        /// <summary>
+        /// The jacobian matrix (i.e. matrix of partial derivatives for non-linear components).
+        /// </summary>
+        public Matrix<Complex> J = Matrix<Complex>.Build.Sparse(0, 0);
+
+        /// <summary>
+        /// The values of any non-linear equations for the current solution `X`
+        /// </summary>
+        public Matrix<Complex> F = Matrix<Complex>.Build.Sparse(0, 0);
 
         /// <summary>
         /// Vector of unknown values to be solved for.
         /// The first `_nodes` values will be the voltages at each node.
         /// The next `_voltageSources` values will be the currents across each voltage source.
         /// </summary>
-        public Matrix<Complex>? X;
+        public Matrix<Complex> X = Matrix<Complex>.Build.Dense(0, 1);
 
         /// <summary>
         /// Vector of known values to be used as inputs.
@@ -99,7 +109,7 @@ namespace Hardwired.Simulation.Electrical
             }
 
             // Since A was modified, invalidate factorization so it will be re-factored on the next solve
-            _A_LU = null;
+            _A_QR = null;
         }
 
         /// <summary>
@@ -264,23 +274,105 @@ namespace Hardwired.Simulation.Electrical
 
         /// <summary>
         /// Solves the system for the voltage at each node and current through each voltage source.
+        /// 
+        /// Provides an initial solution for the simplified equation Ax = z
+        /// "x" is then used as the starting "guess" for the Newton-Raphson method for solving non-linear components (via IterateNR())
         /// </summary>
-        public void Solve()
+        public void SolveInitial()
         {
-            // Try to factorize A into L & U matricies, if not already set up
-            _A_LU ??= A.LU();
+            // Try to factorize A, if not already set up
+            _A_QR ??= A.QR();
 
-            if (_A_LU.Determinant == 0)
+            if (_A_QR.Determinant == 0)
             {
-                X = null;
+                X.Clear();
                 return;
                 // debug -- throw new InvalidOperationException($"Circuit cannot be solved (singular matrix)!");
             }
 
-            // Solve for x
-            X = _A_LU.Solve(Z);
+            // (re)initialize X if needed
+            if (X.RowCount != A.RowCount)
+            {
+                X = X.Resize(A.RowCount, 1);
+            }
 
+            // Solve for x
+            _A_QR.Solve(Z, X);
         }
+
+        /// <summary>
+        /// (re)initializes the J and F matricies to the needed size given the number of unknowns in the circuit with non-linear terms
+        /// </summary>
+        public void InitializeNR()
+        {
+            // Update list of non-linear unknowns
+            _nonLinearUnknowns.Clear();
+            _nonLinearUnknowns.AddRange(_unknownValues.Where(u => u.HasNonLinearComponent));
+
+            // resize J and F matricies if needed
+            if (J.RowCount != _nonLinearUnknowns.Count)
+            {
+                var n = _nonLinearUnknowns.Count;
+                J = J.Resize(n, n);
+                F = F.Resize(n, 1);
+            }
+        }
+
+        /// <summary>
+        /// Begins an Newton-Raphson iteration by initializing/resetting the J and F matricies as needed.
+        /// </summary>
+        public void BeginNRIteration()
+        {
+            var f = A * X - Z;
+            for (int i = 0; i < _nonLinearUnknowns.Count; i++)
+            {
+                int j = _nonLinearUnknowns[i].Index;
+                F[i, 0] = f[j, 0];
+            }
+
+            J.Clear();
+        }
+
+        /// <summary>
+        /// Updates the `x` vector with a "better guess" for any non-linear terms using the Newton-Raphson method.
+        /// 
+        /// Solves the equation `J*dx = -f` for a "correction vector" to apply to `x` such that the new value of `x` will be closer to the
+        /// correct solution for any non-linear components.
+        /// 
+        /// Returns `true` if convergance has been reached (i.e. dx was small enough), or `false` if convergance has not yet been reached.
+        /// </summary>
+        public bool SolveNRIteration()
+        {
+            var dx = J.Solve(-F);
+
+            bool hasConverged = true;
+
+            // Update X with the correction values, and check if each value is below the convergance threshold
+            for (int i = 0; i < _nonLinearUnknowns.Count; i++)
+            {
+                int j = _nonLinearUnknowns[i].Index;
+                X[j, 0] += dx[i, 0];
+
+                // Check for convergance
+                hasConverged &= dx[i, 0].Magnitude < MAX_E;
+            }
+
+            return hasConverged;
+        }
+
+        private List<Unknown> _nonLinearUnknowns = new();
+        /// <summary>
+        /// The maximum value of "dx" when iterating non-linear components for which we will consider convergance reached.
+        /// 
+        /// Larger values will be less accurate, but should result in less iterations.
+        /// Smaller values will be more accurate, but may take longer to converge.
+        /// 
+        /// The value we use here is fairly large compared to other numerical simulations, but it should be accurate enough for a game.
+        /// If we wanted more accurate values, it may actually be worth letting non-linear components specify their own error threshold
+        /// for each unknown value (i.e. by creating a new `e` vector they could "stamp"), as different situations may have different
+        /// ideal convergance criteria.
+        /// </summary>
+        private const double MAX_E = 0.0001;
 
         public Unknown AddUnknown()
             => AddUnknowns(1)[0];
@@ -299,8 +391,8 @@ namespace Hardwired.Simulation.Electrical
             A = A.Resize(newSize, newSize);
             Z = Z.Resize(newSize, 1);
 
-            _A_LU = null;
-            X = null;
+            _A_QR = null;
+            X.Clear();
 
             return newUnknowns;
         }
@@ -318,8 +410,8 @@ namespace Hardwired.Simulation.Electrical
             A = A.RemoveRowColumn(unknown.Index, unknown.Index);
             Z = Z.RemoveRow(unknown.Index);
 
-            _A_LU = null;
-            X = null;
+            _A_QR = null;
+            X.Clear();
 
             for (int i = unknown.Index; i < _unknownValues.Count; i++)
             {
@@ -336,7 +428,7 @@ namespace Hardwired.Simulation.Electrical
         /// <returns></returns>
         public Complex? GetValue(Unknown? unknown)
         {
-            if (unknown == null || X == null) { return null; }
+            if (unknown == null) { return null; }
             if (unknown.Index < 0 || unknown.Index > X.RowCount) { return null; }
 
             return X[unknown.Index, 0];
@@ -371,6 +463,8 @@ namespace Hardwired.Simulation.Electrical
         public class Unknown
         {
             public int Index;
+
+            public bool HasNonLinearComponent;
         }
     }
 }
