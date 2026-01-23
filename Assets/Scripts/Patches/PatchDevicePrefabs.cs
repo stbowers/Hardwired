@@ -14,6 +14,7 @@ using Objects.Pipes;
 
 using GameTransformer = Assets.Scripts.Objects.Electrical.Transformer;
 using HardwiredTransformer = Hardwired.Objects.Electrical.Transformer;
+using HardwiredBattery = Hardwired.Objects.Electrical.Battery;
 
 namespace Hardwired.Patches
 {
@@ -120,12 +121,25 @@ namespace Hardwired.Patches
             else if (TryGetPowerInput(device, out powerInput) && TryGetPowerOutput(device, out powerOutput) && powerInput != powerOutput)
             {
                 // Add power sink that will draw up to 1000 W depending on input voltage (fully resistive load, no current limiting)
-                AddPowerSink(device, powerInput, vNom: 400, vMax: 400);
+                // AddPowerSink(device, powerInput, vNom: 400, vMax: 400);
 
                 // Add power source that supplies up to 1000 W
-                AddPowerSource(device, powerOutput, pNom: 1000);
+                // AddPowerSource(device, powerOutput, pNom: 1000);
 
-                Hardwired.LogDebug($"patching device {device.PrefabName} -- Input/Output, Power sink, P_nom: 1 kW, Power source: P_nom: 1 kW");
+                var battery = device.GetOrAddComponent<HardwiredBattery>();
+
+                battery.MaxCharge = 10000;
+                battery.MaxVoltage = 400;
+                battery.PinA = 0;
+                battery.PinB = -1;
+
+                var breaker = device.GetOrAddComponent<Breaker>();
+
+                breaker.Closed = false;
+                breaker.PinA = 0;
+                breaker.PinB = 1;
+
+                Hardwired.LogDebug($"patching device {device.PrefabName} -- Input/Output, battery charge {battery.MaxCharge}");
             }
             // Generic power sink
             else if (TryGetPowerInput(device, out powerInput) && device.UsedPower > 0f)
