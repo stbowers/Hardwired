@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
-    public class PowerSink : ElectricalComponent
+    public class PowerSink : ElectricalComponent, INonlinearComponent
     {
         /// <summary>
         /// The maximum designed power consumption of this device.
@@ -107,18 +107,6 @@ namespace Hardwired.Objects.Electrical
         public Complex Voltage;
 
         /// <summary>
-        /// The current being applied to the circuit from the current source (to counteract over-current in the resistor)
-        /// </summary>
-        [HideInInspector]
-        public Complex SourceCurrent;
-
-        /// <summary>
-        /// The current flowing through the resistor
-        /// </summary>
-        [HideInInspector]
-        public Complex ResistorCurrent;
-
-        /// <summary>
         /// The total current flowing through the device
         /// </summary>
         [HideInInspector]
@@ -154,84 +142,55 @@ namespace Hardwired.Objects.Electrical
             // Add inductance
             var w = 2f * Math.PI * Circuit.Frequency;
             LoadImpedance += new Complex(0, w * Inductance);
-
-            // Add the impedance to the circuit
-            Circuit.Solver.AddImpedance(_vA, _vB, LoadImpedance);
         }
 
         public override void Deinitialize()
         {
             base.Deinitialize();
-
-            Circuit?.Solver.AddImpedance(_vA, _vB, -LoadImpedance);
         }
 
-        public override void UpdateState()
+        public void UpdateDifferentialState()
         {
-            base.UpdateState();
+            var vA = Circuit?.Solver.GetValue(_vA) ?? Complex.Zero;
+            var vB = Circuit?.Solver.GetValue(_vB) ?? Complex.Zero;
+            Voltage = vA - vB;
+            var v2 = Voltage * Voltage;
 
-            if (Circuit == null) { return; }
+            Complex didva, didvb;
 
-            var previousSourceCurrent = SourceCurrent;
-
-            // If voltage is 0, don't add any current into the circut (avoids dividing by zero in math below)
-            if (Voltage.Magnitude < 0.001)
+            // If voltage is out of range, draw no power
+            if (Voltage.Magnitude < VoltageMin || Voltage.Magnitude > VoltageMax)
             {
-                SourceCurrent = 0f;
+                Current = 0f;
+                didva = 0f;
+                didvb = 0f;
             }
-            // If voltage is less than the min voltage, draw no power
-            else if (Voltage.Magnitude < VoltageMin)
+            // If voltage is below nominal, load is purely resistive (linear current)
+            else if (Voltage.Magnitude < VoltageNominal)
             {
-                SourceCurrent = -ResistorCurrent;
+                Current = Voltage / LoadImpedance;
+                didva = 1 / LoadImpedance;
+                didvb = -1 / LoadImpedance;
             }
-            // If voltage is more than the max voltage, draw no power
-            else if (Voltage.Magnitude > VoltageMax)
-            {
-                SourceCurrent = -ResistorCurrent;
-            }
+            // If voltage is above nominal, load draws constant power (non-linear current)
             else
             {
-                // Adjust the "requested" power by however much would be required to fill (or drain) the energy buffer to 80% capacity over the next tick
-                var eRequired = (0.8 * EnergyBufferMax) - EnergyBuffer;
-                var bufferPowerRequired = eRequired / Circuit.TimeDelta;
-                var powerRequested = PowerTarget + bufferPowerRequired;
-
-                // Calculate error in how much current we actually want given the input voltage and how much current is flowing through the resistor
-                var iRequired = (powerRequested / Voltage).Conjugate();
-                SourceCurrent = iRequired - ResistorCurrent.Conjugate();
-
-                // Limit how fast current can change (slew)
-                var dI = SourceCurrent - previousSourceCurrent;
-                var r = Math.Max(0.1f, -dI.Magnitude / 2f  + 2f);
-                SourceCurrent *= r;
+                Current = PowerTarget / Voltage;
+                didva = -PowerTarget / v2;
+                didvb = -PowerTarget / v2;
             }
 
-            // Only apply correction current if it counteracts the voltage (i.e. only subtract from the current, never add to make up for there not being enough power)
-            if ((SourceCurrent * Voltage.Conjugate()).Real < 0)
-            {
-                SourceCurrent = 0;
-            }
-
-            // Add current to counteract the resistor to the circuit
-            Circuit.Solver.AddCurrent(_vA, _vB, SourceCurrent);
+            Circuit?.Solver.AddNonlinearCurrent(_vA, _vB, Current, didva, didvb);
         }
 
         public override void ApplyState()
         {
             base.ApplyState();
 
-            if (Circuit == null) { return; }
-
             // Get node voltages
-            var vA = Circuit.Solver.GetValueOrDefault(_vA);
-            var vB = Circuit.Solver.GetValueOrDefault(_vB);
-
-            // Get voltage across the device, and calculate current going through the resistor
+            var vA = Circuit?.Solver.GetValue(_vA) ?? Complex.Zero;
+            var vB = Circuit?.Solver.GetValue(_vB) ?? Complex.Zero;
             Voltage = vA - vB;
-            ResistorCurrent = Voltage / LoadImpedance;
-
-            // Determine the total current flowing through the device (current source is in parallel to resistor)
-            Current = SourceCurrent + ResistorCurrent;
 
             // Calculate real power delivered to the device
             var s = Voltage * Current.Conjugate();
@@ -239,10 +198,11 @@ namespace Hardwired.Objects.Electrical
             PowerFactor = s.Real / s.Magnitude;
 
             // Update energy buffer and energy output
-            double dE = (Power - PowerTarget) * Circuit.TimeDelta;
+            double dT = Circuit?.TimeDelta ?? 0.5;
+            double dE = (Power - PowerTarget) * dT;
             dE = Math.Clamp(dE, -EnergyBuffer, EnergyBufferMax - EnergyBuffer);
             EnergyBuffer += dE;
-            EnergyInput = (Power * Circuit.TimeDelta) - dE;
+            EnergyInput = (Power * dT) - dE;
         }
     }
 }

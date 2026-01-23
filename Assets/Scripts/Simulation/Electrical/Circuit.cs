@@ -222,43 +222,9 @@ namespace Hardwired.Simulation.Electrical
         {
             try
             {
-                // Initialize
-                InitializeFrequency();
-                Initialize();
+                SolveInitial();
 
-                // Clear/reset values
-                Solver.Z.Clear();
-
-                foreach (var unknown in Solver.Unknowns)
-                {
-                    unknown.HasNonLinearComponent = false;
-                }
-
-                // Update A matrix & Z vector
-                UpdateState();
-
-                // Solve initial state (x_0)
-                Solver.SolveInitial();
-
-                // Iterate
-                bool hasConverged = false;
-                int i = 0;
-                for (; i < 50 && !hasConverged; i++)
-                {
-                    // clear/reset values
-                    Solver.BeginNRIteration();
-
-                    // Update J matrix & F vector
-                    foreach (var nonlinearComponent in NonlinearComponents)
-                    {
-                        nonlinearComponent.UpdateDifferentialState();
-                    }
-
-                    // Solve for x(i + 1)
-                    hasConverged = Solver.SolveNRIteration();
-                }
-
-                Hardwired.LogDebug($"Circuit {Id} -- finished solving after {i} iterations -- converged: {hasConverged}");
+                SolveIterative();
             }
             catch (Exception e)
             {
@@ -277,6 +243,49 @@ namespace Hardwired.Simulation.Electrical
         public void Invalidate()
         {
             _initialized = false;
+        }
+
+        private void SolveInitial()
+        {
+            // Initialize
+            InitializeFrequency();
+            Initialize();
+
+            // Clear/reset values
+            Solver.Z.Clear();
+
+            foreach (var unknown in Solver.Unknowns)
+            {
+                unknown.HasNonLinearComponent = true;
+            }
+
+            // Update A matrix & Z vector
+            UpdateState();
+
+            // Solve initial state (x_0)
+            Solver.SolveInitial();
+        }
+
+        private void SolveIterative()
+        {
+            bool hasConverged = false;
+            int i = 0;
+            for (; i < 50 && !hasConverged; i++)
+            {
+                // clear/reset values
+                Solver.BeginNRIteration();
+
+                // Update J matrix & F vector
+                foreach (var nonlinearComponent in NonlinearComponents)
+                {
+                    nonlinearComponent.UpdateDifferentialState();
+                }
+
+                // Solve for x(i + 1)
+                hasConverged = Solver.SolveNRIteration(i);
+            }
+
+            // Hardwired.LogDebug($"Circuit {Id} -- finished solving after {i} iterations -- converged: {hasConverged}");
         }
 
         private void Initialize()

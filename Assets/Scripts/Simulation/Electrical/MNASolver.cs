@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Hardwired.Utility.Extensions;
+using MathNet.Numerics;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Factorization;
 using Complex = System.Numerics.Complex;
@@ -26,6 +27,23 @@ namespace Hardwired.Simulation.Electrical
     /// </summary>
     public class MNASolver
     {
+        /// <summary>
+        /// The error tolerance value for "dx" relative to the current value of x
+        /// 
+        /// dx < REL_TOLERANCE * x + MIN_TOLERANCE
+        /// 
+        /// Larger values will be less accurate, but should result in less iterations.
+        /// Smaller values will be more accurate, but may take longer to converge.
+        /// </summary>
+        private const double REL_TOLERANCE = 0.0001;
+
+        /// <summary>
+        /// The minimum tolerance value for convergance
+        /// 
+        /// dx < REL_TOLERANCE * x + MIN_TOLERANCE
+        /// </summary>
+        private const double MIN_TOLERANCE = 0.0001;
+
         private List<Unknown> _unknownValues = new();
 
         /// <summary>
@@ -272,6 +290,29 @@ namespace Hardwired.Simulation.Electrical
             }
         }
 
+        public void AddNonlinearCurrent(Unknown? a, Unknown? b, Complex i, Complex didva, Complex didvb)
+        {
+            if (a != null)
+            {
+                F[a.Index, 0] += i;
+
+                J[a.Index, a.Index] += didva;
+            }
+
+            if (b != null)
+            {
+                F[b.Index, 0] -= i;
+
+                J[b.Index, b.Index] -= didvb;
+            }
+
+            if (a != null && b != null)
+            {
+                J[a.Index, b.Index] += didvb;
+                J[b.Index, a.Index] -= didva;
+            }
+        }
+
         /// <summary>
         /// Solves the system for the voltage at each node and current through each voltage source.
         /// 
@@ -301,36 +342,20 @@ namespace Hardwired.Simulation.Electrical
         }
 
         /// <summary>
-        /// (re)initializes the J and F matricies to the needed size given the number of unknowns in the circuit with non-linear terms
-        /// </summary>
-        public void InitializeNR()
-        {
-            // Update list of non-linear unknowns
-            _nonLinearUnknowns.Clear();
-            _nonLinearUnknowns.AddRange(_unknownValues.Where(u => u.HasNonLinearComponent));
-
-            // resize J and F matricies if needed
-            if (J.RowCount != _nonLinearUnknowns.Count)
-            {
-                var n = _nonLinearUnknowns.Count;
-                J = J.Resize(n, n);
-                F = F.Resize(n, 1);
-            }
-        }
-
-        /// <summary>
-        /// Begins an Newton-Raphson iteration by initializing/resetting the J and F matricies as needed.
+        /// Begins a Newton-Raphson iteration by initializing/resetting the J and F matricies with the values corresponding to the linear components
+        /// of the circuit. After calling this method, each non-linear component should evaluate its function(s) for the current values of X, and add
+        /// them to F and J.
         /// </summary>
         public void BeginNRIteration()
         {
-            var f = A * X - Z;
-            for (int i = 0; i < _nonLinearUnknowns.Count; i++)
-            {
-                int j = _nonLinearUnknowns[i].Index;
-                F[i, 0] = f[j, 0];
-            }
+            // Initialize the jacobian with the partial derivatives of all the linear components (which is just the A matrix, since d/dx Ax = A)
+            J = A.Clone();
 
-            J.Clear();
+            // Calculate F_0 for linear components
+            // Ax + Yx = Z (where "Y" is a matrix of non-linear functions of x)
+            // :. F(x) = Ax + Yx - Z = 0
+            // The values of Yx (i.e. values of non-linear functions at x) will be added by each non-linear component when updating
+            F = A * X - Z;
         }
 
         /// <summary>
@@ -341,38 +366,25 @@ namespace Hardwired.Simulation.Electrical
         /// 
         /// Returns `true` if convergance has been reached (i.e. dx was small enough), or `false` if convergance has not yet been reached.
         /// </summary>
-        public bool SolveNRIteration()
+        public bool SolveNRIteration(int n)
         {
+            // Solve for update vector
             var dx = J.Solve(-F);
 
+            // Update X, and check if convergance has been reached
             bool hasConverged = true;
-
-            // Update X with the correction values, and check if each value is below the convergance threshold
-            for (int i = 0; i < _nonLinearUnknowns.Count; i++)
+            for (int i = 0; i < dx.RowCount; i++)
             {
-                int j = _nonLinearUnknowns[i].Index;
-                X[j, 0] += dx[i, 0];
+                // Use a damping factor for the first 3 iterations, to avoid large changes that won't converge if the initial guess was too far off
+                // Note - there are other techniques to avoid convergance issues, but this is the easiest and should work well for most of our use cases.
+                var k = n < 3 ? 0.2 : 1;
+                X[i, 0] += k * dx[i, 0];
 
-                // Check for convergance
-                hasConverged &= dx[i, 0].Magnitude < MAX_E;
+                hasConverged &= dx[i, 0].Magnitude < REL_TOLERANCE * X[i, 0].Magnitude + MIN_TOLERANCE;
             }
 
             return hasConverged;
         }
-
-        private List<Unknown> _nonLinearUnknowns = new();
-        /// <summary>
-        /// The maximum value of "dx" when iterating non-linear components for which we will consider convergance reached.
-        /// 
-        /// Larger values will be less accurate, but should result in less iterations.
-        /// Smaller values will be more accurate, but may take longer to converge.
-        /// 
-        /// The value we use here is fairly large compared to other numerical simulations, but it should be accurate enough for a game.
-        /// If we wanted more accurate values, it may actually be worth letting non-linear components specify their own error threshold
-        /// for each unknown value (i.e. by creating a new `e` vector they could "stamp"), as different situations may have different
-        /// ideal convergance criteria.
-        /// </summary>
-        private const double MAX_E = 0.0001;
 
         public Unknown AddUnknown()
             => AddUnknowns(1)[0];
@@ -431,7 +443,11 @@ namespace Hardwired.Simulation.Electrical
             if (unknown == null) { return null; }
             if (unknown.Index < 0 || unknown.Index > X.RowCount) { return null; }
 
-            return X[unknown.Index, 0];
+            var val = X[unknown.Index, 0];
+
+            if (val.IsNaN()) { return null; }
+
+            return val;
         }
 
         /// <summary>
@@ -443,7 +459,7 @@ namespace Hardwired.Simulation.Electrical
         {
             Complex? value = GetValue(unknown);
 
-            if (value == null || double.IsNaN(value.Value.Real) || double.IsNaN(value.Value.Imaginary))
+            if (value == null)
             {
                 return 0;
             }

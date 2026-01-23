@@ -45,8 +45,8 @@ namespace Hardwired.Objects.Electrical
         public override void Initialize()
         {
             // P = I * V :. 1/2 * I = P_max / V_nom (1/2 current will go through resitor, other half through the circuit)
-            // R = V / I :. R = V_nom / (2 * P_max / V_nom) = V_nom^2 / 2 * P_max
-            InternalResistance = VoltageNominal * VoltageNominal / (2 * NominalPower);
+            // R = V / I :. R = V_nom / (2 * P_max / V_nom) = 2 * V_nom^2 / 2 * P_max = V_nom^2 / P_max
+            InternalResistance = VoltageNominal * VoltageNominal / NominalPower;
 
             base.Initialize();
         }
