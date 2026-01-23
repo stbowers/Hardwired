@@ -222,13 +222,15 @@ namespace Hardwired.Simulation.Electrical
         {
             try
             {
-                SolveInitial();
-
-                SolveIterative();
+                if (SolveInitial())
+                {
+                    // If initial solve had a solution, iterate non-linear components until convergance
+                    SolveIterative();
+                }
             }
             catch (Exception e)
             {
-                Hardwired.LogDebug($"Circuit {Id} -- Error processing tick! {e.Message}");
+                Hardwired.LogDebug($"Circuit {Id} -- Error processing tick! {e}");
 
                 Solver?.Z?.Clear();
                 Solver?.X?.Clear();
@@ -245,7 +247,7 @@ namespace Hardwired.Simulation.Electrical
             _initialized = false;
         }
 
-        private void SolveInitial()
+        private bool SolveInitial()
         {
             // Initialize
             InitializeFrequency();
@@ -254,16 +256,11 @@ namespace Hardwired.Simulation.Electrical
             // Clear/reset values
             Solver.Z.Clear();
 
-            foreach (var unknown in Solver.Unknowns)
-            {
-                unknown.HasNonLinearComponent = true;
-            }
-
             // Update A matrix & Z vector
             UpdateState();
 
             // Solve initial state (x_0)
-            Solver.SolveInitial();
+            return Solver.SolveInitial();
         }
 
         private void SolveIterative()

@@ -55,7 +55,7 @@ namespace Hardwired.Prefabs.ACVoltageRegulator
             if (Transformer is null) { return; }
 
             var inputVoltage = Transformer.PrimaryVoltage.Magnitude;
-            var outputVoltage = Transformer.PrimaryVoltage.Magnitude;
+            var outputVoltage = Transformer.SecondaryVoltage.Magnitude;
 
             var minStep = 0.06 * inputVoltage;
 

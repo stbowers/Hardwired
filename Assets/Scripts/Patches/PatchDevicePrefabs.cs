@@ -12,6 +12,9 @@ using Hardwired.Objects.Electrical;
 using HarmonyLib;
 using Objects.Pipes;
 
+using GameTransformer = Assets.Scripts.Objects.Electrical.Transformer;
+using HardwiredTransformer = Hardwired.Objects.Electrical.Transformer;
+
 namespace Hardwired.Patches
 {
     [HarmonyPatch]
@@ -23,6 +26,14 @@ namespace Hardwired.Patches
         public static readonly Dictionary<Type, Action<Device>> CustomPatches = new()
         {
             [typeof(VolumePump)] = d => AddPowerSink(d, inductance: 2f),
+            [typeof(GameTransformer)] = d => {
+                var transformer = d.GetOrAddComponent<HardwiredTransformer>();
+
+                transformer.PinA = 0;
+                transformer.PinB = -1;
+                transformer.PinC = 1;
+                transformer.PinD = -1;
+            },
             // [typeof(BatteryCellCharger)] = d => AddPowerSink(d, vNom: 400f, vMax: 400f),
         };
 

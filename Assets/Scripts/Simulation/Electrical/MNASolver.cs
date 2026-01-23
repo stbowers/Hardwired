@@ -318,18 +318,13 @@ namespace Hardwired.Simulation.Electrical
         /// 
         /// Provides an initial solution for the simplified equation Ax = z
         /// "x" is then used as the starting "guess" for the Newton-Raphson method for solving non-linear components (via IterateNR())
+        /// 
+        /// Returns `true` if a solution was found, or `false` if the circuit cannot be solved
         /// </summary>
-        public void SolveInitial()
+        public bool SolveInitial()
         {
             // Try to factorize A, if not already set up
             _A_QR ??= A.QR();
-
-            if (_A_QR.Determinant == 0)
-            {
-                X.Clear();
-                return;
-                // debug -- throw new InvalidOperationException($"Circuit cannot be solved (singular matrix)!");
-            }
 
             // (re)initialize X if needed
             if (X.RowCount != A.RowCount)
@@ -337,8 +332,17 @@ namespace Hardwired.Simulation.Electrical
                 X = X.Resize(A.RowCount, 1);
             }
 
+            if (_A_QR.Determinant == 0)
+            {
+                X.Clear();
+                return false;
+                // debug -- throw new InvalidOperationException($"Circuit cannot be solved (singular matrix)!");
+            }
+
             // Solve for x
             _A_QR.Solve(Z, X);
+
+            return true;
         }
 
         /// <summary>
@@ -404,7 +408,6 @@ namespace Hardwired.Simulation.Electrical
             Z = Z.Resize(newSize, 1);
 
             _A_QR = null;
-            X.Clear();
 
             return newUnknowns;
         }
@@ -423,7 +426,6 @@ namespace Hardwired.Simulation.Electrical
             Z = Z.RemoveRow(unknown.Index);
 
             _A_QR = null;
-            X.Clear();
 
             for (int i = unknown.Index; i < _unknownValues.Count; i++)
             {
@@ -479,8 +481,6 @@ namespace Hardwired.Simulation.Electrical
         public class Unknown
         {
             public int Index;
-
-            public bool HasNonLinearComponent;
         }
     }
 }
