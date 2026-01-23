@@ -190,13 +190,13 @@ namespace Hardwired.Patches
             powerSource.IsFrequencyDriver = frequency != 0;
         }
 
-        private static void AddBattery(Device device, Connection? powerInput = null, double vMax = 200f)
+        private static void AddBattery(Device device, Connection? powerInput = null, double vNom = 300f)
         {
             var battery = device.GetOrAddComponent<HardwiredBattery>();
 
             powerInput ??= device.OpenEnds.First(IsConnectionPowerInput);
 
-            battery.MaxVoltage = vMax;
+            battery.VoltageNominal = vNom;
             battery.PinA = device.OpenEnds.IndexOf(powerInput);
             battery.PinB = -1;
         }

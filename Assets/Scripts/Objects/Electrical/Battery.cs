@@ -19,7 +19,12 @@ namespace Hardwired.Objects.Electrical
 
         public double MaxCharge;
 
-        public double MaxVoltage;
+        /// <summary>
+        /// The nominal voltage for the battery. The battery will produce a voltage equal to r * VoltageNominal, where r is the charge ratio.
+        /// If the circuit has a higher voltage outside of the battery, current will flow into the battery and charge it.
+        /// If the circuit has a lower voltage outside of the battery, current will flow out of the battery and discharge it.
+        /// </summary>
+        public double VoltageNominal;
 
         public Complex Voltage;
 
@@ -130,7 +135,7 @@ namespace Hardwired.Objects.Electrical
             Complex vUnit = (Voltage.Magnitude > 0f) ? Voltage / Voltage.Magnitude : 1f;
 
             var r = Math.Clamp(Charge / MaxCharge, 0f, 1f);
-            var v = r * MaxVoltage * vUnit;
+            var v = r * VoltageNominal * vUnit;
 
             Circuit?.Solver.SetVoltage(_i, v);
         }
