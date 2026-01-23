@@ -108,7 +108,7 @@ namespace Hardwired.Tests.Objects.Electrical
                 ComplexAssert.AreEqual(iSource.PowerDraw, pSink.Power, 0.01);
 
                 // Energy output by the sink should always exactly match the expected energy given the power target
-                Assert.AreEqual(pSink.EnergyInput, pSink.PowerTarget * circuit.TimeDelta, 0.01);
+                Assert.AreEqual(pSink.Power, pSink.PowerTarget, 0.01);
             }
         }
 
@@ -148,7 +148,7 @@ namespace Hardwired.Tests.Objects.Electrical
                 ComplexAssert.AreEqual(pSource.PowerDraw, pSink.Power, 0.01);
 
                 // Energy output by the sink should always exactly match the expected energy given the power target
-                Assert.AreEqual(pSink.EnergyInput, pSink.PowerTarget * circuit.TimeDelta, 0.01);
+                Assert.AreEqual(pSink.Power, pSink.PowerTarget, 0.01);
             }
         }
 
@@ -185,7 +185,6 @@ namespace Hardwired.Tests.Objects.Electrical
             // Allow a few ticks to settle
             for (int i = 0; i < 20; i++)
             {
-                Hardwired.LogDebug($"{pSink.Power} - {pSink.EnergyBuffer}");
                 circuit.ProcessTick();
             }
 
@@ -196,7 +195,6 @@ namespace Hardwired.Tests.Objects.Electrical
             // Check power draw over several ticks
             for (int i = 0; i < 100; i++)
             {
-                Hardwired.LogDebug($"{pSink.Power} - {pSink.EnergyBuffer}");
                 circuit.ProcessTick();
 
                 Assert.AreEqual(0, pSink.Power, 0.1);

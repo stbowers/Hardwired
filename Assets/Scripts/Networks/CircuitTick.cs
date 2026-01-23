@@ -242,11 +242,9 @@ namespace Hardwired.Networks
                 // Get device this sink is attached to
                 if (sink.GetComponent<Device>() is not Device device){ continue; }
 
-                // Note - Device.UsePower()/ReceivePower() expect power in Watts, but for easier energy calculations the power source/sink
-                // calculate the actual energy used in this tick, so we need to convert back when sending to the device.
-                device.ReceivePower(cableNetwork, (float)(sink.EnergyInput / Circuit.TimeDelta));
+                device.ReceivePower(cableNetwork, (float)sink.Power);
 
-                if (sink.EnergyInput > 0)
+                if (sink.Power > 0)
                 {
                     device.SetPowerFromThread(cableNetwork, true).Forget();
                 }

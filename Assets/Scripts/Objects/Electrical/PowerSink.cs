@@ -50,37 +50,7 @@ namespace Hardwired.Objects.Electrical
         public double Inductance;
 
         /// <summary>
-        /// The current charge in the internal energy buffer.
-        /// 
-        /// The energy buffer essentially acts as a capacitor (in theory, not in actual math), padding out sudden changes in current.
-        /// Each tick when power is updated, the energy buffer will "absorb" the difference between the actual power delivered by the circuit and the requested power.
-        /// If the requested power is higher than the actual power delivered, the energy buffer will be drained.
-        /// If the requested power is lower than the actual power delivered, the energy buffer will be filled.
-        /// 
-        /// The device will try to maintain ~80% charge in the energy buffer by slightly increasing or decreasing the actual power "requested" per tick.
-        /// 
-        /// This prevents "phantom power" (i.e. the device drew more power than was actually available) as well as power loss due to the power source sending more power
-        /// to the device than it needed.
-        /// </summary>
-        [HideInInspector]
-        public double EnergyBuffer;
-
-        /// <summary>
-        /// The maximum charge in the internal energy buffer.
-        /// If the energy buffer is filled past this point, any additional energy is lost to the void.
-        /// </summary>
-        [HideInInspector]
-        public double EnergyBufferMax;
-
-        /// <summary>
-        /// The calculated energy consumed from the circuit by this power sink for this tick.
-        /// (note that devices generally provide/consume power in Watts, i.e. via Device.UsePower(), so this value needs to be divided by dt to get the power used this tick)
-        /// </summary>
-        [HideInInspector]
-        public double EnergyInput;
-
-        /// <summary>
-        /// The real power being delivered to the device.
+        /// The real power being delivered to the device this tick.
         /// </summary>
         [HideInInspector]
         public double Power;
@@ -113,20 +83,6 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Impedance: {LoadImpedance.ToStringPrefix("Ω", "yellow")}");
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("J", "yellow")} / {EnergyBufferMax.ToStringPrefix("J", "yellow")}");
-        }
-
-        public override void Initialize()
-        {
-            base.Initialize();
-
-            // Set the max size of the energy buffer such that it can "absorb" a full second of power loss
-            EnergyBufferMax = 500;
-        }
-
-        public override void Deinitialize()
-        {
-            base.Deinitialize();
         }
 
         public void UpdateDifferentialState()
@@ -183,13 +139,6 @@ namespace Hardwired.Objects.Electrical
             var s = Voltage * Current.Conjugate();
             Power = s.Real;
             PowerFactor = s.Real / s.Magnitude;
-
-            // Update energy buffer and energy output
-            double dT = Circuit?.TimeDelta ?? 0.5;
-            double dE = (Power - PowerTarget) * dT;
-            dE = Math.Clamp(dE, -EnergyBuffer, EnergyBufferMax - EnergyBuffer);
-            EnergyBuffer += dE;
-            EnergyInput = (Power * dT) - dE;
         }
     }
 }
