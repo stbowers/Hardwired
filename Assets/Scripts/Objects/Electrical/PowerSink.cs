@@ -14,6 +14,11 @@ namespace Hardwired.Objects.Electrical
     public class PowerSink : ElectricalComponent, INonlinearComponent
     {
         /// <summary>
+        /// Used for "histeresis" so we don't switch modes within a single tick
+        /// </summary>
+        private bool _voltageInRage;
+
+        /// <summary>
         /// The target power in Watts.
         /// Each tick this component will adjust its current draw based on I = P / V in order to maintain this power target.
         /// </summary>
@@ -102,7 +107,7 @@ namespace Hardwired.Objects.Electrical
             LoadImpedance += new Complex(0, w * Inductance);
 
             // If voltage is out of range, draw no power
-            if (Voltage.Magnitude < VoltageMin || Voltage.Magnitude > VoltageMax)
+            if (!_voltageInRage)
             {
                 Current = 0f;
                 didva = 0f;
@@ -139,6 +144,10 @@ namespace Hardwired.Objects.Electrical
             var s = Voltage * Current.Conjugate();
             Power = s.Real;
             PowerFactor = s.Real / s.Magnitude;
+
+            // Determine operating mode
+            // Note - we set this here instead of in UpdateDifferentialState() so that there are no discontinuities in I(v) while solving a single tick
+            _voltageInRage = Voltage.Magnitude > VoltageMin && Voltage.Magnitude < VoltageMax;
         }
     }
 }
