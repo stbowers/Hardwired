@@ -18,6 +18,8 @@ namespace Hardwired.Simulation.Electrical
 {
     public class Circuit
     {
+        internal static List<WeakReference<Circuit>> _allCircuits = new();
+
         private Dictionary<(ElectricalComponent component, int pin), MNASolver.Unknown> _nodes = new();
         private List<ElectricalComponent> _components = new();
         private List<PowerSink> _powerSinks = new();
@@ -44,6 +46,11 @@ namespace Hardwired.Simulation.Electrical
         /// The time delta (dt) to use between each tick.
         /// </summary>
         public double TimeDelta { get; private set; } = 0.5;
+
+        public Circuit()
+        {
+            _allCircuits.Add(new WeakReference<Circuit>(this));
+        }
 
         public void AddComponent(ElectricalComponent component)
         {

@@ -179,7 +179,7 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         /// <param name="a"></param>
         /// <param name="b"></param>
-        public void AddVoltageSource(Unknown? a, Unknown? b, ref Unknown? i)
+        public void AddVoltageSource(Unknown? a, Unknown? b, [NotNull] ref Unknown? i)
         {
             // Add an unknown for the current
             i ??= AddUnknown();

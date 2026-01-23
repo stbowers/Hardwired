@@ -48,6 +48,11 @@ namespace Hardwired.Objects.Electrical
             }
         }
 
+        public virtual string DebugInfo()
+        {
+            return $"pinA: {_vA?.Index ?? -1} ({PinA}) | pinB: {_vB?.Index ?? -1} ({PinB})";
+        }
+
         /// <summary>
         /// Called by the network manager to add this component to a circuit
         /// </summary>

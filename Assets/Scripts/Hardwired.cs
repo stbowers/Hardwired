@@ -12,19 +12,25 @@ using System.Linq;
 
 namespace Hardwired
 {
-    public class Hardwired : MonoBehaviour
+    public partial class Hardwired : MonoBehaviour
     {
         public static readonly Mod MOD = new("Hardwired", "0.1.0");
         public static readonly Harmony HARMONY = new("Hardwired");
 
         public void OnLoaded(List<GameObject> prefabs)
         {
-            LogDebug("Loading Hardwired...");
+            LogDebug("Applying patches");
 
             PatchBuildStateTools.ApplyPatch();
 
             MOD.AddPrefabs(prefabs);
             HARMONY.PatchAll();
+
+            LogDebug("Registering commands");
+
+            RegisterCommands();
+
+            LogDebug("Done loading!");
         }
 
         public static void LogDebug(object msg)
