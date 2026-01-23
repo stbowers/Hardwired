@@ -14,12 +14,6 @@ namespace Hardwired.Objects.Electrical
     public class PowerSink : ElectricalComponent, INonlinearComponent
     {
         /// <summary>
-        /// The maximum designed power consumption of this device.
-        /// Used to calculate the internal resistance value.
-        /// </summary>
-        public double MaxPower;
-
-        /// <summary>
         /// The target power in Watts.
         /// Each tick this component will adjust its current draw based on I = P / V in order to maintain this power target.
         /// </summary>
@@ -44,10 +38,7 @@ namespace Hardwired.Objects.Electrical
         public double VoltageNominal = 100f;
 
         /// <summary>
-        /// The internal impedance of the device - this is always added to the circuit.
-        /// In "brownout" conditions (V_min < V < V_nom), this is the only contribution to current, leading to less power being delivered than was requested.
-        /// In "nominal" conditions (V_nom < V < V_max), if the resistor were the only element it would deliver _too much_ power to the device, so the current
-        /// through the resistor is limited to just what is needed for the current power target.
+        /// The internal impedance of the device - in "brownout" conditions (i.e. V_min < V < V_nom) this will limit the current/power draw.
         /// </summary>
         [HideInInspector]
         public Complex LoadImpedance;
@@ -117,7 +108,6 @@ namespace Hardwired.Objects.Electrical
             base.BuildPassiveToolTip(stringBuilder);
 
             stringBuilder.AppendLine($"-- Power Sink --");
-            stringBuilder.AppendLine($"Nominal Power: {MaxPower.ToStringPrefix("W", "yellow")} (@ {VoltageNominal.ToStringPrefix("V", "yellow")})");
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Power Delivered: {Power.ToStringPrefix("W", "yellow")} | PF: {PowerFactor:F3}");
             stringBuilder.AppendLine($"Impedance: {LoadImpedance.ToStringPrefix("Ω", "yellow")}");
@@ -130,18 +120,8 @@ namespace Hardwired.Objects.Electrical
         {
             base.Initialize();
 
-            if (Circuit == null) { return; }
-
             // Set the max size of the energy buffer such that it can "absorb" a full second of power loss
-            EnergyBufferMax = 1 * MaxPower;
-
-            // Calculate the load impedance - the resistor should be sized
-            // such that P_resistor(V_nom) = MaxPower = V_nom^2 / Impedance
-            LoadImpedance = VoltageNominal * VoltageNominal / MaxPower;
-
-            // Add inductance
-            var w = 2f * Math.PI * Circuit.Frequency;
-            LoadImpedance += new Complex(0, w * Inductance);
+            EnergyBufferMax = 500;
         }
 
         public override void Deinitialize()
@@ -157,6 +137,13 @@ namespace Hardwired.Objects.Electrical
             var v2 = Voltage * Voltage;
 
             Complex didva, didvb;
+
+            // Calculate the load impedance for the current power target
+            LoadImpedance = VoltageNominal * VoltageNominal / PowerTarget;
+
+            // Add inductance
+            var w = 2f * Math.PI * (Circuit?.Frequency ?? 0);
+            LoadImpedance += new Complex(0, w * Inductance);
 
             // If voltage is out of range, draw no power
             if (Voltage.Magnitude < VoltageMin || Voltage.Magnitude > VoltageMax)

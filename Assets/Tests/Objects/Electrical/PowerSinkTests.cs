@@ -52,7 +52,6 @@ namespace Hardwired.Tests.Objects.Electrical
             vSource.PinB = 0;
 
             pSink.PowerTarget = 100;
-            pSink.MaxPower = 100;
             pSink.VoltageMin = 50;
             pSink.VoltageNominal = 100;
             pSink.VoltageMax = 200;
@@ -93,7 +92,6 @@ namespace Hardwired.Tests.Objects.Electrical
             iSource.InternalResistance = 20;
 
             pSink.PowerTarget = 100;
-            pSink.MaxPower = 100;
             pSink.VoltageNominal = 100;
             pSink.PinA = 0;
             pSink.PinB = -1;
@@ -131,7 +129,6 @@ namespace Hardwired.Tests.Objects.Electrical
             pSource.PinB = 0;
 
             pSink.PowerTarget = 100;
-            pSink.MaxPower = 100;
             pSink.VoltageNominal = 100;
             pSink.VoltageMax = 500;
             pSink.PinA = 0;
@@ -176,7 +173,6 @@ namespace Hardwired.Tests.Objects.Electrical
             pSource.PinB = 0;
 
             pSink.PowerTarget = 100;
-            pSink.MaxPower = 500;
             pSink.VoltageMin = 100;
             pSink.VoltageNominal = 200;
             pSink.VoltageMax = 800;

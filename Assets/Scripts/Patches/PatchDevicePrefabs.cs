@@ -109,7 +109,7 @@ namespace Hardwired.Patches
             else if (TryGetPowerInput(device, out powerInput) && TryGetPowerOutput(device, out powerOutput) && powerInput != powerOutput)
             {
                 // Add power sink that will draw up to 1000 W depending on input voltage (fully resistive load, no current limiting)
-                AddPowerSink(device, powerInput, vNom: 400, vMax: 400, pMax: 1000);
+                AddPowerSink(device, powerInput, vNom: 400, vMax: 400);
 
                 // Add power source that supplies up to 1000 W
                 AddPowerSource(device, powerOutput, pNom: 1000);
@@ -119,7 +119,7 @@ namespace Hardwired.Patches
             // Generic power sink
             else if (TryGetPowerInput(device, out powerInput) && device.UsedPower > 0f)
             {
-                AddPowerSink(device, powerInput, pMax: device.UsedPower);
+                AddPowerSink(device, powerInput);
 
                 Hardwired.LogDebug($"patching device {device.PrefabName} -- Generic power sink, P_nom: {device.UsedPower} W");
             }
@@ -140,7 +140,7 @@ namespace Hardwired.Patches
             }
         }
 
-        private static void AddPowerSink(Device device, Connection? powerInput = null, double vMin = 100f, double vNom = 200f, double vMax = 400f, double? pMax = null, double inductance = 0f)
+        private static void AddPowerSink(Device device, Connection? powerInput = null, double vMin = 100f, double vNom = 200f, double vMax = 400f, double inductance = 0f)
         {
             PowerSink powerSink = device.GetOrAddComponent<PowerSink>();
 
@@ -152,7 +152,6 @@ namespace Hardwired.Patches
             powerSink.VoltageMin = vMin;
             powerSink.VoltageNominal = vNom;
             powerSink.VoltageMax = vMax;
-            powerSink.MaxPower = pMax ?? device.UsedPower;
             powerSink.Inductance = inductance;
         }
 
