@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 using Assets.Scripts.Util;
@@ -12,6 +13,10 @@ namespace Hardwired.Objects.Electrical
 {
     public class Battery : ElectricalComponent
     {
+        private Assets.Scripts.Objects.Electrical.AreaPowerControl? _apcStructure;
+        private Assets.Scripts.Objects.Electrical.Battery? _batteryStructure;
+        private Assets.Scripts.Objects.Electrical.BatteryCellCharger? _batteryChargerStructure;
+
         public double MaxCharge;
 
         public double MaxVoltage;
@@ -24,6 +29,14 @@ namespace Hardwired.Objects.Electrical
         
         public double Power;
 
+        /// <summary>
+        /// The ratio of power that should be equalized between multiple batteries per tick
+        /// </summary>
+        public double BalanceRatio = 0.005;
+
+        /// <summary>
+        /// Current charge level, in Wt (Watt-ticks, i.e 1 Wt = 0.5 Ws = 0.5 J)
+        /// </summary>
         public double Charge { get; protected set; }
 
         /// <summary>
@@ -41,7 +54,7 @@ namespace Hardwired.Objects.Electrical
             base.BuildPassiveToolTip(stringBuilder);
 
             stringBuilder.AppendLine($"-- Battery --");
-            stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("J", "yellow")} / {MaxCharge.ToStringPrefix("J", "yellow")}");
+            stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / {MaxCharge.ToStringPrefix("Wt", "yellow")}");
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
             stringBuilder.AppendLine($"Power: {Power.ToStringPrefix("W", "yellow")}");
@@ -51,6 +64,17 @@ namespace Hardwired.Objects.Electrical
         public override void AddTo(Circuit circuit)
         {
             base.AddTo(circuit);
+
+            // Look for attached structure which has a battery slot or internal battery
+            bool foundStructure = false;
+            foundStructure |= TryGetComponent(out _apcStructure);
+            foundStructure |= TryGetComponent(out _batteryStructure);
+            foundStructure |= TryGetComponent(out _batteryChargerStructure);
+
+            if (!foundStructure)
+            {
+                Hardwired.LogDebug($"WARNING - no compatible structure found for Battery");
+            }
 
             _vX = circuit.Solver.AddUnknown();
             circuit.Solver.AddVoltageSource(_vB, _vX, ref _i);
@@ -72,7 +96,7 @@ namespace Hardwired.Objects.Electrical
             base.Initialize();
 
             // TODO
-            var r = 10;
+            var r = 40;
 
             Circuit?.Solver.AddResistance(_vX, _vA, r);
         }
@@ -82,7 +106,7 @@ namespace Hardwired.Objects.Electrical
             base.Deinitialize();
 
             // TODO
-            var r = 10;
+            var r = 40;
 
             Circuit?.Solver.AddResistance(_vX, _vA, -r);
         }
@@ -90,6 +114,23 @@ namespace Hardwired.Objects.Electrical
         public override void UpdateState()
         {
             base.UpdateState();
+
+            // Update charge from structure
+            if (_apcStructure != null)
+            {
+                Charge = _apcStructure.Battery?.PowerStored ?? 0;
+                MaxCharge = _apcStructure.Battery?.PowerMaximum ?? 0;
+            }
+            else if (_batteryStructure != null)
+            {
+                Charge = _batteryStructure.PowerStored;
+                MaxCharge = _batteryStructure.PowerMaximum;
+            }
+            else if (_batteryChargerStructure != null)
+            {
+                Charge = _batteryChargerStructure.Batteries.Sum(b => b.PowerStored);
+                MaxCharge = _batteryChargerStructure.Batteries.Sum(b => b.PowerMaximum);
+            }
 
             Complex vUnit = (Voltage.Magnitude > 0f) ? Voltage / Voltage.Magnitude : 1f;
 
@@ -111,10 +152,43 @@ namespace Hardwired.Objects.Electrical
 
             Power = (Voltage * Current.Conjugate()).Real;
 
-            var dT = Circuit?.TimeDelta ?? 0f;
-            var dE = Power * dT;
+            var previousCharge = Charge;
+            Charge = Math.Clamp(Charge + Power, 0f, MaxCharge);
 
-            Charge = Math.Clamp(Charge + dE, 0f, MaxCharge);
+            // Update charge from structure
+            if (_apcStructure != null && _apcStructure.Battery != null)
+            {
+                _apcStructure.Battery.PowerStored = (float)Charge;
+            }
+            else if (_batteryStructure != null)
+            {
+                _batteryStructure.PowerStored = (float)Charge;
+            }
+            else if (_batteryChargerStructure != null && _batteryChargerStructure.Batteries.Count > 0)
+            {
+                // Get total amount of charge "headroom" (if charging), or charge available (if discharging)
+                var w = (Power >= 0)
+                    ? MaxCharge - previousCharge
+                    : previousCharge;
+
+                // Get average charge ratio
+                var r_average = Charge / MaxCharge;
+
+                // Update the charge in each battery
+                foreach (var battery in _batteryChargerStructure.Batteries)
+                {
+                    // Calculate how much of the power this battery cell should take/provide (as ratio of this battery's headroom/available to the total)
+                    var wi = (Power >= 0)
+                        ? (battery.GetPowerMaximum() - battery.PowerStored) / w
+                        : battery.PowerStored / w;
+                    
+                    // Add new charge to battery
+                    battery.PowerStored += (float)(wi * Power);
+
+                    // Balance battery charges
+                    battery.PowerStored += (float)(BalanceRatio * battery.PowerMaximum * (r_average - battery.PowerRatio));
+                }
+            }
         }
     }
 }

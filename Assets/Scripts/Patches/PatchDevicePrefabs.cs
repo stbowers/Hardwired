@@ -35,7 +35,7 @@ namespace Hardwired.Patches
                 transformer.PinC = 1;
                 transformer.PinD = -1;
             },
-            // [typeof(BatteryCellCharger)] = d => AddPowerSink(d, vNom: 400f, vMax: 400f),
+            [typeof(BatteryCellCharger)] = d => AddBattery(d),
         };
 
         [HarmonyPrefix, HarmonyPatch(typeof(Prefab), nameof(Prefab.LoadAll))]
@@ -126,12 +126,7 @@ namespace Hardwired.Patches
                 // Add power source that supplies up to 1000 W
                 // AddPowerSource(device, powerOutput, pNom: 1000);
 
-                var battery = device.GetOrAddComponent<HardwiredBattery>();
-
-                battery.MaxCharge = 10000;
-                battery.MaxVoltage = 400;
-                battery.PinA = 0;
-                battery.PinB = -1;
+                AddBattery(device, powerInput);
 
                 var breaker = device.GetOrAddComponent<Breaker>();
 
@@ -139,7 +134,7 @@ namespace Hardwired.Patches
                 breaker.PinA = 0;
                 breaker.PinB = 1;
 
-                Hardwired.LogDebug($"patching device {device.PrefabName} -- Input/Output, battery charge {battery.MaxCharge}");
+                Hardwired.LogDebug($"patching device {device.PrefabName} -- Input/Output battery");
             }
             // Generic power sink
             else if (TryGetPowerInput(device, out powerInput) && device.UsedPower > 0f)
@@ -193,6 +188,17 @@ namespace Hardwired.Patches
             powerSource.VoltageNominal = vNom;
             powerSource.Frequency = frequency;
             powerSource.IsFrequencyDriver = frequency != 0;
+        }
+
+        private static void AddBattery(Device device, Connection? powerInput = null, double vMax = 200f)
+        {
+            var battery = device.GetOrAddComponent<HardwiredBattery>();
+
+            powerInput ??= device.OpenEnds.First(IsConnectionPowerInput);
+
+            battery.MaxVoltage = vMax;
+            battery.PinA = device.OpenEnds.IndexOf(powerInput);
+            battery.PinB = -1;
         }
 
         private static bool TryGetPowerInput(Device device, out Connection? connection)
