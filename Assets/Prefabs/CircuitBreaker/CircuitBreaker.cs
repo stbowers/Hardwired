@@ -33,20 +33,7 @@ namespace Hardwired.Prefabs.CircuitBreaker
             switch (interactable.Action)
             {
                 case InteractableType.Button1:
-                    var state = Breaker?.Closed == true ? STATE_CLOSED : STATE_OPEN;
-                    actionMessage.ExtendedMessage = $"State: {state}";
-
-                    if (!doAction) { return actionMessage.Succeed(); }
-
-                    if (GameManager.RunSimulation && Breaker != null)
-                    {
-                        Breaker.Closed = !Breaker.Closed;
-                    }
-
-                    return actionMessage.Succeed();
-
                 case InteractableType.Button2:
-                case InteractableType.Button3:
                     if (Type == CircuitBreakerType.OverCurrent)
                     {
                         actionMessage.ExtendedMessage = $"Max current: {MaxCurrent.ToStringPrefix("A", "yellow")}";
@@ -60,12 +47,12 @@ namespace Hardwired.Prefabs.CircuitBreaker
 
                     if (GameManager.RunSimulation && Breaker != null && Type == CircuitBreakerType.OverCurrent)
                     {
-                        MaxCurrent += interactable.Action == InteractableType.Button2 ? 1f : -1f;
+                        MaxCurrent += interactable.Action == InteractableType.Button1 ? 1f : -1f;
                         MaxCurrent = Math.Clamp(MaxCurrent, 0f, 20f);
                     }
                     else if (GameManager.RunSimulation && Breaker != null && Type == CircuitBreakerType.UnderVoltage)
                     {
-                        MinVoltage += interactable.Action == InteractableType.Button2 ? 5f : -5f;
+                        MinVoltage += interactable.Action == InteractableType.Button1 ? 5f : -5f;
                         MinVoltage = Math.Clamp(MinVoltage, 0f, 1000f);
                     }
 
@@ -91,14 +78,14 @@ namespace Hardwired.Prefabs.CircuitBreaker
 
             if (Type == CircuitBreakerType.OverCurrent && Breaker?.Current.Magnitude > MaxCurrent)
             {
+                OnOff = false;
                 Breaker.Closed = false;
             }
             else if (Type == CircuitBreakerType.UnderVoltage && Breaker?.Voltage.Magnitude < MinVoltage)
             {
+                OnOff = false;
                 Breaker.Closed = false;
             }
-
-            OnServer.Interact(InteractButton1, (Breaker?.Closed == true) ? 1 : 0);
         }
 
         public enum CircuitBreakerType

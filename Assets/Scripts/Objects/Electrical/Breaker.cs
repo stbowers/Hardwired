@@ -14,6 +14,7 @@ namespace Hardwired.Objects.Electrical
 {
     public class Breaker : ElectricalComponent
     {
+        private Assets.Scripts.Objects.Pipes.Device? _device;
         private bool _internalState;
 
         public Complex Voltage { get; private set; }
@@ -35,6 +36,8 @@ namespace Hardwired.Objects.Electrical
         public override void Initialize()
         {
             base.Initialize();
+
+            TryGetComponent<Assets.Scripts.Objects.Pipes.Device>(out _device);
 
             // Add large resistance to ground, to ensure there are no "floating" nodes
             Circuit?.Solver.AddResistance(_vA, null, 1e10);
@@ -66,6 +69,12 @@ namespace Hardwired.Objects.Electrical
 
         public override void UpdateState()
         {
+            // Update closed state from device
+            if (_device != null)
+            {
+                Closed = _device.OnOff;
+            }
+
             // If state has changed, de-init and re-init with new topology
             if (_internalState != Closed)
             {

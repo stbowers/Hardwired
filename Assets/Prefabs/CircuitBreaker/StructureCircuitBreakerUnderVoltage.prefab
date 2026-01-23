@@ -477,7 +477,7 @@ MonoBehaviour:
     Light: {r: 1, g: 1, b: 1, a: 1}
     Color: {r: 1, g: 1, b: 1, a: 1}
   Interactables:
-  - StringKey: Toggle
+  - StringKey: OnOff
     StringHash: 0
     Parent: {fileID: 7076581379351363869}
     Collider: {fileID: 329902467498763460}
@@ -485,7 +485,7 @@ MonoBehaviour:
     Bounds:
       m_Center: {x: 0, y: 0.28, z: 0}
       m_Extent: {x: 0.1, y: 0.1, z: 0.125}
-    Action: 31
+    Action: 36
     Animator: {fileID: 1326346193527564499}
     JoinInProgressSync: 0
     Layer: 0
@@ -502,7 +502,7 @@ MonoBehaviour:
     Bounds:
       m_Center: {x: 0, y: 0, z: 0}
       m_Extent: {x: 0, y: 0, z: 0}
-    Action: 32
+    Action: 31
     Animator: {fileID: 1326346193527564499}
     JoinInProgressSync: 0
     Layer: 0
@@ -519,7 +519,7 @@ MonoBehaviour:
     Bounds:
       m_Center: {x: 0, y: 0, z: 0}
       m_Extent: {x: 0, y: 0, z: 0}
-    Action: 33
+    Action: 32
     Animator: {fileID: 1326346193527564499}
     JoinInProgressSync: 0
     Layer: 0
@@ -723,6 +723,8 @@ MonoBehaviour:
   wreckagePrefabs: []
   Breaker: {fileID: 8896635040325944122}
   Type: 1
+  MaxCurrent: 20
+  MinVoltage: 200
 --- !u!114 &8896635040325944122
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -737,7 +739,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   PinA: 0
   PinB: 1
-  MaxCurrent: 0
   Closed: 0
 --- !u!114 &8353711774321850121
 MonoBehaviour:
