@@ -61,6 +61,11 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
         }
 
+        public override string DebugInfo()
+        {
+            return $"{base.DebugInfo()} | pinX: {_vX?.Index ?? -1} | i: {_i?.Index ?? -1}";
+        }
+
         public override void AddTo(Circuit circuit)
         {
             base.AddTo(circuit);
@@ -75,20 +80,6 @@ namespace Hardwired.Objects.Electrical
             {
                 Hardwired.LogDebug($"WARNING - no compatible structure found for Battery");
             }
-
-            _vX = circuit.Solver.AddUnknown();
-            circuit.Solver.AddVoltageSource(_vB, _vX, ref _i);
-        }
-
-        public override void RemoveFrom(Circuit circuit)
-        {
-            base.RemoveFrom(circuit);
-
-            circuit.Solver.RemoveUnknown(_i);
-            circuit.Solver.RemoveUnknown(_vX);
-
-            _i = null;
-            _vX = null;
         }
 
         public override void Initialize()
@@ -96,19 +87,23 @@ namespace Hardwired.Objects.Electrical
             base.Initialize();
 
             // TODO
-            var r = 40;
+            Resistance = 40;
 
-            Circuit?.Solver.AddResistance(_vX, _vA, r);
+            _vX = Circuit?.Solver.AddUnknown();
+            Circuit?.Solver.AddVoltageSource(_vB, _vX, ref _i);
+            Circuit?.Solver.AddResistance(_vX, _vA, Resistance);
         }
 
         public override void Deinitialize()
         {
             base.Deinitialize();
 
-            // TODO
-            var r = 40;
+            Circuit?.Solver.AddResistance(_vX, _vA, -Resistance);
+            Circuit?.Solver.RemoveUnknown(_i);
+            Circuit?.Solver.RemoveUnknown(_vX);
 
-            Circuit?.Solver.AddResistance(_vX, _vA, -r);
+            _i = null;
+            _vX = null;
         }
 
         public override void UpdateState()
