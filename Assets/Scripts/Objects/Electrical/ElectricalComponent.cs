@@ -27,6 +27,8 @@ namespace Hardwired.Objects.Electrical
 
         public int PinB = -1;
 
+        protected bool _initialized;
+
         protected MNASolver.Unknown? _vA;
 
         protected MNASolver.Unknown? _vB;
@@ -97,14 +99,33 @@ namespace Hardwired.Objects.Electrical
         /// This method is only called once whenever the circuit topology changes, but otherwise each tick tries to re-use the existing matrix for efficiency.
         /// If a re-initialization is required (such as when changing resistance values or other values in the A matrix), call Circuit.Reinitialize().
         /// </summary>
-        public virtual void Initialize()
+        public void Initialize()
+        {
+            // Clean up any existing state
+            if (_initialized) { Deinitialize(); }
+
+            InitializeInternal();
+
+            _initialized = true;
+        }
+
+        protected virtual void InitializeInternal()
         {
         }
 
         /// <summary>
         /// Removes this component from the solver (i.e. remove admittance from the A matrix, clean up systems, etc).
         /// </summary>
-        public virtual void Deinitialize()
+        public void Deinitialize()
+        {
+            if (!_initialized) { return; }
+
+            DeinitializeInternal();
+
+            _initialized = false;
+        }
+
+        protected virtual void DeinitializeInternal()
         {
         }
 

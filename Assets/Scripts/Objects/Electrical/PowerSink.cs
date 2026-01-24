@@ -16,7 +16,7 @@ namespace Hardwired.Objects.Electrical
         /// <summary>
         /// Used for "histeresis" so we don't switch modes within a single tick
         /// </summary>
-        private bool _voltageInRage;
+        private bool? _voltageInRage;
 
         /// <summary>
         /// The target power in Watts.
@@ -97,7 +97,8 @@ namespace Hardwired.Objects.Electrical
             Voltage = vA - vB;
             var v2 = Voltage * Voltage;
 
-            Complex didva, didvb;
+            // Initialize _voltageInRage if this is the first tick
+            _voltageInRage ??= Voltage.Magnitude >= VoltageMin && Voltage.Magnitude <= VoltageMax;
 
             // Calculate the load impedance for the current power target
             LoadImpedance = VoltageNominal * VoltageNominal / PowerTarget;
@@ -106,8 +107,10 @@ namespace Hardwired.Objects.Electrical
             var w = 2f * Math.PI * (Circuit?.Frequency ?? 0);
             LoadImpedance += new Complex(0, w * Inductance);
 
+            Complex didva, didvb;
+
             // If voltage is out of range, draw no power
-            if (!_voltageInRage)
+            if (_voltageInRage != true)
             {
                 Current = 0f;
                 didva = 0f;
@@ -147,7 +150,7 @@ namespace Hardwired.Objects.Electrical
 
             // Determine operating mode
             // Note - we set this here instead of in UpdateDifferentialState() so that there are no discontinuities in I(v) while solving a single tick
-            _voltageInRage = Voltage.Magnitude > VoltageMin && Voltage.Magnitude < VoltageMax;
+            _voltageInRage = Voltage.Magnitude >= VoltageMin && Voltage.Magnitude <= VoltageMax;
         }
     }
 }

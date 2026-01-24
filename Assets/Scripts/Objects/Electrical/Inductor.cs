@@ -55,9 +55,9 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow")}");
         }
 
-        public override void Initialize()
+        protected override void InitializeInternal()
         {
-            base.Initialize();
+            base.InitializeInternal();
 
             if (Circuit == null) { return; }
 
@@ -90,9 +90,9 @@ namespace Hardwired.Objects.Electrical
             Circuit?.Invalidate();
         }
 
-        public override void Deinitialize()
+        protected override void DeinitializeInternal()
         {
-            base.Deinitialize();
+            base.DeinitializeInternal();
 
             if (Circuit == null) { return; }
 

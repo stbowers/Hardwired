@@ -8,6 +8,7 @@ using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
+using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
@@ -87,21 +88,21 @@ namespace Hardwired.Objects.Electrical
             }
         }
 
-        public override void Initialize()
+        protected override void InitializeInternal()
         {
-            base.Initialize();
+            base.InitializeInternal();
 
             // TODO
             Resistance = 40;
 
-            _vX = Circuit?.Solver.AddUnknown();
+            _vX = Circuit?.Solver.AddUnknown(type: "InternalNodeVoltage");
             Circuit?.Solver.AddVoltageSource(_vB, _vX, ref _i);
             Circuit?.Solver.AddResistance(_vX, _vA, Resistance);
         }
 
-        public override void Deinitialize()
+        protected override void DeinitializeInternal()
         {
-            base.Deinitialize();
+            base.DeinitializeInternal();
 
             Circuit?.Solver.AddResistance(_vX, _vA, -Resistance);
             Circuit?.Solver.RemoveUnknown(_i);

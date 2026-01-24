@@ -67,9 +67,9 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Energy: {Energy.ToStringPrefix("J", "yellow")}");
         }
 
-        public override void Initialize()
+        protected override void InitializeInternal()
         {
-            base.Initialize();
+            base.InitializeInternal();
 
             if (Circuit == null) { return; }
 
@@ -99,6 +99,26 @@ namespace Hardwired.Objects.Electrical
                 Reactance = -1f / (w * Capacitance);
 
                 Circuit.Solver.AddReactance(_vA, _vB, Reactance);
+            }
+        }
+
+        protected override void DeinitializeInternal()
+        {
+            base.DeinitializeInternal();
+
+            if (Circuit?.Frequency == 0f)
+            {
+                var dt = 0.5;
+                var i = Capacitance / dt;
+
+                Circuit.Solver.AddAdmittance(_vA, _vB, -i);
+            }
+            else if (Circuit != null)
+            {
+                var w = 2f * Math.PI * Circuit.Frequency;
+                Reactance = -1f / (w * Capacitance);
+
+                Circuit.Solver.AddReactance(_vA, _vB, -Reactance);
             }
         }
 

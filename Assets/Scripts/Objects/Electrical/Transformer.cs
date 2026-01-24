@@ -89,9 +89,9 @@ namespace Hardwired.Objects.Electrical
             base.RemoveFrom(circuit);
         }
 
-        public override void Initialize()
+        protected override void InitializeInternal()
         {
-            base.Initialize();
+            base.InitializeInternal();
 
             if (Circuit == null) { return; }
 
@@ -112,9 +112,9 @@ namespace Hardwired.Objects.Electrical
             }
         }
 
-        public override void Deinitialize()
+        protected override void DeinitializeInternal()
         {
-            base.Deinitialize();
+            base.DeinitializeInternal();
 
             Circuit?.Solver.RemoveUnknown(_i1);
             Circuit?.Solver.RemoveUnknown(_i2);

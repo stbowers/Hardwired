@@ -75,9 +75,9 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor:F3}");
         }
 
-        public override void Initialize()
+        protected override void InitializeInternal()
         {
-            base.Initialize();
+            base.InitializeInternal();
 
             if (Circuit == null) { return; }
 
@@ -87,9 +87,9 @@ namespace Hardwired.Objects.Electrical
             }
         }
 
-        public override void Deinitialize()
+        protected override void DeinitializeInternal()
         {
-            base.Deinitialize();
+            base.DeinitializeInternal();
 
             if (Circuit == null) { return; }
 

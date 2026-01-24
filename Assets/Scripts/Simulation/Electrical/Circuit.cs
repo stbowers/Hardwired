@@ -298,9 +298,17 @@ namespace Hardwired.Simulation.Electrical
 
             Hardwired.LogDebug($"Circuit network {Id} - Initializing circuit with {Components.Count} components at {Frequency} Hz");
 
+            // De-initialize all components, in case they're already initialized
+            // (otherwise, they may think they're still initialized in the A matrix and try to de-initialize themselves when we initialize later, even though A is being cleared)
+            foreach (var component in Components)
+            {
+                component.Deinitialize();
+            }
+
             // Clear MNA matrix
             Solver.A.Clear();
 
+            // Initialize components
             foreach (var component in Components)
             {
                 component.Initialize();

@@ -55,21 +55,21 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
         }
 
-        public override void Initialize()
+        protected override void InitializeInternal()
         {
-            base.Initialize();
+            base.InitializeInternal();
 
             if (Circuit == null) { return; }
 
             Circuit.Solver.AddVoltageSource(_vA, _vB, ref _i);
         }
 
-        public override void Deinitialize()
+        protected override void DeinitializeInternal()
         {
+            base.DeinitializeInternal();
+
             Circuit?.Solver.RemoveUnknown(_i);
             _i = null;
-
-            base.Deinitialize();
         }
 
         public override void UpdateState()

@@ -45,9 +45,9 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
         }
 
-        public override void Initialize()
+        protected override void InitializeInternal()
         {
-            base.Initialize();
+            base.InitializeInternal();
 
             TryGetComponent<Assets.Scripts.Objects.Pipes.Device>(out _device);
 
@@ -64,9 +64,9 @@ namespace Hardwired.Objects.Electrical
             _internalState = Closed;
         }
 
-        public override void Deinitialize()
+        protected override void DeinitializeInternal()
         {
-            base.Deinitialize();
+            base.DeinitializeInternal();
 
             // Remove ground resistances
             Circuit?.Solver.AddResistance(_vA, null, -1e10);

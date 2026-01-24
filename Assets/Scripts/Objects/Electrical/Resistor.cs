@@ -54,19 +54,20 @@ namespace Hardwired.Objects.Electrical
         }
 
 
-        public override void Initialize()
+        protected override void InitializeInternal()
         {
-            base.Initialize();
+            base.InitializeInternal();
 
             if (Circuit == null) { return; }
 
             Circuit.Solver.AddResistance(_vA, _vB, Resistance);
         }
 
-        public override void Deinitialize()
+        protected override void DeinitializeInternal()
         {
+            base.DeinitializeInternal();
+
             Circuit?.Solver.AddResistance(_vA, _vB, -Resistance);
-            base.Deinitialize();
         }
 
         public override void ApplyState()
