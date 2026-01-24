@@ -14,6 +14,18 @@ namespace Hardwired.Objects.Electrical
 {
     public class Breaker : ElectricalComponent
     {
+        /// <summary>
+        /// Resistance value to use to tie nodes to ground, to prevent floating nodes.
+        /// Should be relatively large, to avoid leaking any significant current, but not too large to avoid causing an ill-conditioned (singular or near-singular) matrix, which can cause problems for the solver.
+        /// </summary>
+        private const double R_GND = 1e6;
+
+        /// <summary>
+        /// Resistance value to use between the two nodes of the breaker when closed.
+        /// Should be relatively small, to avoid voltage drop across the breaker, but not too small as to introduce numerical errors into the solver.
+        /// </summary>
+        private const double R_CLOSED = 1e-4;
+
         private Assets.Scripts.Objects.Pipes.Device? _device;
         private bool _internalState;
 
@@ -40,13 +52,13 @@ namespace Hardwired.Objects.Electrical
             TryGetComponent<Assets.Scripts.Objects.Pipes.Device>(out _device);
 
             // Add large resistance to ground, to ensure there are no "floating" nodes
-            Circuit?.Solver.AddResistance(_vA, null, 1e10);
-            Circuit?.Solver.AddResistance(_vB, null, 1e10);
+            Circuit?.Solver.AddResistance(_vA, null, R_GND);
+            Circuit?.Solver.AddResistance(_vB, null, R_GND);
 
             if (Closed)
             {
                 // If breaker is closed, add a small resistance between nodes A and B to allow current to flow
-                Circuit?.Solver.AddResistance(_vA, _vB, 1e-10);
+                Circuit?.Solver.AddResistance(_vA, _vB, R_CLOSED);
             }
 
             _internalState = Closed;

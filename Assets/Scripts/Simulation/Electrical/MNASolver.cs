@@ -182,7 +182,7 @@ namespace Hardwired.Simulation.Electrical
         public void AddVoltageSource(Unknown? a, Unknown? b, [NotNull] ref Unknown? i)
         {
             // Add an unknown for the current
-            i ??= AddUnknown();
+            i ??= AddUnknown(type: "VSourceCurrent");
 
             if (a != null)
             {
@@ -221,8 +221,8 @@ namespace Hardwired.Simulation.Electrical
         public void AddTransformer(Unknown? a, Unknown? b, Unknown? c, Unknown? d, double wL1, double wL2, double wM, ref Unknown? i1, ref Unknown? i2)
         {
             // Add 2 new unknowns for the current through each inductor
-            i1 ??= AddUnknown();
-            i2 ??= AddUnknown();
+            i1 ??= AddUnknown(type: "TransformerCurrent");
+            i2 ??= AddUnknown(type: "TransformerCurrent");
 
             if (a != null)
             {
@@ -390,16 +390,16 @@ namespace Hardwired.Simulation.Electrical
             return hasConverged;
         }
 
-        public Unknown AddUnknown()
-            => AddUnknowns(1)[0];
+        public Unknown AddUnknown(string type = "NodeVoltage")
+            => AddUnknowns(1, type)[0];
 
-        public Unknown[] AddUnknowns(int count)
+        public Unknown[] AddUnknowns(int count, string type = "NodeVoltage")
         {
             Unknown[] newUnknowns = new Unknown[count];
 
             for (int i = 0; i < count; i++)
             {
-                newUnknowns[i] = new() { Index = _unknownValues.Count };
+                newUnknowns[i] = new() { Index = _unknownValues.Count, Type = type };
                 _unknownValues.Add(newUnknowns[i]);
             }
 
@@ -418,7 +418,7 @@ namespace Hardwired.Simulation.Electrical
 
             if (!_unknownValues.Remove(unknown))
             {
-                Hardwired.LogDebug($"Warning: Couldn't remove node {unknown.Index}, not in circuit");
+                Hardwired.LogDebug($"Warning: Couldn't remove node {unknown.DebugName}, not in circuit");
                 return;
             }
 
@@ -481,6 +481,10 @@ namespace Hardwired.Simulation.Electrical
         public class Unknown
         {
             public int Index;
+
+            public string Type = string.Empty;
+
+            public string DebugName => $"{Type}[{Index}]";
         }
     }
 }

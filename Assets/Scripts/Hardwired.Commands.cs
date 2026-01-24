@@ -1,8 +1,10 @@
 #nullable enable
 
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Hardwired.Simulation.Electrical;
+using RootMotion;
 using Util.Commands;
 
 namespace Hardwired
@@ -18,7 +20,7 @@ namespace Hardwired
         {
             private static readonly string MSG_SUCCESS = "Success!";
 
-            public override string HelpText => "Prints debug info about a Hardwired circuit to the log (level = 0: basic info, 1: ... & component list, 2: ... & A matrix)";
+            public override string HelpText => "Prints debug info about a Hardwired circuit to the log (level = 0: basic info, 1: ... & component list, 2: ... & singular values, 3: ... & A matrix)";
             public override string[] Arguments { get; } = new[] { "id", "level" };
             public override bool IsLaunchCmd => false;
 
@@ -64,6 +66,38 @@ namespace Hardwired
                 }
 
                 if (level < 2) { return MSG_SUCCESS; }
+
+                LogDebug($"--- Singular Values ---");
+
+                var svd = circuit.Solver.A.Svd();
+
+                for (int i = 0; i < circuit.Solver.A.RowCount; i++)
+                {
+                    var row = circuit.Solver.A.Row(i);
+
+                    if (row.Norm(2) < 0.001)
+                    {
+                        LogDebug($"Row {i} has no constraints!");
+                    }
+                }
+
+                for (int i = 0; i < svd.S.Count; i++)
+                {
+                    if (svd.S[i].Magnitude < 1e-10)
+                    {
+                        var v = svd.VT.Row(i);
+                        LogDebug($"Nullspace mode {i}:");
+                        for (int k = 0; k < v.Count; k++)
+                        {
+                            if (v[k].Magnitude > 0.1)
+                            {
+                                LogDebug($"  {v[k]:F2} * {circuit.Solver.Unknowns[k].DebugName}");
+                            }
+                        }
+                    }
+                }
+
+                if (level < 3) { return MSG_SUCCESS; }
 
                 LogDebug($"--- A Matrix ---\n{circuit.Solver.A}");
 

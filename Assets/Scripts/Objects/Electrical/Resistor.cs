@@ -24,6 +24,12 @@ namespace Hardwired.Objects.Electrical
         public Complex Voltage;
 
         /// <summary>
+        /// The max voltage from either pin of the resistor to ground
+        /// </summary>
+        [HideInInspector]
+        public Complex VoltageGround;
+
+        /// <summary>
         /// The momentary current across this resistor calculated by the circuit solver.
         /// </summary>
         [HideInInspector]
@@ -39,13 +45,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            var vA = Circuit?.Solver.GetValue(_vA) ?? Complex.Zero;
-            var vB = Circuit?.Solver.GetValue(_vB) ?? Complex.Zero;
-            var vcc = (vA + vB) / 2;
-
             stringBuilder.AppendLine($"-- Resistor --");
             stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
-            stringBuilder.AppendLine($"Vcc: {vcc.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Vcc: {VoltageGround.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"ΔV: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Power dissipated: {PowerDissipated.ToStringPrefix("W", "yellow")}");
@@ -76,6 +78,7 @@ namespace Hardwired.Objects.Electrical
             var vA = Circuit.Solver.GetValueOrDefault(_vA);
             var vB = Circuit.Solver.GetValueOrDefault(_vB);
             Voltage = vA - vB;
+            VoltageGround = (vA.Magnitude > vB.Magnitude) ? vA : vB;
 
             Current = Voltage / Resistance;
 
