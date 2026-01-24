@@ -48,7 +48,14 @@ namespace Hardwired.Patches
 
             foreach (var device in WorldManager.Instance.SourcePrefabs.OfType<Device>())
             {
-                PatchDevice(device);
+                if (device is CableFuse cableFuse)
+                {
+                    PatchCableFuse(cableFuse);
+                }
+                else
+                {
+                    PatchDevice(device);
+                }
             }
 
             return true;
@@ -102,6 +109,14 @@ namespace Hardwired.Patches
             }
 
             Hardwired.LogDebug($"patched cable {cable.PrefabName} -- resistance: {resistance} Ohm, max current: {currentCapacity} A");
+        }
+
+        private static void PatchCableFuse(CableFuse cableFuse)
+        {
+            var vNominal = 1000f;
+            var iLimit = cableFuse.PowerBreak / vNominal;
+
+            cableFuse.CustomName = $"Cable Fuse ({iLimit} A)";
         }
 
         private static void PatchDevice(Device device)

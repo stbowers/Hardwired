@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -284,6 +285,22 @@ namespace Hardwired.Networks
                     var r = lines.Average(l => l.Resistance);
                     Hardwired.LogDebug($"Breaking cable -- temp: {cableTemp - 273.15} C -- {pd} W -- {v} V ({vp})-- {a} A ({ap})-- {r} Ohm");
                     cable.Break();
+                }
+            }
+
+            // Check fuses
+            foreach (var fuse in cableNetwork.FuseList)
+            {
+                var cable = fuse.SmallCell.Cable;
+                var i = cable?.GetComponents<Line>().Max(l => l.Current) ?? Complex.Zero;
+
+                var vNominal = 1000f;
+                var iLimit = fuse.PowerBreak / vNominal;
+
+                if (i.Magnitude > iLimit)
+                {
+                    fuse.Break();
+                    Hardwired.LogDebug($"Breaking fuse -- i: {i.Magnitude} | iLimit: {iLimit}, PowerBreak: {fuse.PowerBreak}");
                 }
             }
         }

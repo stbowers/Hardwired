@@ -39,9 +39,14 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
+            var vA = Circuit?.Solver.GetValue(_vA) ?? Complex.Zero;
+            var vB = Circuit?.Solver.GetValue(_vB) ?? Complex.Zero;
+            var vcc = (vA + vB) / 2;
+
             stringBuilder.AppendLine($"-- Resistor --");
             stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
-            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Vcc: {vcc.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Power dissipated: {PowerDissipated.ToStringPrefix("W", "yellow")}");
         }
