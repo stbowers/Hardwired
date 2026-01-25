@@ -143,13 +143,18 @@ namespace Hardwired.Patches
 
                 AddBattery(device, powerInput);
 
-                var breaker = device.GetOrAddComponent<Breaker>();
-
-                breaker.Closed = false;
-                breaker.PinA = 0;
-                breaker.PinB = 1;
+                AddBreaker(device, powerInput, powerOutput);
 
                 Hardwired.LogDebug($"patching device {device.PrefabName} -- Input/Output battery");
+                for (int i = 0; i < device.OpenEnds.Count; i++)
+                {
+                    var connection = device.OpenEnds[i];
+                    var role
+                        = connection == powerInput ? "*in*"
+                        : connection == powerOutput ? "*out*"
+                        : "";
+                    Hardwired.LogDebug($"  -- [{i}] {connection.ConnectionType} ({connection.ConnectionRole}) {role}");
+                }
             }
             // Generic power sink
             else if (TryGetPowerInput(device, out powerInput) && device.UsedPower > 0f)
@@ -214,6 +219,17 @@ namespace Hardwired.Patches
             battery.VoltageNominal = vNom;
             battery.PinA = device.OpenEnds.IndexOf(powerInput);
             battery.PinB = -1;
+        }
+
+        private static void AddBreaker(Device device, Connection? powerInput = null, Connection? powerOutput = null)
+        {
+            var breaker = device.GetOrAddComponent<Breaker>();
+
+            powerInput ??= device.OpenEnds.First(IsConnectionPowerInput);
+            powerOutput ??= device.OpenEnds.First(IsConnectionPowerOutput);
+
+            breaker.PinA = device.OpenEnds.IndexOf(powerInput);
+            breaker.PinB = device.OpenEnds.IndexOf(powerOutput);
         }
 
         private static bool TryGetPowerInput(Device device, out Connection? connection)

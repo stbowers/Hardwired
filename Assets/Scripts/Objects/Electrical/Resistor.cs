@@ -13,6 +13,14 @@ namespace Hardwired.Objects.Electrical
     public class Resistor : ElectricalComponent
     {
         /// <summary>
+        /// A global minimum admittance to add between every node and ground - this prevents floating "islands" with no solution.
+        /// 
+        /// For debugging, this should be set to 0, as it is useful to find and diagnose situations that lead to these floating nodes.
+        /// For release, this should be set to a small value such as 1e-10 to avoid significantly impacting the circuit, but still preventing singular values that prevent solving.
+        /// </summary>
+        private const double G_MIN = 0; // 1e-10;
+
+        /// <summary>
         /// Resistance value in ohms
         /// </summary>
         public double Resistance;
@@ -51,6 +59,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"ΔV: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Power dissipated: {PowerDissipated.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"G_MIN: {G_MIN.ToStringPrefix("Ω", "yellow")}");
         }
 
 
@@ -58,15 +67,17 @@ namespace Hardwired.Objects.Electrical
         {
             base.InitializeInternal();
 
-            if (Circuit == null) { return; }
-
-            Circuit.Solver.AddResistance(_vA, _vB, Resistance);
+            Circuit?.Solver.AddAdmittance(_vA, null, G_MIN);
+            Circuit?.Solver.AddAdmittance(_vB, null, G_MIN);
+            Circuit?.Solver.AddResistance(_vA, _vB, Resistance);
         }
 
         protected override void DeinitializeInternal()
         {
             base.DeinitializeInternal();
 
+            Circuit?.Solver.AddAdmittance(_vA, null, -G_MIN);
+            Circuit?.Solver.AddAdmittance(_vB, null, -G_MIN);
             Circuit?.Solver.AddResistance(_vA, _vB, -Resistance);
         }
 

@@ -69,13 +69,13 @@ namespace Hardwired.Objects.Electrical
             base.DeinitializeInternal();
 
             // Remove ground resistances
-            Circuit?.Solver.AddResistance(_vA, null, -1e10);
-            Circuit?.Solver.AddResistance(_vB, null, -1e10);
+            Circuit?.Solver.AddResistance(_vA, null, -R_GND);
+            Circuit?.Solver.AddResistance(_vB, null, -R_GND);
 
             // If previous state was closed, remove small resistance betwen A and B
             if (_internalState)
             {
-                Circuit?.Solver.AddResistance(_vA, _vB, -1e-10);
+                Circuit?.Solver.AddResistance(_vA, _vB, -R_CLOSED);
             }
         }
 
@@ -108,7 +108,7 @@ namespace Hardwired.Objects.Electrical
             if (Closed)
             {
                 var dV = vA - vB;
-                Current = dV / 1e-10;
+                Current = dV / R_CLOSED;
             }
             else
             {
