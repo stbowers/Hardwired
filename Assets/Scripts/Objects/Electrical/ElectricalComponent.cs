@@ -21,6 +21,18 @@ namespace Hardwired.Objects.Electrical
     /// </summary>
     public abstract class ElectricalComponent : MonoBehaviour
     {
+        /// <summary>
+        /// Resistance value to use to tie nodes to ground, to prevent floating nodes.
+        /// Should be relatively large, to avoid leaking any significant current, but not too large to avoid causing an ill-conditioned (singular or near-singular) matrix, which can cause problems for the solver.
+        /// </summary>
+        public const double R_GND = 1e6;
+
+        /// <summary>
+        /// Resistance value to use between the two nodes of the breaker when closed.
+        /// Should be relatively small, to avoid voltage drop across the breaker, but not too small as to introduce numerical errors into the solver.
+        /// </summary>
+        public const double R_CLOSED = 1e-4;
+
         public Circuit? Circuit;
 
         public int PinA = -1;

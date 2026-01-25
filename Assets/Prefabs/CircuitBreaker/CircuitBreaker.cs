@@ -81,7 +81,7 @@ namespace Hardwired.Prefabs.CircuitBreaker
                 OnOff = false;
                 Breaker.Closed = false;
             }
-            else if (Type == CircuitBreakerType.UnderVoltage && Breaker?.Voltage.Magnitude < MinVoltage)
+            else if (Type == CircuitBreakerType.UnderVoltage && Breaker?.VoltageGround.Magnitude < MinVoltage)
             {
                 OnOff = false;
                 Breaker.Closed = false;

@@ -30,12 +30,16 @@ namespace Hardwired.Patches
             [typeof(GameTransformer)] = d => {
                 var transformer = d.GetOrAddComponent<HardwiredTransformer>();
 
-                transformer.PinA = 0;
+                transformer.PinA = d.OpenEnds.FindIndex(IsConnectionPowerInput);
                 transformer.PinB = -1;
-                transformer.PinC = 1;
+                transformer.PinC = d.OpenEnds.FindIndex(IsConnectionPowerOutput);
                 transformer.PinD = -1;
             },
             [typeof(BatteryCellCharger)] = d => AddBattery(d),
+            [typeof(AreaPowerControl)] = d => {
+                AddBattery(d);
+                AddBreaker(d);
+            }
         };
 
         [HarmonyPrefix, HarmonyPatch(typeof(Prefab), nameof(Prefab.LoadAll))]
@@ -135,26 +139,15 @@ namespace Hardwired.Patches
             // Generic power input/output (batteries, APC, etc)
             else if (TryGetPowerInput(device, out powerInput) && TryGetPowerOutput(device, out powerOutput) && powerInput != powerOutput)
             {
-                // Add power sink that will draw up to 1000 W depending on input voltage (fully resistive load, no current limiting)
-                // AddPowerSink(device, powerInput, vNom: 400, vMax: 400);
-
-                // Add power source that supplies up to 1000 W
-                // AddPowerSource(device, powerOutput, pNom: 1000);
-
+                // Add battery attached to input
                 AddBattery(device, powerInput);
 
-                AddBreaker(device, powerInput, powerOutput);
-
-                Hardwired.LogDebug($"patching device {device.PrefabName} -- Input/Output battery");
-                for (int i = 0; i < device.OpenEnds.Count; i++)
-                {
-                    var connection = device.OpenEnds[i];
-                    var role
-                        = connection == powerInput ? "*in*"
-                        : connection == powerOutput ? "*out*"
-                        : "";
-                    Hardwired.LogDebug($"  -- [{i}] {connection.ConnectionType} ({connection.ConnectionRole}) {role}");
-                }
+                // Add connection between input and output
+                Line line = device.gameObject.AddComponent<Line>();
+                line.Resistance = 0.0005;
+                line.SpecificHeat = 0.1;
+                line.DissipationCapacity = 1.8;
+                line.Temperature = 293.15;
             }
             // Generic power sink
             else if (TryGetPowerInput(device, out powerInput) && device.UsedPower > 0f)

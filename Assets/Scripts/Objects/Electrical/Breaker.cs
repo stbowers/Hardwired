@@ -14,22 +14,21 @@ namespace Hardwired.Objects.Electrical
 {
     public class Breaker : ElectricalComponent
     {
-        /// <summary>
-        /// Resistance value to use to tie nodes to ground, to prevent floating nodes.
-        /// Should be relatively large, to avoid leaking any significant current, but not too large to avoid causing an ill-conditioned (singular or near-singular) matrix, which can cause problems for the solver.
-        /// </summary>
-        private const double R_GND = 1e6;
-
-        /// <summary>
-        /// Resistance value to use between the two nodes of the breaker when closed.
-        /// Should be relatively small, to avoid voltage drop across the breaker, but not too small as to introduce numerical errors into the solver.
-        /// </summary>
-        private const double R_CLOSED = 1e-4;
 
         private Assets.Scripts.Objects.Pipes.Device? _device;
         private bool _internalState;
 
-        public Complex Voltage { get; private set; }
+        /// <summary>
+        /// The maximum voltage from either terminal to ground (i.e. max of vA and vB)
+        /// </summary>
+        public Complex VoltageGround { get; private set; }
+
+        /// <summary>
+        /// The voltage drop across the terminals (i.e. vA - vB).
+        /// 
+        /// Will be close to zero when closed, and dependent on the terminal voltages when open.
+        /// </summary>
+        public Complex VoltageDrop { get; private set; }
 
         public Complex Current { get; private set; }
 
@@ -41,7 +40,8 @@ namespace Hardwired.Objects.Electrical
 
             stringBuilder.AppendLine($"-- Breaker --");
             stringBuilder.AppendLine($"Closed: {Closed}");
-            stringBuilder.AppendLine($"Vcc: {Voltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Vcc: {VoltageGround.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDrop.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
         }
 
@@ -103,12 +103,13 @@ namespace Hardwired.Objects.Electrical
 
             var vA = Circuit?.Solver.GetValue(_vA) ?? Complex.Zero;
             var vB = Circuit?.Solver.GetValue(_vB) ?? Complex.Zero;
-            Voltage = vA.Magnitude > vB.Magnitude ? vA : vB;
+
+            VoltageDrop = vA - vB;
+            VoltageGround = vA.Magnitude > vB.Magnitude ? vA : vB;
 
             if (Closed)
             {
-                var dV = vA - vB;
-                Current = dV / R_CLOSED;
+                Current = VoltageDrop / R_CLOSED;
             }
             else
             {
