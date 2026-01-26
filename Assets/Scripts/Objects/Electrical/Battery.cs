@@ -174,8 +174,12 @@ namespace Hardwired.Objects.Electrical
 
             Complex vUnit = (Voltage.Magnitude > 0f) ? Voltage / Voltage.Magnitude : 1f;
 
+            // Calculate charge ratio (state of charge)
             var r = Math.Clamp(Charge / MaxCharge, 0f, 1f);
-            var v = r * VoltageNominal * vUnit;
+            r = double.IsNaN(r) ? 0f : r;
+
+            // Calculate voltage of battery
+            var v = Math.Pow(r, 0.25) * VoltageNominal * vUnit;
 
             Circuit?.Solver.SetVoltage(_i, v);
         }
