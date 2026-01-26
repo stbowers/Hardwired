@@ -35,12 +35,12 @@ namespace Hardwired.Patches
                 transformer.PinC = d.OpenEnds.FindIndex(IsConnectionPowerOutput);
                 transformer.PinD = -1;
 
-                var breaker =  d.GetOrAddComponent<Breaker>();
-
-                breaker.PinA = d.OpenEnds.FindIndex(IsConnectionPowerInput);
-                breaker.PinB = -2;
+                AddBreaker(d, pinOutput: -2);
             },
-            [typeof(BatteryCellCharger)] = d => AddBattery(d),
+            [typeof(BatteryCellCharger)] = d => {
+                AddBattery(d, pinInput: -2);
+                AddBreaker(d, pinOutput: -2);
+            },
             [typeof(AreaPowerControl)] = d => {
                 AddBattery(d);
                 AddBreaker(d);
@@ -145,7 +145,10 @@ namespace Hardwired.Patches
             else if (TryGetPowerInput(device, out powerInput) && TryGetPowerOutput(device, out powerOutput) && powerInput != powerOutput)
             {
                 // Add battery attached to input
-                AddBattery(device, powerInput);
+                AddBattery(device, pinInput: -2);
+
+                // Add breaker between input and battery (on/off switch)
+                AddBreaker(device, pinOutput: -2);
 
                 // Add connection between input and output
                 Line line = device.gameObject.AddComponent<Line>();
@@ -208,26 +211,26 @@ namespace Hardwired.Patches
             powerSource.IsFrequencyDriver = frequency != 0;
         }
 
-        private static void AddBattery(Device device, Connection? powerInput = null, double vNom = 300f)
+        private static void AddBattery(Device device, int? pinInput = null, double vNom = 300f)
         {
             var battery = device.GetOrAddComponent<HardwiredBattery>();
 
-            powerInput ??= device.OpenEnds.First(IsConnectionPowerInput);
+            pinInput ??= device.OpenEnds.FindIndex(IsConnectionPowerInput);
 
             battery.VoltageNominal = vNom;
-            battery.PinA = device.OpenEnds.IndexOf(powerInput);
+            battery.PinA = pinInput.Value;
             battery.PinB = -1;
         }
 
-        private static void AddBreaker(Device device, Connection? powerInput = null, Connection? powerOutput = null)
+        private static void AddBreaker(Device device, int? pinInput = null, int? pinOutput = null)
         {
             var breaker = device.GetOrAddComponent<Breaker>();
 
-            powerInput ??= device.OpenEnds.First(IsConnectionPowerInput);
-            powerOutput ??= device.OpenEnds.First(IsConnectionPowerOutput);
+            pinInput ??= device.OpenEnds.FindIndex(IsConnectionPowerInput);
+            pinOutput ??= device.OpenEnds.FindIndex(IsConnectionPowerOutput);
 
-            breaker.PinA = device.OpenEnds.IndexOf(powerInput);
-            breaker.PinB = device.OpenEnds.IndexOf(powerOutput);
+            breaker.PinA = pinInput.Value;
+            breaker.PinB = pinOutput.Value;
         }
 
         private static bool TryGetPowerInput(Device device, out Connection? connection)

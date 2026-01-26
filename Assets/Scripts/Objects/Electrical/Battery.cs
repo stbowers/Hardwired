@@ -18,13 +18,6 @@ namespace Hardwired.Objects.Electrical
         private Assets.Scripts.Objects.Electrical.Battery? _batteryStructure;
         private Assets.Scripts.Objects.Electrical.BatteryCellCharger? _batteryChargerStructure;
 
-        private bool _isConnected;
-
-        /// <summary>
-        /// Whether or not this battery component is connected or not (i.e. on or off)
-        /// </summary>
-        public bool Connected;
-
         public double MaxCharge;
 
         /// <summary>
@@ -106,33 +99,15 @@ namespace Hardwired.Objects.Electrical
             _vX = Circuit?.Solver.AddUnknown(type: "InternalNodeVoltage");
             Circuit?.Solver.AddVoltageSource(_vB, _vX, ref _i);
 
-            // Add large resistance to ground, to ensure there are no "floating" nodes
-            Circuit?.Solver.AddResistance(_vA, null, R_GND);
-            Circuit?.Solver.AddResistance(_vB, null, R_GND);
-            Circuit?.Solver.AddResistance(_vX, null, R_GND);
-
-            // If battery is connected, add resistance from A to X, otherwise keep it "open"
-            _isConnected = Connected;
-            if (_isConnected)
-            {
-                Circuit?.Solver.AddResistance(_vX, _vA, Resistance);
-            }
+            // Add resistance from A to X
+            Circuit?.Solver.AddResistance(_vX, _vA, Resistance);
         }
 
         protected override void DeinitializeInternal()
         {
             base.DeinitializeInternal();
 
-            // If previous state was connected, remove resistance from A to X
-            if (_isConnected)
-            {
-                Circuit?.Solver.AddResistance(_vX, _vA, -Resistance);
-            }
-
-            // remove resistance to ground
-            Circuit?.Solver.AddResistance(_vA, null, -R_GND);
-            Circuit?.Solver.AddResistance(_vB, null, -R_GND);
-            Circuit?.Solver.AddResistance(_vX, null, -R_GND);
+            Circuit?.Solver.AddResistance(_vX, _vA, -Resistance);
 
             // Remove voltage source and internal node "X"
             Circuit?.Solver.RemoveUnknown(_i);
@@ -151,25 +126,16 @@ namespace Hardwired.Objects.Electrical
             {
                 Charge = _apcStructure.Battery?.PowerStored ?? 0;
                 MaxCharge = _apcStructure.Battery?.PowerMaximum ?? 0;
-                Connected = true;
             }
             else if (_batteryStructure != null)
             {
                 Charge = _batteryStructure.PowerStored;
                 MaxCharge = _batteryStructure.PowerMaximum;
-                Connected = _batteryStructure.OnOff;
             }
             else if (_batteryChargerStructure != null)
             {
                 Charge = _batteryChargerStructure.Batteries.Sum(b => b.PowerStored);
                 MaxCharge = _batteryChargerStructure.Batteries.Sum(b => b.PowerMaximum);
-                Connected = _batteryChargerStructure.OnOff;
-            }
-
-            // If state has changed, de-init and re-init with new topology
-            if (_isConnected != Connected)
-            {
-                Initialize();
             }
 
             Complex vUnit = (Voltage.Magnitude > 0f) ? Voltage / Voltage.Magnitude : 1f;
