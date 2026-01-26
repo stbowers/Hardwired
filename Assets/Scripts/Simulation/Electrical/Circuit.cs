@@ -133,8 +133,8 @@ namespace Hardwired.Simulation.Electrical
         {
             lock (_nodes)
             {
-                // pin -1 (or any negative pin) is the common ground
-                if (pin < 0) { return null; }
+                // pin -1 is the common ground; other negative pins are unique "internal pins" to the device
+                if (pin == -1) { return null; }
 
                 MNASolver.Unknown? node;
 
@@ -167,8 +167,8 @@ namespace Hardwired.Simulation.Electrical
         {
             lock (_nodes)
             {
-                // pin -1 (or any negative pin) is the common ground
-                if (pin < 0) { return; }
+                // pin -1 is the common ground
+                if (pin == -1) { return; }
 
                 // Get the node registered for this connection, if one exists
                 if (!_nodes.TryGetValue((component, pin), out MNASolver.Unknown node))
@@ -195,13 +195,17 @@ namespace Hardwired.Simulation.Electrical
 
         private IEnumerable<(ElectricalComponent component, int pin)> GetPeers(ElectricalComponent component, int pin)
         {
-            if (pin < 0) { yield break; }
+            // Pin -1 is common ground
+            if (pin == -1) { yield break; }
 
             // Look for any other components on the same object that share this pin
             foreach (var otherComponent in component.GetComponents<ElectricalComponent>().Where(c => c != component && c.UsesConnection(pin)))
             {
                 yield return (otherComponent, pin);
             }
+
+            // If pin is less than -1, it's an internal pin to this device, so don't look any further...
+            if (pin < -1) { yield break; }
 
             // Look for components on the "peer" to this connection (i.e. other device we're connected to, if any)
             if (component.TryGetComponent(out SmallGrid smallGrid))

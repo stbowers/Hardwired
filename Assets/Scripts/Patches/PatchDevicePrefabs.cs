@@ -30,10 +30,15 @@ namespace Hardwired.Patches
             [typeof(GameTransformer)] = d => {
                 var transformer = d.GetOrAddComponent<HardwiredTransformer>();
 
-                transformer.PinA = d.OpenEnds.FindIndex(IsConnectionPowerInput);
+                transformer.PinA = -2;
                 transformer.PinB = -1;
                 transformer.PinC = d.OpenEnds.FindIndex(IsConnectionPowerOutput);
                 transformer.PinD = -1;
+
+                var breaker =  d.GetOrAddComponent<Breaker>();
+
+                breaker.PinA = d.OpenEnds.FindIndex(IsConnectionPowerInput);
+                breaker.PinB = -2;
             },
             [typeof(BatteryCellCharger)] = d => AddBattery(d),
             [typeof(AreaPowerControl)] = d => {
