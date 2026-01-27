@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
-    public class PowerSink : ElectricalComponent, INonlinearComponent
+    public class PowerSink : ElectricalComponent
     {
         /// <summary>
         /// Used for "histeresis" so we don't switch modes within a single tick
@@ -78,6 +78,12 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public Complex Current;
 
+        public Complex SourceCurrent;
+
+        public double EnergyBufferMax;
+
+        public double EnergyBuffer;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -88,50 +94,38 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Impedance: {LoadImpedance.ToStringPrefix("Ω", "yellow")}");
             stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix(Circuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"SoC Current: {SourceCurrent.ToStringPrefix(Circuit?.Frequency, "A", "yellow")}");
+
+            stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("Wt", "yellow")} / {EnergyBufferMax.ToStringPrefix("Wt", "yellow")}");
         }
 
-        public void UpdateDifferentialState()
+        protected override void InitializeInternal()
         {
-            var vA = Circuit?.Solver.GetValue(_vA) ?? Complex.Zero;
-            var vB = Circuit?.Solver.GetValue(_vB) ?? Complex.Zero;
-            Voltage = vA - vB;
-            var v2 = Voltage * Voltage;
+            base.InitializeInternal();
 
-            // Initialize _voltageInRage if this is the first tick
-            _voltageInRage ??= Voltage.Magnitude >= VoltageMin && Voltage.Magnitude <= VoltageMax;
+            LoadImpedance = VoltageNominal * VoltageNominal / 100;
+            EnergyBufferMax = 100;
 
-            // Calculate the load impedance for the current power target
-            LoadImpedance = VoltageNominal * VoltageNominal / PowerTarget;
+            Circuit?.Solver.AddImpedance(_vA, _vB, LoadImpedance);
+        }
 
-            // Add inductance
-            var w = 2f * Math.PI * (Circuit?.Frequency ?? 0);
-            LoadImpedance += new Complex(0, w * Inductance);
+        protected override void DeinitializeInternal()
+        {
+            base.DeinitializeInternal();
 
-            Complex didva, didvb;
+            Circuit?.Solver.AddImpedance(_vA, _vB, LoadImpedance);
+        }
 
-            // If voltage is out of range, draw no power
-            if (_voltageInRage != true)
-            {
-                Current = 0f;
-                didva = 0f;
-                didvb = 0f;
-            }
-            // If voltage is below nominal, load is purely resistive (linear current)
-            else if (Voltage.Magnitude < VoltageNominal)
-            {
-                Current = Voltage / LoadImpedance;
-                didva = 1 / LoadImpedance;
-                didvb = -1 / LoadImpedance;
-            }
-            // If voltage is above nominal, load draws constant power (non-linear current)
-            else
-            {
-                Current = PowerTarget / Voltage;
-                didva = -PowerTarget / v2;
-                didvb = -PowerTarget / v2;
-            }
+        public override void UpdateState()
+        {
+            base.UpdateState();
 
-            Circuit?.Solver.AddNonlinearCurrent(_vA, _vB, Current, didva, didvb);
+            var soc = EnergyBuffer / EnergyBufferMax;
+            var r = Math.Pow(soc, 0.25);
+            var v = r * VoltageNominal;
+            SourceCurrent = v / LoadImpedance;
+
+            Circuit?.Solver.AddCurrent(_vB, _vA, SourceCurrent);
         }
 
         public override void ApplyState()
@@ -143,14 +137,16 @@ namespace Hardwired.Objects.Electrical
             var vB = Circuit?.Solver.GetValue(_vB) ?? Complex.Zero;
             Voltage = vA - vB;
 
+            Current = (Voltage / LoadImpedance) - SourceCurrent;
+
             // Calculate real power delivered to the device
             var s = Voltage * Current.Conjugate();
             Power = s.Real;
             PowerFactor = s.Real / s.Magnitude;
 
-            // Determine operating mode
-            // Note - we set this here instead of in UpdateDifferentialState() so that there are no discontinuities in I(v) while solving a single tick
-            _voltageInRage = Voltage.Magnitude >= VoltageMin && Voltage.Magnitude <= VoltageMax;
+            // Update buffer
+            // EnergyBuffer = Math.Min(EnergyBuffer + Power, EnergyBufferMax);
+            EnergyBuffer += Power;
         }
     }
 }

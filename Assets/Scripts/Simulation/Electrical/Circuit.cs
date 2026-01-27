@@ -276,6 +276,9 @@ namespace Hardwired.Simulation.Electrical
 
         private void SolveIterative()
         {
+            // Skip NR iteration if there are no non-linear components (otherwise it will always try to iterate at least once)
+            if (NonlinearComponents.Count == 0) { return; }
+
             bool hasConverged = false;
             int i = 0;
             for (; i < 50 && !hasConverged; i++)

@@ -225,33 +225,32 @@ namespace Hardwired.Networks
         {
             using var _ = TimeApplying.BeginScope();
 
-            // TODO: Check fuses/breakers/etc
-
-            // Use power from sources
-            foreach (var source in Circuit.PowerSources)
+            // Update devices in cable network
+            foreach (var device in cableNetwork.PowerDeviceList)
             {
-                if (source.GetComponent<Device>() is not Device device){ continue; }
-
-                // Note - Device.UsePower()/ReceivePower() expect power in Watts, but for easier energy calculations the power source/sink
-                // calculate the actual energy used in this tick, so we need to convert back when sending to the device.
-                device.UsePower(cableNetwork, (float)(source.EnergyOutput / Circuit.TimeDelta));
-            }
-
-            // Apply power to sinks
-            foreach (var sink in Circuit.PowerSinks)
-            {
-                // Get device this sink is attached to
-                if (sink.GetComponent<Device>() is not Device device){ continue; }
-
-                device.ReceivePower(cableNetwork, (float)sink.Power);
-
-                if (sink.Power > 0)
+                // Use power from sources
+                if (device.TryGetComponent<PowerSource>(out var powerSource))
                 {
-                    device.SetPowerFromThread(cableNetwork, true).Forget();
+                    // Note - Device.UsePower()/ReceivePower() expect power in Watts, but for easier energy calculations the power source/sink
+                    // calculate the actual energy used in this tick, so we need to convert back when sending to the device.
+                    device.UsePower(cableNetwork, (float)(powerSource.EnergyOutput / Circuit.TimeDelta));
                 }
-                else
+
+                // Apply power to sinks
+                if (device.TryGetComponent<PowerSink>(out var powerSink))
                 {
-                    device.SetPowerFromThread(cableNetwork, false).Forget();
+                    var pDraw = device.GetUsedPower(cableNetwork);
+                    if (pDraw > 0f && pDraw <= powerSink.EnergyBuffer)
+                    {
+                        device.ReceivePower(cableNetwork, pDraw);
+                        device.SetPowerFromThread(cableNetwork, true).Forget();
+
+                        powerSink.EnergyBuffer -= pDraw;
+                    }
+                    else
+                    {
+                        device.SetPowerFromThread(cableNetwork, false).Forget();
+                    }
                 }
             }
 
