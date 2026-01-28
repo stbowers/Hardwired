@@ -33,11 +33,15 @@ namespace Hardwired.Networks
 
         public Stopwatch TimeInitializing = new();
         
+        public Stopwatch TimeUpdating = new();
+
         public Stopwatch TimeSolving = new();
 
         public Stopwatch TimeApplying = new();
 
         public HashSet<CableNetwork> CableNetworks = new();
+
+        public HashSet<ElectricalComponent> Components = new();
 
         public int CurrentTick = 0;
 
@@ -57,15 +61,9 @@ namespace Hardwired.Networks
 
             Initialize(root);
 
-            using (TimeSolving.BeginScope())
-            {
-                Circuit.ProcessTick();
-            }
-
-            foreach (var network in CableNetworks)
-            {
-                ApplyState(network);
-            }
+            UpdateState();
+            Solve();
+            ApplyState();
 
             LogMetrics();
         }
@@ -89,35 +87,27 @@ namespace Hardwired.Networks
 
             // Get a list of components and networks that were part of the circuit last tick -- if they're not
             // found this tick we consider them "orphaned" and remove them from the circuit
-            List<ElectricalComponent> orphanedComponents = Circuit.Components.ToList();
-            List<CableNetwork> orphanedNetworks = CableNetworks.ToList();
-
-            Queue<CableNetwork> toCheck = new();
+            HashSet<ElectricalComponent> orphanedComponents = new(Components);
+            HashSet<CableNetwork> orphanedNetworks = new(CableNetworks);
 
             CableNetworks.Clear();
-
-            orphanedNetworks.Remove(cableNetwork);
-            toCheck.Enqueue(cableNetwork);
+            Queue<CableNetwork> toInitialize = new();
+            toInitialize.Enqueue(cableNetwork);
 
             // Get all cable networks that should also be in this circuit, due to being connected to a device in the circuit
-            while (toCheck.TryDequeue(out CableNetwork network))
+            while (toInitialize.TryDequeue(out CableNetwork network))
             {
-                CableNetworks.Add(network);
                 orphanedNetworks.Remove(network);
 
-                foreach (var connectedNetwork in network.DeviceList.SelectMany(d => d.ConnectedCables()).Select(c => c.CableNetwork))
+                if (network.PowerTick is HardwiredPowerTick otherNetworkTick && otherNetworkTick.CircuitTick != this)
                 {
-                    // If CableNetworks already has this network, don't need to check again
-                    if (CableNetworks.Contains(connectedNetwork))
-                    {
-                        continue;
-                    }
-
-                    toCheck.Enqueue(connectedNetwork);
-
-                    (connectedNetwork.PowerTick as HardwiredPowerTick)?.SetCircuit(this);
+                    otherNetworkTick.SetCircuit(this);
                 }
 
+                if (CableNetworks.Add(network))
+                {
+                    InitializeNetwork(network, orphanedComponents, toInitialize);
+                }
             }
 
             // For any "orphaned" networks - unlink this CircuitTick so it will create a new circuit as needed
@@ -126,33 +116,11 @@ namespace Hardwired.Networks
                 (orphanedNetwork.PowerTick as HardwiredPowerTick)?.SetCircuit(null);
             }
 
-            // Hardwired.LogDebug($"Circuit {Circuit.Id} => Cable networks: [{string.Join(", ", CableNetworks.Select(n => n.ReferenceId))}] == root: {cableNetwork.ReferenceId}");
-
-            foreach (var network in CableNetworks)
-            {
-                InitializeNetwork(network, orphanedComponents);
-            }
-
             // Now "orphanedComponents" will only contain components that were in the circuit last tick but have since been removed
             foreach (var component in orphanedComponents)
             {
                 component.RemoveFrom(Circuit);
-            }
-
-            // Update power sources based on how much power they will generate this tick
-            foreach (var source in Circuit.PowerSources)
-            {
-                if (source.GetComponent<Device>() is not Device device){ continue; }
-
-                source.PowerSetting = device.GetGeneratedPower(device.PowerCableNetwork);
-            }
-
-            // Update power sinks based on how much power they want to draw this tick
-            foreach (var sink in Circuit.PowerSinks)
-            {
-                if (sink.GetComponent<Device>() is not Device device){ continue; }
-
-                sink.PowerTarget = device.GetUsedPower(device.PowerCableNetwork);
+                Components.Remove(component);
             }
         }
 
@@ -165,55 +133,39 @@ namespace Hardwired.Networks
         /// </summary>
         /// <param name="cableNetwork"></param>
         /// <param name="orphanedComponents"></param>
-        private void InitializeNetwork(CableNetwork cableNetwork, List<ElectricalComponent> orphanedComponents)
+        private void InitializeNetwork(CableNetwork cableNetwork, HashSet<ElectricalComponent> orphanedComponents, Queue<CableNetwork> toInitialize)
         {
-            // Iterate over all devices in the cable network
-            foreach (var component in cableNetwork.DeviceList.SelectMany(d => d.GetComponents<ElectricalComponent>()))
+            var deviceComponents = cableNetwork.DeviceList.SelectMany(d => d.GetComponents<ElectricalComponent>());
+            var cableComponents = cableNetwork.CableList.SelectMany(d => d.GetComponents<ElectricalComponent>());
+
+            foreach (var component in deviceComponents.Concat(cableComponents))
             {
                 orphanedComponents.Remove(component);
 
-                // Skip components that are already in the circuit; but remove them from "knownComponents" list
-                if (!Circuit.Components.Contains(component))
+                if (Components.Add(component))
                 {
-                    // If a component wasn't already in the circuit, add it now
-                    Circuit.AddComponent(component);
+                    component.AddTo(Circuit);
                 }
-            }
 
-            // Iterate over all cables in the cable network
-            foreach (var component in cableNetwork.CableList.SelectMany(d => d.GetComponents<ElectricalComponent>()))
+                // foreach (var network in component.GetBridgedNetworks(network)) { toInitialize.Add(...); }
+            }
+        }
+
+        private void UpdateState()
+        {
+            using var _ = TimeUpdating.BeginScope();
+
+            foreach (var component in Components)
             {
-                orphanedComponents.Remove(component);
-
-                // Skip components that are already in the circuit; but remove them from "knownComponents" list
-                if (!Circuit.Components.Contains(component))
-                {
-                    // If a component wasn't already in the circuit, add it now
-                    Circuit.AddComponent(component);
-                }
+                component.UpdateState(Circuit);
             }
+        }
 
-            // Update power sources/sinks
-            foreach (var device in cableNetwork.PowerDeviceList)
-            {
-                var generatedPower = device.GetGeneratedPower(cableNetwork);
-                var usedPower = device.GetUsedPower(cableNetwork);
+        private void Solve()
+        {
+            using var _ = TimeSolving.BeginScope();
 
-                PowerSource? powerSource = device.GetComponent<PowerSource>();
-                PowerSink? powerSink = device.GetComponent<PowerSink>();
-
-                // Update power source
-                if (powerSource != null)
-                {
-                    powerSource.PowerSetting = Math.Min(generatedPower, powerSource.NominalPower);
-                }
-
-                // Update power sink
-                if (powerSink != null)
-                {
-                    powerSink.PowerTarget = usedPower;
-                }
-            }
+            Circuit.ProcessTick();
         }
 
         /// <summary>
@@ -221,86 +173,13 @@ namespace Hardwired.Networks
         /// including setting the power draw/consumption, burning out overloaded cables, tripping breakers, etc.
         /// </summary>
         /// <param name="cableNetwork"></param>
-        private void ApplyState(CableNetwork cableNetwork)
+        private void ApplyState()
         {
             using var _ = TimeApplying.BeginScope();
 
-            // Update devices in cable network
-            foreach (var device in cableNetwork.PowerDeviceList)
+            foreach (var component in Components)
             {
-                // Use power from sources
-                if (device.TryGetComponent<PowerSource>(out var powerSource))
-                {
-                    // Note - Device.UsePower()/ReceivePower() expect power in Watts, but for easier energy calculations the power source/sink
-                    // calculate the actual energy used in this tick, so we need to convert back when sending to the device.
-                    device.UsePower(cableNetwork, (float)(powerSource.EnergyOutput / Circuit.TimeDelta));
-                }
-
-                // Apply power to sinks
-                if (device.TryGetComponent<PowerSink>(out var powerSink))
-                {
-                    var pDraw = device.GetUsedPower(cableNetwork);
-                    if (pDraw > 0f && pDraw <= powerSink.EnergyBuffer)
-                    {
-                        device.ReceivePower(cableNetwork, pDraw);
-                        device.SetPowerFromThread(cableNetwork, true).Forget();
-
-                        powerSink.EnergyBuffer -= pDraw;
-                    }
-                    else
-                    {
-                        device.SetPowerFromThread(cableNetwork, false).Forget();
-                    }
-                }
-            }
-
-            // Update cable heat
-            foreach (var cable in cableNetwork.CableList)
-            {
-                Line[] lines = cable.GetComponents<Line>();
-                if (lines.Length == 0) { continue; }
-
-                // Set all cables to average temp (in case more current is going down one path)
-                var cableTemp = lines.Average(l => l.Temperature);
-                foreach (var line in lines)
-                {
-                    line.Temperature = cableTemp;
-                }
-
-                // Randomly break cables that are over temp, with a higher chance the hotter they are
-                // 100 C ~ 0%
-                // 150 C ~ 100%
-                double breakChance = (cableTemp - 373.15) / 50f;
-                breakChance = Math.Clamp(breakChance, 0f, 1f);
-
-                bool shouldBreak = breakChance >= UnityEngine.Random.Range(0f, 1f);
-                if (shouldBreak)
-                {
-                    var pd = lines.Average(l => l.PowerDissipated);
-                    var v = lines.Average(l => l.Voltage.Magnitude);
-                    var vp = lines.Average(l => l.Voltage.Phase);
-                    var a = lines.Average(l => l.Current.Magnitude);
-                    var ap = lines.Average(l => l.Current.Phase);
-                    var r = lines.Average(l => l.Resistance);
-                    Hardwired.LogDebug($"Breaking cable -- temp: {cableTemp - 273.15} C -- {pd} W -- {v} V ({vp})-- {a} A ({ap})-- {r} Ohm");
-                    cable.Break();
-                }
-            }
-
-            // Check fuses
-            foreach (var fuse in cableNetwork.FuseList)
-            {
-                var cable = fuse.SmallCell.Cable;
-                var i = cable?.GetComponents<Line>().Max(l => l.Current) ?? Complex.Zero;
-
-                var vNominal = 1000f;
-                var iLimit = fuse.PowerBreak / vNominal;
-
-                if (i.Magnitude > iLimit)
-                {
-                    fuse.Break();
-                    Hardwired.LogDebug($"Breaking fuse -- i: {i.Magnitude} | iLimit: {iLimit}, PowerBreak: {fuse.PowerBreak}");
-                }
+                component.ApplyState(Circuit);
             }
         }
 
@@ -314,7 +193,7 @@ namespace Hardwired.Networks
             TimeSpan averageTimeApplying = TimeApplying.Elapsed / 120;
             TimeSpan averageTickProcessingTime = TimeProcessingTick.Elapsed / 120;
 
-            Hardwired.LogDebug($"Circuit {Circuit.Id} performance (average per tick) -- components: {Circuit.Components.Count}");
+            Hardwired.LogDebug($"Circuit {Circuit.Id} performance (average per tick) -- components: {Circuit.Elements.Count}");
             Hardwired.LogDebug($"  Initialize(): {averageTimeInitializing.TotalMilliseconds} ms");
             Hardwired.LogDebug($"  Circuit.ProcessTick(): {averageTimeSolving.TotalMilliseconds} ms");
             Hardwired.LogDebug($"  ApplyState(): {averageTimeApplying.TotalMilliseconds} ms");

@@ -1,11 +1,15 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 using Assets.Scripts.Atmospherics;
+using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
+using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
 using UnityEngine;
@@ -17,8 +21,13 @@ namespace Hardwired.Objects.Electrical
     /// In the circuit, this is just simulated as a simple resistor - this componenet however adds additional logic to track the temperature of the cable
     /// as power is dissipated through it via resistive heating, so we can melt cables when too much current goes through them.
     /// </summary>
-    public class Line : Resistor
+    public class HardwiredCable : ElectricalComponent
     {
+        private List<Resistor> _resistors = new();
+        private Cable? _cable;
+
+        public double Resistance;
+
         /// <summary>
         /// The specific heat capacity of this cable, in J/K (i.e. how much energy needs to be added to the cable in order to raise it's temperature by 1 K)
         /// </summary>
@@ -44,7 +53,6 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public double DissipationCapacity;
 
-
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -54,16 +62,57 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")}");
         }
 
-        public override void ApplyState()
+        public override void AddTo(Circuit circuit)
         {
-            base.ApplyState();
+            base.AddTo(circuit);
 
-            if (Circuit == null) { return; }
+            _cable ??= GetComponent<Cable>();
+            _resistors.Clear();
+
+            for (int i = 0; i < _cable.OpenEnds.Count; i++)
+            {
+                for (int j = i + 1; j < _cable.OpenEnds.Count; j++)
+                {
+                    var nodeA = GetNode(circuit, _cable.OpenEnds[i], WireType.Line1);
+                    var nodeB = GetNode(circuit, _cable.OpenEnds[j], WireType.Line1);
+                    Resistor resistor = new(circuit, nodeA, nodeB);
+
+                    resistor.Resistance = Resistance;
+                    
+                    _resistors.Add(resistor);
+                }
+            }
+        }
+
+        public override void UpdateState(Circuit circuit)
+        {
+            base.UpdateState(circuit);
+
+            foreach (var resistor in _resistors)
+            {
+                resistor.UpdateState();
+            }
+        }
+
+        public override void ApplyState(Circuit circuit)
+        {
+            base.ApplyState(circuit);
+
+            double power = 0;
+            double current = 0;
+
+            foreach (var resistor in _resistors)
+            {
+                resistor.ApplyState();
+
+                power += (resistor as IDipoleCircuitElement)?.Power.Real ?? 0;
+                current = Math.Max(resistor.Current.Magnitude, current);
+            }
 
             // Calculate temperature change due to resistive heating
             // double dE = PowerDissipated * Circuit.TimeDelta;
             double pRadiated = Math.Max(DissipationCapacity * (Temperature - 293.15f), 0f);
-            double dE = (PowerDissipated - pRadiated) * Circuit.TimeDelta;
+            double dE = (power - pRadiated) * 0.5f;
             double dT = dE / SpecificHeat;
 
             // Cap max change in temperature per tick
@@ -77,6 +126,35 @@ namespace Hardwired.Objects.Electrical
 
             // Update temperature (with min temp ~20 C, to avoid DissipationCapacity bringing the temp down to absolute zero)
             Temperature += dT;
+
+            // Randomly break cables that are over temp, with a higher chance the hotter they are
+            // 100 C ~ 0%
+            // 150 C ~ 100%
+            double breakChance = (Temperature - 373.15) / 50f;
+            breakChance = Math.Clamp(breakChance, 0f, 1f);
+
+            bool shouldBreak = breakChance >= UnityEngine.Random.Range(0f, 1f);
+            if (shouldBreak)
+            {
+                _cable?.Break();
+                Hardwired.LogDebug($"Burning cable -- i: {current} | T: {Temperature}");
+            }
+
+            // Check fuses
+            var fuses = _cable?.AttachedDevices.OfType<CableFuse>() ?? Enumerable.Empty<CableFuse>();
+            foreach (var fuse in fuses)
+            {
+                var cable = fuse.SmallCell.Cable;
+
+                var vNominal = 1000f;
+                var iLimit = fuse.PowerBreak / vNominal;
+
+                if (current > iLimit)
+                {
+                    fuse.Break();
+                    Hardwired.LogDebug($"Breaking fuse -- i: {current} | iLimit: {iLimit}, PowerBreak: {fuse.PowerBreak}");
+                }
+            }
         }
 
     }

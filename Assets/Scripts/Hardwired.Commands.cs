@@ -53,16 +53,11 @@ namespace Hardwired
 
                 if (level < 1) { return MSG_SUCCESS; }
 
-                LogDebug($"--- Components: {circuit.Components.Count} ---");
+                LogDebug($"--- Components: {circuit.Elements.Count} ---");
 
-                foreach (var component in circuit.Components)
+                foreach (var element in circuit.Elements)
                 {
-                    var a = circuit.GetNode(component, component.PinA);
-                    var b = circuit.GetNode(component, component.PinB);
-                    var vA = circuit.Solver.GetValue(a);
-                    var vB = circuit.Solver.GetValue(b);
-
-                    LogDebug($"  {component.GetType()} -- {component.DebugInfo()}");
+                    LogDebug($"  {element.GetType().Name} -- {element.DebugInfo()}");
                 }
 
                 if (level < 2) { return MSG_SUCCESS; }

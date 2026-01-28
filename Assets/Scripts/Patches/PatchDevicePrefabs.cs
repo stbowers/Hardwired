@@ -9,11 +9,10 @@ using Assets.Scripts.Objects.Items;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.UI;
 using Hardwired.Objects.Electrical;
+using Hardwired.Simulation.Electrical.Elements;
 using HarmonyLib;
 using Objects.Pipes;
 
-using GameTransformer = Assets.Scripts.Objects.Electrical.Transformer;
-using HardwiredTransformer = Hardwired.Objects.Electrical.Transformer;
 using HardwiredBattery = Hardwired.Objects.Electrical.Battery;
 
 namespace Hardwired.Patches
@@ -26,24 +25,25 @@ namespace Hardwired.Patches
         /// </summary>
         public static readonly Dictionary<Type, Action<Device>> CustomPatches = new()
         {
-            [typeof(VolumePump)] = d => AddPowerSink(d, inductance: 2f),
-            [typeof(GameTransformer)] = d => {
-                var transformer = d.GetOrAddComponent<HardwiredTransformer>();
+            [typeof(VolumePump)] = d => {
+                var load = d.GetOrAddComponent<DeviceLoad>();
+                load.PowerProfile = PowerSink.PowerProfile.SmallMotor;
+            },
+            [typeof(Assets.Scripts.Objects.Electrical.Transformer)] = d => {
+                // var transformer = d.GetOrAddComponent<HardwiredTransformer>();
 
-                transformer.PinA = -2;
-                transformer.PinB = -1;
-                transformer.PinC = d.OpenEnds.FindIndex(IsConnectionPowerOutput);
-                transformer.PinD = -1;
+                // transformer.PinA = -2;
+                // transformer.PinB = -1;
+                // transformer.PinC = d.OpenEnds.FindIndex(IsConnectionPowerOutput);
+                // transformer.PinD = -1;
 
-                AddBreaker(d, pinOutput: -2);
+                // AddBreaker(d, pinOutput: -2);
             },
             [typeof(BatteryCellCharger)] = d => {
-                AddBattery(d, pinInput: -2);
-                AddBreaker(d, pinOutput: -2);
+                d.GetOrAddComponent<HardwiredBattery>();
             },
             [typeof(AreaPowerControl)] = d => {
-                AddBattery(d);
-                AddBreaker(d);
+                d.GetOrAddComponent<HardwiredBattery>();
             }
         };
 
@@ -72,6 +72,8 @@ namespace Hardwired.Patches
 
         private static void PatchCable(Cable cable)
         {
+            var cableComponent = cable.GetOrAddComponent<HardwiredCable>();
+
             // Physical properties of the cable
             double resistance, specificHeat, currentCapacity, temperatureCapacity, dissipationCapacity;
 
@@ -100,22 +102,10 @@ namespace Hardwired.Patches
             // note - PowerSink starts dissipating heat at 20 C, so subtract 20 from temperatureCapacity
             dissipationCapacity = currentCapacity * currentCapacity * resistance / (temperatureCapacity - 20f);
 
-            // Add a "line" component between each connection
-            for (int i = 0; i < cable.OpenEnds.Count; i++)
-            {
-                for (int j = i + 1; j < cable.OpenEnds.Count; j++)
-                {
-                    Line line = cable.gameObject.AddComponent<Line>();
-
-                    line.PinA = i;
-                    line.PinB = j;
-
-                    line.Resistance = resistance;
-                    line.SpecificHeat = specificHeat;
-                    line.DissipationCapacity = dissipationCapacity;
-                    line.Temperature = 293.15;
-                }
-            }
+            cableComponent.Resistance = resistance;
+            cableComponent.SpecificHeat = specificHeat;
+            cableComponent.DissipationCapacity = dissipationCapacity;
+            cableComponent.Resistance = resistance;
 
             Hardwired.LogDebug($"patched cable {cable.PrefabName} -- resistance: {resistance} Ohm, max current: {currentCapacity} A");
         }
@@ -144,30 +134,21 @@ namespace Hardwired.Patches
             // Generic power input/output (batteries, APC, etc)
             else if (TryGetPowerInput(device, out powerInput) && TryGetPowerOutput(device, out powerOutput) && powerInput != powerOutput)
             {
-                // Add battery attached to input
-                AddBattery(device, pinInput: -2);
+                device.GetOrAddComponent<HardwiredBattery>();
 
-                // Add breaker between input and battery (on/off switch)
-                AddBreaker(device, pinOutput: -2);
-
-                // Add connection between input and output
-                Line line = device.gameObject.AddComponent<Line>();
-                line.Resistance = 0.0005;
-                line.SpecificHeat = 0.1;
-                line.DissipationCapacity = 1.8;
-                line.Temperature = 293.15;
+                Hardwired.LogDebug($"patching device {device.PrefabName} -- Battery");
             }
             // Generic power sink
             else if (TryGetPowerInput(device, out powerInput) && device.UsedPower > 0f)
             {
-                AddPowerSink(device, powerInput);
+                device.GetOrAddComponent<DeviceLoad>();
 
                 Hardwired.LogDebug($"patching device {device.PrefabName} -- Generic power sink, P_nom: {device.UsedPower} W");
             }
             // Generic power source
             else if (TryGetPowerOutput(device, out powerOutput))
             {
-                AddPowerSource(device, powerOutput);
+                device.GetOrAddComponent<Generator>();
 
                 Hardwired.LogDebug($"patching device {device.PrefabName} -- Generic power source, P_nom: 500 W");
             }
@@ -179,58 +160,6 @@ namespace Hardwired.Patches
                 //     Hardwired.LogDebug($"{connection.ConnectionType} | {connection.ConnectionRole}");
                 // }
             }
-        }
-
-        private static void AddPowerSink(Device device, Connection? powerInput = null, double vMin = 100f, double vNom = 200f, double vMax = 400f, double inductance = 0f)
-        {
-            PowerSink powerSink = device.GetOrAddComponent<PowerSink>();
-
-            powerInput ??= device.OpenEnds.First(IsConnectionPowerInput);
-
-            powerSink.PinA = device.OpenEnds.IndexOf(powerInput);
-            powerSink.PinB = -1;
-
-            powerSink.VoltageMin = vMin;
-            powerSink.VoltageNominal = vNom;
-            powerSink.VoltageMax = vMax;
-            powerSink.Inductance = inductance;
-        }
-
-        private static void AddPowerSource(Device device, Connection? powerOutput = null, double vNom = 200f, double pNom = 500f, double frequency = 60f)
-        {
-            PowerSource powerSource = device.GetOrAddComponent<PowerSource>();
-
-            powerOutput ??= device.OpenEnds.First(IsConnectionPowerOutput);
-
-            powerSource.PinA = -1;
-            powerSource.PinB = device.OpenEnds.IndexOf(powerOutput);
-
-            powerSource.NominalPower = pNom;
-            powerSource.VoltageNominal = vNom;
-            powerSource.Frequency = frequency;
-            powerSource.IsFrequencyDriver = frequency != 0;
-        }
-
-        private static void AddBattery(Device device, int? pinInput = null, double vNom = 300f)
-        {
-            var battery = device.GetOrAddComponent<HardwiredBattery>();
-
-            pinInput ??= device.OpenEnds.FindIndex(IsConnectionPowerInput);
-
-            battery.VoltageNominal = vNom;
-            battery.PinA = pinInput.Value;
-            battery.PinB = -1;
-        }
-
-        private static void AddBreaker(Device device, int? pinInput = null, int? pinOutput = null)
-        {
-            var breaker = device.GetOrAddComponent<Breaker>();
-
-            pinInput ??= device.OpenEnds.FindIndex(IsConnectionPowerInput);
-            pinOutput ??= device.OpenEnds.FindIndex(IsConnectionPowerOutput);
-
-            breaker.PinA = pinInput.Value;
-            breaker.PinB = pinOutput.Value;
         }
 
         private static bool TryGetPowerInput(Device device, out Connection? connection)

@@ -76,15 +76,13 @@ namespace Hardwired.Prefabs.CircuitBreaker
         {
             base.OnPowerTick();
 
-            if (Type == CircuitBreakerType.OverCurrent && Breaker?.Current.Magnitude > MaxCurrent)
+            if (Type == CircuitBreakerType.OverCurrent && Breaker?.Current > MaxCurrent)
             {
                 OnOff = false;
-                Breaker.Closed = false;
             }
-            else if (Type == CircuitBreakerType.UnderVoltage && Breaker?.VoltageGround.Magnitude < MinVoltage)
+            else if (Type == CircuitBreakerType.UnderVoltage && Breaker?.MaximumNodeVoltage < MinVoltage)
             {
                 OnOff = false;
-                Breaker.Closed = false;
             }
         }
 

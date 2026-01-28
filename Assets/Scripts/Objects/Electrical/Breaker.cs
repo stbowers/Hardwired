@@ -3,8 +3,10 @@
 using System;
 using System.Numerics;
 using System.Text;
+using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
+using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
 using Objects.Pipes;
@@ -14,107 +16,67 @@ namespace Hardwired.Objects.Electrical
 {
     public class Breaker : ElectricalComponent
     {
-
         private Assets.Scripts.Objects.Pipes.Device? _device;
-        private bool _internalState;
+        private Switch? _switch;
 
-        /// <summary>
-        /// The maximum voltage from either terminal to ground (i.e. max of vA and vB)
-        /// </summary>
-        public Complex VoltageGround { get; private set; }
+        public ConnectionRole Connection = ConnectionRole.Input;
 
-        /// <summary>
-        /// The voltage drop across the terminals (i.e. vA - vB).
-        /// 
-        /// Will be close to zero when closed, and dependent on the terminal voltages when open.
-        /// </summary>
-        public Complex VoltageDrop { get; private set; }
+        public double MaximumNodeVoltage { get; private set; }
 
-        public Complex Current { get; private set; }
-
-        public bool Closed;
+        public double Current { get; private set; }
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"-- Breaker --");
-            stringBuilder.AppendLine($"Closed: {Closed}");
-            stringBuilder.AppendLine($"Vcc: {VoltageGround.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDrop.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
+            // stringBuilder.AppendLine($"-- Breaker --");
+            // stringBuilder.AppendLine($"Closed: {Closed}");
+            // stringBuilder.AppendLine($"Vcc: {VoltageGround.ToStringPrefix("V", "yellow")}");
+            // stringBuilder.AppendLine($"ΔV: {VoltageDrop.ToStringPrefix("V", "yellow")}");
+            // stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
         }
 
-        protected override void InitializeInternal()
+        public override void AddTo(Circuit circuit)
         {
-            base.InitializeInternal();
+            base.AddTo(circuit);
 
-            TryGetComponent<Assets.Scripts.Objects.Pipes.Device>(out _device);
-
-            // Add large resistance to ground, to ensure there are no "floating" nodes
-            Circuit?.Solver.AddResistance(_vA, null, R_GND);
-            Circuit?.Solver.AddResistance(_vB, null, R_GND);
-
-            if (Closed)
+            if (_device == null)
             {
-                // If breaker is closed, add a small resistance between nodes A and B to allow current to flow
-                Circuit?.Solver.AddResistance(_vA, _vB, R_CLOSED);
+                TryGetComponent(out _device);
             }
 
-            _internalState = Closed;
+            var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
+            var nodeB = GetNode(circuit, PowerInput, WireType.Line1);
+
+            _switch?.Dispose();
+            _switch = new(circuit, nodeA, nodeB);
         }
 
-        protected override void DeinitializeInternal()
+        public override void UpdateState(Circuit circuit)
         {
-            base.DeinitializeInternal();
+            base.UpdateState(circuit);
 
-            // Remove ground resistances
-            Circuit?.Solver.AddResistance(_vA, null, -R_GND);
-            Circuit?.Solver.AddResistance(_vB, null, -R_GND);
-
-            // If previous state was closed, remove small resistance betwen A and B
-            if (_internalState)
+            if (_switch != null)
             {
-                Circuit?.Solver.AddResistance(_vA, _vB, -R_CLOSED);
+                _switch.Closed = _device?.OnOff ?? false;
+                _switch.UpdateState();
             }
         }
 
-        public override void UpdateState()
+        public override void ApplyState(Circuit circuit)
         {
-            // Update closed state from device
-            if (_device != null)
-            {
-                Closed = _device.OnOff;
-            }
+            base.ApplyState(circuit);
 
-            // If state has changed, de-init and re-init with new topology
-            if (_internalState != Closed)
-            {
-                Deinitialize();
-                Initialize();
-            }
+            var nodeVoltageA = (_switch as IDipoleCircuitElement)?.VoltageA.Magnitude ?? 0f;
+            var nodeVoltageB = (_switch as IDipoleCircuitElement)?.VoltageB.Magnitude ?? 0f;
+            MaximumNodeVoltage = Math.Max(nodeVoltageA, nodeVoltageB);
 
-            base.UpdateState();
+            Current = _switch?.Current.Magnitude ?? 0f;
         }
 
-        public override void ApplyState()
+        public override void RemoveFrom(Circuit circuit)
         {
-            base.ApplyState();
-
-            var vA = Circuit?.Solver.GetValue(_vA) ?? Complex.Zero;
-            var vB = Circuit?.Solver.GetValue(_vB) ?? Complex.Zero;
-
-            VoltageDrop = vA - vB;
-            VoltageGround = vA.Magnitude > vB.Magnitude ? vA : vB;
-
-            if (Closed)
-            {
-                Current = VoltageDrop / R_CLOSED;
-            }
-            else
-            {
-                Current = Complex.Zero;
-            }
+            base.RemoveFrom(circuit);
         }
     }
 }

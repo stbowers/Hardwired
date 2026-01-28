@@ -3,11 +3,13 @@
 using System.Numerics;
 using Hardwired.Objects.Electrical;
 using Hardwired.Simulation.Electrical;
+using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Tests.Utility;
+using Hardwired.Utility;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Hardwired.Tests.Objects.Electrical
+namespace Hardwired.Tests.Simulation.Electrical.Elements
 {
     public class ResistorTests
     {
@@ -24,24 +26,14 @@ namespace Hardwired.Tests.Objects.Electrical
 
             var circuit = new Circuit();
 
-            var gameObject = new GameObject();
-            var iSource = gameObject.AddComponent<CurrentSource>();
-            var resistor = gameObject.AddComponent<Resistor>();
+            var nodeA = RefCounted.Create(circuit.Solver.AddUnknown());
 
-            iSource.Current = i;
-            iSource.PinA = -1;
-            iSource.PinB = 0;
-
-            resistor.Resistance = r;
-            resistor.PinA = 0;
-            resistor.PinB = -1;
-
-            circuit.AddComponent(iSource);
-            circuit.AddComponent(resistor);
+            var iSource = new CurrentSource(circuit, null, nodeA) { Current = i };
+            var resistor = new Resistor(circuit, nodeA, null) { Resistance = r };
 
             circuit.ProcessTick();
 
-            ComplexAssert.AreEqual(vExpected, resistor.Voltage);
+            ComplexAssert.AreEqual(vExpected, (resistor as IDipoleCircuitElement).VoltageDelta);
         }
 
         [Test]
@@ -57,20 +49,10 @@ namespace Hardwired.Tests.Objects.Electrical
 
             var circuit = new Circuit();
 
-            var gameObject = new GameObject();
-            var vSource = gameObject.AddComponent<VoltageSource>();
-            var resistor = gameObject.AddComponent<Resistor>();
+            var nodeA = RefCounted.Create(circuit.Solver.AddUnknown());
 
-            vSource.Voltage = v;
-            vSource.PinA = -1;
-            vSource.PinB = 0;
-
-            resistor.Resistance = r;
-            resistor.PinA = 0;
-            resistor.PinB = -1;
-
-            circuit.AddComponent(vSource);
-            circuit.AddComponent(resistor);
+            var vSource = new VoltageSource(circuit, null, nodeA) { VoltageDelta = v };
+            var resistor = new Resistor(circuit, nodeA, null) { Resistance = r };
 
             circuit.ProcessTick();
 

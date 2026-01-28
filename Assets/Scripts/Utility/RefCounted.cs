@@ -9,7 +9,7 @@ namespace Hardwired.Utility
 {
     public static class RefCounted
     {
-        [return: NotNullIfNotNull(nameof(value))]
+        [return: NotNullIfNotNull("value")]
         public static RefCounted<T>? Create<T>(T? value)
             where T : IDisposable
         {

@@ -5,8 +5,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
+using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
 using UnityEngine;
@@ -15,193 +18,108 @@ namespace Hardwired.Objects.Electrical
 {
     public class Battery : ElectricalComponent
     {
-        private Assets.Scripts.Objects.Electrical.AreaPowerControl? _apcStructure;
-        private Assets.Scripts.Objects.Electrical.Battery? _batteryStructure;
-        private Assets.Scripts.Objects.Electrical.BatteryCellCharger? _batteryChargerStructure;
-
+        private Assets.Scripts.Objects.Pipes.Device? _device;
         private List<Assets.Scripts.Objects.Items.IChargable> _batteries = new();
+        private EnergyBuffer? _energyBuffer;
 
-        public double MaxCharge;
-
-        /// <summary>
-        /// The nominal voltage for the battery. The battery will produce a voltage equal to r * VoltageNominal, where r is the charge ratio.
-        /// If the circuit has a higher voltage outside of the battery, current will flow into the battery and charge it.
-        /// If the circuit has a lower voltage outside of the battery, current will flow out of the battery and discharge it.
-        /// </summary>
-        public double VoltageNominal;
-
-        public Complex Voltage;
-
-        public Complex Current;
-
-        public double Resistance;
-        
-        public double Power;
+        public ConnectionRole Connection = ConnectionRole.Input;
 
         /// <summary>
         /// The ratio of power that should be equalized between multiple batteries per tick
         /// </summary>
         public double BalanceRatio = 0.005;
-
-        /// <summary>
-        /// Current charge level, in Wt (Watt-ticks, i.e 1 Wt = 0.5 Ws = 0.5 J)
-        /// </summary>
-        public double Charge { get; protected set; }
-
-        /// <summary>
-        /// The current through the battery (positive if charging, negative if discharging)
-        /// </summary>
-        private MNASolver.Unknown? _i;
-
-        /// <summary>
-        /// Voltage at internal node "X"
-        /// </summary>
-        private MNASolver.Unknown? _vX;
         
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"-- Battery --");
-            stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / {MaxCharge.ToStringPrefix("Wt", "yellow")}");
-            stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
-            stringBuilder.AppendLine($"Power: {Power.ToStringPrefix("W", "yellow")}");
-            stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
-        }
-
-        public override string DebugInfo()
-        {
-            return $"{base.DebugInfo()} | pinX: {_vX?.Index ?? -1} | i: {_i?.Index ?? -1}";
+            // stringBuilder.AppendLine($"-- Battery --");
+            // stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / {MaxCharge.ToStringPrefix("Wt", "yellow")}");
+            // stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
+            // stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
+            // stringBuilder.AppendLine($"Power: {Power.ToStringPrefix("W", "yellow")}");
+            // stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
         {
             base.AddTo(circuit);
 
-            // Look for attached structure which has a battery slot or internal battery
-            bool foundStructure = false;
-            foundStructure |= TryGetComponent(out _apcStructure);
-            foundStructure |= TryGetComponent(out _batteryStructure);
-            foundStructure |= TryGetComponent(out _batteryChargerStructure);
-
-            if (!foundStructure)
+            if (_device == null)
             {
-                Hardwired.LogDebug($"WARNING - no compatible structure found for Battery");
+                TryGetComponent(out _device);
             }
+
+            var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
+            var nodeB = GetNode(circuit, PowerInput, WireType.Neutral);
+
+            _energyBuffer?.Dispose();
+            _energyBuffer = new(circuit, nodeA, nodeB);
         }
 
-        protected override void InitializeInternal()
+        public override void UpdateState(Circuit circuit)
         {
-            base.InitializeInternal();
+            base.UpdateState(circuit);
 
-            // TODO
-            Resistance = 40;
+            if (_energyBuffer == null) {return;}
 
-            // Add an unknown for the internal node "X", and add voltage source from B to X
-            _vX = Circuit?.Solver.AddUnknown(type: "InternalNodeVoltage");
-            Circuit?.Solver.AddVoltageSource(_vB, _vX, ref _i);
-
-            // Add resistance from A to X
-            Circuit?.Solver.AddResistance(_vX, _vA, Resistance);
-        }
-
-        protected override void DeinitializeInternal()
-        {
-            base.DeinitializeInternal();
-
-            Circuit?.Solver.AddResistance(_vX, _vA, -Resistance);
-
-            // Remove voltage source and internal node "X"
-            Circuit?.Solver.RemoveUnknown(_i);
-            Circuit?.Solver.RemoveUnknown(_vX);
-
-            _i = null;
-            _vX = null;
-        }
-
-        public override void UpdateState()
-        {
-            base.UpdateState();
-
-            // Update charge from structure
-            if (_apcStructure != null && !ReferenceEquals(_batteries.FirstOrDefault(), _apcStructure.Battery))
+            if (_device is AreaPowerControl apc)
             {
                 _batteries.Clear();
-                Charge = 0;
-                MaxCharge = 0;
-
-                if (_apcStructure.Battery != null)
+                if (apc.Battery != null)
                 {
-                    _batteries.Add(_apcStructure.Battery);
-                    Charge = _apcStructure.Battery.PowerStored;
-                    MaxCharge = _apcStructure.Battery.PowerMaximum;
+                    _batteries.Add(apc.Battery);
                 }
-            }
-            else if (_batteryStructure != null && _batteries.Count == 0)
-            {
-                _batteries.Add(_batteryStructure);
-                Charge = _batteryStructure.PowerStored;
-                MaxCharge = _batteryStructure.PowerMaximum;
-            }
-            else if (_batteryChargerStructure != null)
-            {
-                Charge = _batteryChargerStructure.Batteries.Sum(b => b.PowerStored);
-                MaxCharge = _batteryChargerStructure.Batteries.Sum(b => b.PowerMaximum);
 
-                _batteries.Clear();
-                _batteries.AddRange(_batteryChargerStructure.Batteries);
+                _energyBuffer.Charge = apc.Battery?.PowerStored ?? 0f;
+                _energyBuffer.ChargeMaximum = apc.Battery?.PowerMaximum ?? 0f;
             }
 
-            Complex vUnit = (Voltage.Magnitude > 0f) ? Voltage / Voltage.Magnitude : 1f;
-
-            // Calculate charge ratio (state of charge)
-            var r = Math.Clamp(Charge / MaxCharge, 0f, 1f);
-            r = double.IsNaN(r) ? 0f : r;
-
-            // Calculate voltage of battery
-            var v = Math.Pow(r, 0.25) * VoltageNominal * vUnit;
-
-            Circuit?.Solver.SetVoltage(_i, v);
+            _energyBuffer.UpdateState();
         }
 
-        public override void ApplyState()
+        public override void ApplyState(Circuit circuit)
         {
-            base.ApplyState();
+            base.ApplyState(circuit);
 
-            var vA = Circuit?.Solver.GetValue(_vA) ?? Complex.Zero;
-            var vB = Circuit?.Solver.GetValue(_vB) ?? Complex.Zero;
-            Voltage = vA - vB;
+            var previousCharge = _energyBuffer?.Charge ?? 0f;
 
-            Current = Circuit?.Solver.GetValue(_i) ?? Complex.Zero;
+            _energyBuffer?.ApplyState();
 
-            Power = (Voltage * Current.Conjugate()).Real;
-
-            var previousCharge = Charge;
-            Charge = Math.Clamp(Charge + Power, 0f, MaxCharge);
+            var charge = _energyBuffer?.Charge ?? 0f;
+            var power = (_energyBuffer as IDipoleCircuitElement)?.Power.Real ?? 0f;
+            var chargeMax = _energyBuffer?.ChargeMaximum ?? 0f;
 
             // Get total amount of charge "headroom" (if charging), or charge available (if discharging)
-            var w = (Power >= 0)
-                ? MaxCharge - previousCharge
+            var w = (power >= 0)
+                ? chargeMax - previousCharge
                 : previousCharge;
 
             // Get average charge ratio
-            var r_average = Charge / MaxCharge;
+            var r_average = charge / chargeMax;
 
             // Update the charge in each battery
             foreach (var battery in _batteries)
             {
                 // Calculate how much of the power this battery cell should take/provide (as ratio of this battery's headroom/available to the total)
-                var wi = (Power >= 0)
+                var wi = (power >= 0)
                     ? (battery.GetPowerMaximum() - battery.PowerStored) / w
                     : battery.PowerStored / w;
                 
                 // Add new charge to battery
-                battery.PowerStored += (float)(wi * Power);
+                battery.PowerStored += (float)(wi * power);
 
                 // Balance battery charges
                 battery.PowerStored += (float)(BalanceRatio * battery.GetPowerMaximum() * (r_average - battery.PowerRatio));
             }
+        }
+
+        public override void RemoveFrom(Circuit circuit)
+        {
+            base.RemoveFrom(circuit);
+
+            _energyBuffer?.Dispose();
+            _energyBuffer = null;
         }
     }
 }
