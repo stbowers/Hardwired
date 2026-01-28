@@ -399,7 +399,7 @@ namespace Hardwired.Simulation.Electrical
 
             for (int i = 0; i < count; i++)
             {
-                newUnknowns[i] = new() { Index = _unknownValues.Count, Type = type };
+                newUnknowns[i] = new(this) { Index = _unknownValues.Count, Type = type };
                 _unknownValues.Add(newUnknowns[i]);
             }
 
@@ -412,7 +412,7 @@ namespace Hardwired.Simulation.Electrical
             return newUnknowns;
         }
 
-        public void RemoveUnknown(Unknown? unknown)
+        private void RemoveUnknown(Unknown? unknown)
         {
             if (unknown == null || unknown.Index < 0) { return; }
 
@@ -478,13 +478,26 @@ namespace Hardwired.Simulation.Electrical
         /// - Node voltages
         /// - Branch currents (i.e. for voltage source, transformer, etc)
         /// </summary>
-        public class Unknown
+        public class Unknown : IDisposable
         {
+            private MNASolver? _solver;
+
             public int Index;
 
             public string Type = string.Empty;
 
             public string DebugName => $"{Type}[{Index}]";
+
+            public Unknown(MNASolver solver)
+            {
+                _solver = solver;
+            }
+
+            public void Dispose()
+            {
+                _solver?.RemoveUnknown(this);
+                _solver = null;
+            }
         }
     }
 }

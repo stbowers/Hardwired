@@ -12,6 +12,7 @@ using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Hardwired.Objects;
 using Hardwired.Objects.Electrical;
+using Hardwired.Simulation.Electrical.Elements;
 using UnityEngine;
 
 namespace Hardwired.Simulation.Electrical
@@ -20,22 +21,21 @@ namespace Hardwired.Simulation.Electrical
     {
         internal static List<WeakReference<Circuit>> _allCircuits = new();
 
-        private Dictionary<(ElectricalComponent component, int pin), MNASolver.Unknown> _nodes = new();
-        private List<ElectricalComponent> _components = new();
-        private List<PowerSink> _powerSinks = new();
+        private List<ICircuitElement> _elements = new();
         private List<PowerSource> _powerSources = new();
-        private List<INonlinearComponent> _nonlinearComponents = new();
+        private List<INonlinearCircuitElement> _nonlinearElements = new();
+        private List<IFrequencySource> _frequencySources = new();
         private bool _frequencyInitialized;
         private bool _initialized;
 
-        public int Id { get; } = (new System.Random()).Next();
+        public int Id { get; } = new System.Random().Next();
 
         public MNASolver Solver { get; } = new();
 
-        public IReadOnlyList<ElectricalComponent> Components => _components.AsReadOnly();
-        public IReadOnlyList<PowerSink> PowerSinks => _powerSinks.AsReadOnly();
+        public IReadOnlyList<ICircuitElement> Elements => _elements.AsReadOnly();
         public IReadOnlyList<PowerSource> PowerSources => _powerSources.AsReadOnly();
-        public IReadOnlyList<INonlinearComponent> NonlinearComponents => _nonlinearComponents.AsReadOnly();
+        public IReadOnlyList<INonlinearCircuitElement> NonlinearElements => _nonlinearElements.AsReadOnly();
+        public IReadOnlyList<IFrequencySource> FrequencySources => _frequencySources.AsReadOnly();
 
         /// <summary>
         /// The frequency of any AC voltages or currents in the circuit.
@@ -47,185 +47,51 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         public double TimeDelta { get; private set; } = 0.5;
 
+        public int TicksProcessed { get; private set; }
+
         public Circuit()
         {
             _allCircuits.Add(new WeakReference<Circuit>(this));
         }
 
-        public void AddComponent(ElectricalComponent component)
+        public void AddElement(ICircuitElement element)
         {
             // Hardwired.LogDebug($"Circuit {Id} - Adding component: {component.GetType()}");
 
-            _components.Add(component);
+            _elements.Add(element);
 
-            if (component is PowerSink powerSink)
+            if (element is INonlinearCircuitElement nonlinearElement)
             {
-                _powerSinks.Add(powerSink);
+                _nonlinearElements.Add(nonlinearElement);
             }
 
-            if (component is INonlinearComponent nonlinearComponent)
+            if (element is IFrequencySource frequencySource)
             {
-                _nonlinearComponents.Add(nonlinearComponent);
-            }
-
-            // If the component is a frequency "driver", re-evaluate the frequency on the next power tick
-            if (component is VoltageSource vs && vs.IsFrequencyDriver)
-            {
+                _frequencySources.Add(frequencySource);
                 _frequencyInitialized = false;
-            }
-            else if (component is CurrentSource cs && cs.IsFrequencyDriver)
-            {
-                _frequencyInitialized = false;
-            }
-
-            // Initialize component
-            component.AddTo(this);
-            if (_initialized)
-            {
-                component.Initialize();
             }
         }
 
-        public void RemoveComponent(ElectricalComponent component)
+        public void RemoveElement(ICircuitElement element)
         {
             // Hardwired.LogDebug($"Circuit {Id} - Removing component: {component.GetType()}");
 
             // Remove from components list
-            if (!_components.Remove(component))
+            if (!_elements.Remove(element))
             {
                 // If the component wasn't in this circuit to begin with, we don't have anything else to clean up...
                 return;
             }
 
-            if (component is PowerSink powerSink)
+            if (element is INonlinearCircuitElement nonlinearElement)
             {
-                _powerSinks.Remove(powerSink);
+                _nonlinearElements.Remove(nonlinearElement);
             }
 
-            if (component is INonlinearComponent nonlinearComponent)
+            if (element is IFrequencySource frequencySource)
             {
-                _nonlinearComponents.Remove(nonlinearComponent);
-            }
-
-            // If the component was a frequency "driver", re-evaluate the frequency on the next power tick
-            if (component is VoltageSource vs && vs.IsFrequencyDriver)
-            {
+                _frequencySources.Remove(frequencySource);
                 _frequencyInitialized = false;
-            }
-            else if (component is CurrentSource cs && cs.IsFrequencyDriver)
-            {
-                _frequencyInitialized = false;
-            }
-
-            // Deinitialize
-            component.RemoveFrom(this);
-        }
-
-        /// <summary>
-        /// Returns the MNASolver.Unknown object representing the voltage at the node referenced by the given pin on the component.
-        /// 
-        /// If the component is part of a SmallGrid object, the pin is taken to be the index of 
-        /// </summary>
-        /// <param name="component"></param>
-        /// <param name="pin"></param>
-        /// <returns></returns>
-        public MNASolver.Unknown? GetNode(ElectricalComponent component, int pin)
-        {
-            lock (_nodes)
-            {
-                // pin -1 is the common ground; other negative pins are unique "internal pins" to the device
-                if (pin == -1) { return null; }
-
-                MNASolver.Unknown? node;
-
-                if (_nodes.TryGetValue((component, pin), out node))
-                {
-                    return node;
-                }
-
-                // Look for any references from the "peers" of this connection (i.e. other components on this object or the connected object that share the connection)
-                node = GetPeers(component, pin)
-                    .Select(key => _nodes.GetValueOrDefault(key))
-                    .FirstOrDefault(n => n != null)
-                    // If no reference from a peer is found, add a new node to the solver
-                    ?? Solver.AddUnknown();
-
-                _nodes.Add((component, pin), node);
-
-                return node;
-            }
-        }
-
-        /// <summary>
-        /// Removes the the given component's reference to the given node.
-        /// If all references to a node are gone, the node will be removed.
-        /// </summary>
-        /// <param name="component"></param>
-        /// <param name="pin"></param>
-        /// <param name="node"></param>
-        public void RemoveNodeReference(ElectricalComponent component, int pin)
-        {
-            lock (_nodes)
-            {
-                // pin -1 is the common ground
-                if (pin == -1) { return; }
-
-                // Get the node registered for this connection, if one exists
-                if (!_nodes.TryGetValue((component, pin), out MNASolver.Unknown node))
-                {
-                    // No node registered for this connection, nothing to do...
-                    return;
-                }
-
-                // Remove the reference for this connection
-                _nodes.Remove((component, pin));
-
-                // Hardwired.LogDebug($"Circuit {Id} - Removing node reference for node {node.Index} - remaining references: {_nodes.Count(e => e.Value.Index == node.Index)}");
-
-                // Check if there are any other references left to this node
-                bool stillAlive = _nodes.Any(entry => entry.Value.Index == node.Index);
-                if (!stillAlive)
-                {
-                    // Hardwired.LogDebug($"Circuit {Id} - Removing node {node.Index} ({node.GetHashCode()})");
-                    // If no more references, remove the node from the MNA solver
-                    Solver.RemoveUnknown(node);
-                }
-            }
-        }
-
-        private IEnumerable<(ElectricalComponent component, int pin)> GetPeers(ElectricalComponent component, int pin)
-        {
-            // Pin -1 is common ground
-            if (pin == -1) { yield break; }
-
-            // Look for any other components on the same object that share this pin
-            foreach (var otherComponent in component.GetComponents<ElectricalComponent>().Where(c => c != component && c.UsesConnection(pin)))
-            {
-                yield return (otherComponent, pin);
-            }
-
-            // If pin is less than -1, it's an internal pin to this device, so don't look any further...
-            if (pin < -1) { yield break; }
-
-            // Look for components on the "peer" to this connection (i.e. other device we're connected to, if any)
-            if (component.TryGetComponent(out SmallGrid smallGrid))
-            {
-                var connection = smallGrid.OpenEnds[pin];
-                var peerIndex = connection.GetPeerIndex();
-                var peerComponents = connection.GetOther(false)?.GetComponents<ElectricalComponent>().Where(c => c.UsesConnection(peerIndex));
-                foreach (var peer in peerComponents ?? Enumerable.Empty<ElectricalComponent>())
-                {
-                    yield return (peer, peerIndex);
-                }
-            }
-            // If we're not actually on a device (and so don't have connections), assume the pin is a global index, and look for other node references to the same pin
-            // (this is mostly used as a unit test tool, so the unit tests don't have to set up a full game object/cable network, and can instead use global node indecies)
-            else
-            {
-                foreach (var key in _nodes.Keys.Where(k => k.pin == pin))
-                {
-                    yield return key;
-                }
             }
         }
 
@@ -262,10 +128,6 @@ namespace Hardwired.Simulation.Electrical
         {
             // Initialize
             InitializeFrequency();
-            Initialize();
-
-            // Clear/reset values
-            Solver.Z.Clear();
 
             // Update A matrix & Z vector
             UpdateState();
@@ -277,7 +139,7 @@ namespace Hardwired.Simulation.Electrical
         private void SolveIterative()
         {
             // Skip NR iteration if there are no non-linear components (otherwise it will always try to iterate at least once)
-            if (NonlinearComponents.Count == 0) { return; }
+            if (NonlinearElements.Count == 0) { return; }
 
             bool hasConverged = false;
             int i = 0;
@@ -287,7 +149,7 @@ namespace Hardwired.Simulation.Electrical
                 Solver.BeginNRIteration();
 
                 // Update J matrix & F vector
-                foreach (var nonlinearComponent in NonlinearComponents)
+                foreach (var nonlinearComponent in NonlinearElements)
                 {
                     nonlinearComponent.UpdateDifferentialState();
                 }
@@ -299,84 +161,34 @@ namespace Hardwired.Simulation.Electrical
             // Hardwired.LogDebug($"Circuit {Id} -- finished solving after {i} iterations -- converged: {hasConverged}");
         }
 
-        private void Initialize()
-        {
-            if (_initialized) { return; }
-
-            Hardwired.LogDebug($"Circuit network {Id} - Initializing circuit with {Components.Count} components at {Frequency} Hz");
-
-            // De-initialize all components, in case they're already initialized
-            // (otherwise, they may think they're still initialized in the A matrix and try to de-initialize themselves when we initialize later, even though A is being cleared)
-            foreach (var component in Components)
-            {
-                component.Deinitialize();
-            }
-
-            // Clear MNA matrix
-            Solver.A.Clear();
-
-            // Initialize components
-            foreach (var component in Components)
-            {
-                component.Initialize();
-            }
-
-            _initialized = true;
-        }
-
         // Determine the AC frequency to use
         private void InitializeFrequency()
         {
             // Check if frequency is already initialized
             if (_frequencyInitialized) { return; }
 
-            // Set to true if the frequncy is changed and thus the circuit needs to be reinitialized
-            bool frequencyChanged = false;
+            double? frequency = null;
 
-            // Set to true if any components are "driving" the frequency, and thus it must stay the same
-            // (two components can't "drive" the circuit at different frequencies)
-            bool frequencyDriven = false;
-
-            foreach (var component in Components)
+            foreach (var frequencySource in FrequencySources)
             {
-                double componentFrequency;
+                if (frequencySource.Frequency == null) { continue; }
 
-                if (component is VoltageSource voltageSource && voltageSource.IsFrequencyDriver)
-                {
-                    componentFrequency = voltageSource.Frequency;
-                }
-                else if (component is CurrentSource currentSource && currentSource.IsFrequencyDriver)
-                {
-                    componentFrequency = currentSource.Frequency;
-                }
-                else
-                {
-                    continue;
-                }
-
-                if (frequencyDriven && componentFrequency != Frequency)
+                if (frequencySource.Frequency != frequency)
                 {
                     throw new InvalidOperationException($"Circuit network {Id} invalid -- cannot have multiple AC sources at different frequencies");
                 }
 
-                frequencyDriven = true;
-                frequencyChanged = componentFrequency != Frequency;
-                Frequency = componentFrequency;
+                frequency = frequencySource.Frequency;
             }
 
-            // If the circuit freqency was changed, re-initialize the circuit
-            if (frequencyChanged)
-            {
-                _initialized = false;
-            }
-
+            Frequency = frequency ?? 0;
             _frequencyInitialized = true;
         }
 
         private void UpdateState()
         {
             // Update solver inputs (voltage source voltages, current source currents, etc) from each component
-            foreach (var component in Components)
+            foreach (var component in Elements)
             {
                 component.UpdateState();
             }
@@ -385,7 +197,7 @@ namespace Hardwired.Simulation.Electrical
         private void ApplyState()
         {
             // Update components with solver output
-            foreach (var component in Components)
+            foreach (var component in Elements)
             {
                 component.ApplyState();
             }
@@ -400,17 +212,15 @@ namespace Hardwired.Simulation.Electrical
             // If a == b, nothing to merge (same network)
             if (a == b) { return a; }
 
-            foreach (var component in b.Components.ToList())
+            foreach (var element in b.Elements.ToList())
             {
-                b.RemoveComponent(component);
+                b.RemoveElement(element);
 
-                component.Circuit = a;
-                a.AddComponent(component);
+                a.AddElement(element);
             }
 
             // Clear circuit B
-            b._components.Clear();
-            b._nodes.Clear();
+            b._elements.Clear();
 
             return a;
         }
