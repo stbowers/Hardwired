@@ -6,41 +6,33 @@ using Hardwired.Utility;
 
 namespace Hardwired.Simulation.Electrical.Elements
 {
-    public class Switch : ICircuitElement, IDipoleCircuitElement
+    public class Switch : DipoleCircuitElementBase, ICircuitElement
     {
-        public Circuit Circuit { get; }
-
-        public Resistor Resistor { get; }
+        private Resistor _resistor;
 
         public bool Closed { get; set; }
 
-        public RefCounted<MNASolver.Unknown>? NodeA => Resistor.NodeA;
+        public override Complex Current => _resistor.Current;
 
-        public RefCounted<MNASolver.Unknown>? NodeB => Resistor.NodeB;
-
-        public Complex Current => Resistor.Current;
-
-        public Switch(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB)
+        public Switch(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
-            Circuit = circuit;
-
-            Resistor = new(circuit, nodeA, nodeB);
+            _resistor = new(circuit, nodeA, nodeB);
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
-            Resistor.Dispose();
+            _resistor.Dispose();
         }
 
-        public void UpdateState()
+        public override void UpdateState()
         {
-            Resistor.Resistance = Closed ? Resistor.R_SHORT : Resistor.R_OPEN;
-            Resistor.UpdateState();
+            _resistor.Resistance = Closed ? Resistor.R_SHORT : Resistor.R_OPEN;
+            _resistor.UpdateState();
         }
 
-        public void ApplyState()
+        public override void ApplyState()
         {
-            Resistor.ApplyState();
+            _resistor.ApplyState();
         }
     }
 }

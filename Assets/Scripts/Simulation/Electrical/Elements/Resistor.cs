@@ -7,7 +7,7 @@ using MathNet.Numerics;
 
 namespace Hardwired.Simulation.Electrical.Elements
 {
-    public class Resistor : CircuitElementBase, ICircuitElement, IDipoleCircuitElement
+    public class Resistor : DipoleCircuitElementBase, ICircuitElement
     {
         /// <summary>
         /// Resistance value to emulate an open circuit (i.e. no connection).
@@ -23,19 +23,12 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         private double? _appliedResistance;
 
-        public RefCounted<MNASolver.Unknown>? NodeA { get; }
-
-        public RefCounted<MNASolver.Unknown>? NodeB { get; }
-
         public double Resistance { get; set; }
 
-        public Complex Current => (this as IDipoleCircuitElement).VoltageDelta / Resistance;
+        public override Complex Current => VoltageDelta / Resistance;
 
-        public Resistor(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit)
+        public Resistor(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
-            NodeA = nodeA?.Clone();
-            NodeB = nodeB?.Clone();
-
             circuit.Solver.AddResistance(NodeA?.Value, null, R_OPEN);
             circuit.Solver.AddResistance(NodeB?.Value, null, R_OPEN);
         }

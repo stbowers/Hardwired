@@ -105,8 +105,8 @@ namespace Hardwired.Objects.Electrical
             {
                 resistor.ApplyState();
 
-                power += (resistor as IDipoleCircuitElement)?.Power.Real ?? 0;
-                current = Math.Max(resistor.Current.Magnitude, current);
+                power += resistor?.Power.Real ?? 0;
+                current = Math.Max(resistor?.Current.Magnitude ?? 0, current);
             }
 
             // Calculate temperature change due to resistive heating

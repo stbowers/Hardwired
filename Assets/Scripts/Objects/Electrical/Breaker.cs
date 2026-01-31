@@ -67,8 +67,8 @@ namespace Hardwired.Objects.Electrical
         {
             base.ApplyState(circuit);
 
-            var nodeVoltageA = (_switch as IDipoleCircuitElement)?.VoltageA.Magnitude ?? 0f;
-            var nodeVoltageB = (_switch as IDipoleCircuitElement)?.VoltageB.Magnitude ?? 0f;
+            var nodeVoltageA = _switch?.VoltageA.Magnitude ?? 0f;
+            var nodeVoltageB = _switch?.VoltageB.Magnitude ?? 0f;
             MaximumNodeVoltage = Math.Max(nodeVoltageA, nodeVoltageB);
 
             Current = _switch?.Current.Magnitude ?? 0f;

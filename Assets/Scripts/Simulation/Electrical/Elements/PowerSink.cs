@@ -6,11 +6,9 @@ using Hardwired.Utility;
 
 namespace Hardwired.Simulation.Electrical.Elements
 {
-    public class PowerSink : ICircuitElement
+    public class PowerSink : DipoleCircuitElementBase, ICircuitElement
     {
         private EnergyBuffer _energyBuffer;
-
-        public Circuit Circuit { get; }
 
         /// <summary>
         /// The power profile (i.e. nominal voltage, voltage tolerance, etc)
@@ -37,23 +35,24 @@ namespace Hardwired.Simulation.Electrical.Elements
         /// </summary>
         public double PowerAvailable { get; private set; }
 
-        public PowerSink(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB)
+        public override Complex Current => _energyBuffer.Current;
+
+        public PowerSink(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
-            Circuit = circuit;
             _energyBuffer = new(circuit, nodeA, nodeB);
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             _energyBuffer.Dispose();
         }
 
-        public void UpdateState()
+        public override void UpdateState()
         {
             _energyBuffer.UpdateState();
         }
 
-        public void ApplyState()
+        public override void ApplyState()
         {
             _energyBuffer.ApplyState();
 

@@ -43,7 +43,7 @@ namespace Hardwired.Objects.Electrical
 
             _powerSource?.ApplyState();
 
-            var powerDraw = (_powerSource as IDipoleCircuitElement)?.Power.Real ?? 0f;
+            var powerDraw = _powerSource?.Power.Real ?? 0f;
             _device?.UsePower(_device.PowerCableNetwork, (float)powerDraw);
         }
 

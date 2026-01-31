@@ -6,22 +6,23 @@ using Hardwired.Utility;
 
 namespace Hardwired.Simulation.Electrical.Elements
 {
-    public class CurrentSource : CircuitElementBase, ICircuitElement, IFrequencySource
+    public class CurrentSource : DipoleCircuitElementBase, ICircuitElement, IFrequencySource
     {
         private Complex? _appliedCurrent;
 
-        public RefCounted<MNASolver.Unknown>? NodeA { get; }
+        /// <summary>
+        /// The current being produced by this source, which flows from node "B" (negative) to node "A" (positive)
+        /// 
+        /// Note that by convention `Current = -SourceCurrent`, since `Current` flows from node A to B, but `SourceCurrent` flows from node B to A.
+        /// </summary>
+        public Complex SourceCurrent { get; set; }
 
-        public RefCounted<MNASolver.Unknown>? NodeB { get; }
-
-        public Complex Current { get; set; }
+        public override Complex Current => -SourceCurrent;
 
         public double? Frequency { get; set; }
 
-        public CurrentSource(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit)
+        public CurrentSource(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
-            NodeA = nodeA?.Clone();
-            NodeB = nodeB?.Clone();
         }
 
         public override void Dispose()
@@ -31,12 +32,12 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void UpdateState()
         {
-            if (Current == _appliedCurrent) { return; }
+            if (SourceCurrent == _appliedCurrent) { return; }
 
             RemoveState();
 
-            Circuit.Solver.AddCurrent(NodeA?.Value, NodeB?.Value, Current);
-            _appliedCurrent = Current;
+            Circuit.Solver.AddCurrent(NodeB?.Value, NodeA?.Value, SourceCurrent);
+            _appliedCurrent = SourceCurrent;
         }
 
         public override void ApplyState()
@@ -47,7 +48,7 @@ namespace Hardwired.Simulation.Electrical.Elements
         {
             if (_appliedCurrent != null)
             {
-                Circuit.Solver.AddCurrent(NodeA?.Value, NodeB?.Value, -_appliedCurrent.Value);
+                Circuit.Solver.AddCurrent(NodeB?.Value, NodeA?.Value, -_appliedCurrent.Value);
                 _appliedCurrent = null;
             }
         }

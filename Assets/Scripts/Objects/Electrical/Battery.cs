@@ -87,7 +87,7 @@ namespace Hardwired.Objects.Electrical
             _energyBuffer?.ApplyState();
 
             var charge = _energyBuffer?.Charge ?? 0f;
-            var power = (_energyBuffer as IDipoleCircuitElement)?.Power.Real ?? 0f;
+            var power = _energyBuffer?.Power.Real ?? 0f;
             var chargeMax = _energyBuffer?.ChargeMaximum ?? 0f;
 
             // Get total amount of charge "headroom" (if charging), or charge available (if discharging)

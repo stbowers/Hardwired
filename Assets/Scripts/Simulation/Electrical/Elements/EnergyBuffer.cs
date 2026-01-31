@@ -15,7 +15,7 @@ namespace Hardwired.Simulation.Electrical.Elements
     /// Linear: DC Capacitor
     /// Tangent: Battery
     /// </summary>
-    public class EnergyBuffer : ICircuitElement, IDipoleCircuitElement
+    public class EnergyBuffer : DipoleCircuitElementBase, ICircuitElement
     {
         public abstract class VoltageCurveFunction
         {
@@ -44,13 +44,7 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         private NortonEquivalent _nortonEquivalent { get; }
 
-        public Circuit Circuit { get; }
-
-        public RefCounted<MNASolver.Unknown>? NodeA => _nortonEquivalent.NodeA;
-
-        public RefCounted<MNASolver.Unknown>? NodeB => _nortonEquivalent.NodeB;
-
-        public Complex Current => _nortonEquivalent.Current;
+        public override Complex Current => _nortonEquivalent.Current;
 
         public double Charge { get; set; }
 
@@ -66,18 +60,17 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public VoltageCurveFunction VoltageCurve { get; set; } = VoltageCurveFunction.Linear;
 
-        public EnergyBuffer(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB)
+        public EnergyBuffer(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
-            Circuit = circuit;
             _nortonEquivalent = new(circuit, nodeA, nodeB);
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             _nortonEquivalent.Dispose();
         }
 
-        public void UpdateState()
+        public override void UpdateState()
         {
             Charge = Math.Clamp(Charge, 0f, ChargeMaximum);
 
@@ -86,9 +79,9 @@ namespace Hardwired.Simulation.Electrical.Elements
             _nortonEquivalent.UpdateState();
         }
 
-        public void ApplyState()
+        public override void ApplyState()
         {
-            Charge = Math.Clamp(Charge - (this as IDipoleCircuitElement).Power.Real, 0f, ChargeMaximum);
+            Charge = Math.Clamp(Charge - Power.Real, 0f, ChargeMaximum);
         }
     }
 }

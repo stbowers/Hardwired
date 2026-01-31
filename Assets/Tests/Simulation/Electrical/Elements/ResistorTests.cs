@@ -28,12 +28,12 @@ namespace Hardwired.Tests.Simulation.Electrical.Elements
 
             var nodeA = RefCounted.Create(circuit.Solver.AddUnknown());
 
-            var iSource = new CurrentSource(circuit, null, nodeA) { Current = i };
+            var iSource = new CurrentSource(circuit, nodeA, null) { SourceCurrent = i };
             var resistor = new Resistor(circuit, nodeA, null) { Resistance = r };
 
             circuit.ProcessTick();
 
-            ComplexAssert.AreEqual(vExpected, (resistor as IDipoleCircuitElement).VoltageDelta);
+            ComplexAssert.AreEqual(vExpected, resistor.VoltageDelta);
         }
 
         [Test]
@@ -51,7 +51,7 @@ namespace Hardwired.Tests.Simulation.Electrical.Elements
 
             var nodeA = RefCounted.Create(circuit.Solver.AddUnknown());
 
-            var vSource = new VoltageSource(circuit, null, nodeA) { VoltageDelta = v };
+            var vSource = new VoltageSource(circuit, nodeA, null) { SourceVoltage = v };
             var resistor = new Resistor(circuit, nodeA, null) { Resistance = r };
 
             circuit.ProcessTick();

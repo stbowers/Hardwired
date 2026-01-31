@@ -7,16 +7,10 @@ using MathNet.Numerics;
 
 namespace Hardwired.Simulation.Electrical.Elements
 {
-    public class NortonEquivalent : ICircuitElement, IDipoleCircuitElement
+    public class NortonEquivalent : DipoleCircuitElementBase, ICircuitElement
     {
         private CurrentSource _currentSource;
         private Resistor _resistor;
-
-        public Circuit Circuit { get; }
-
-        public RefCounted<MNASolver.Unknown>? NodeA { get; }
-
-        public RefCounted<MNASolver.Unknown>? NodeB { get; }
 
         public Complex VoltageOpen
         {
@@ -26,8 +20,8 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public Complex CurrentShort
         {
-            get => _currentSource.Current;
-            set => _currentSource.Current = value;
+            get => _currentSource.SourceCurrent;
+            set => _currentSource.SourceCurrent = value;
         }
 
         public double Resistance
@@ -39,29 +33,27 @@ namespace Hardwired.Simulation.Electrical.Elements
         /// <summary>
         /// Gets the current output by the Norton equivalent circuit
         /// </summary>
-        public Complex Current => CurrentShort - _resistor.Current;
+        public override Complex Current => -CurrentShort - _resistor.Current;
 
-        public NortonEquivalent(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB)
+        public NortonEquivalent(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
-            Circuit = circuit;
-
             _currentSource = new(circuit, nodeA, nodeB);
-            _resistor = new(circuit, nodeA, nodeB);
+            _resistor = new(circuit, nodeB, nodeA);
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             _currentSource.Dispose();
             _resistor.Dispose();
         }
 
-        public void UpdateState()
+        public override void UpdateState()
         {
             _currentSource.UpdateState();
             _resistor.UpdateState();
         }
 
-        public void ApplyState()
+        public override void ApplyState()
         {
             _currentSource.ApplyState();
             _resistor.ApplyState();

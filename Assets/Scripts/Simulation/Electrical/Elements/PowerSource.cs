@@ -6,41 +6,34 @@ using Hardwired.Utility;
 
 namespace Hardwired.Simulation.Electrical.Elements
 {
-    public class PowerSource : ICircuitElement, IDipoleCircuitElement
+    public class PowerSource : DipoleCircuitElementBase, ICircuitElement
     {
         private NortonEquivalent _nortonEquivalent;
 
-        public Circuit Circuit { get; }
-
-        public RefCounted<MNASolver.Unknown>? NodeA => _nortonEquivalent.NodeA;
-
-        public RefCounted<MNASolver.Unknown>? NodeB => _nortonEquivalent.NodeB;
-
-        public Complex Current => _nortonEquivalent.Current;
+        public override Complex Current => _nortonEquivalent.Current;
 
         public PowerProfile Profile { get; set; } = PowerProfile.Default;
 
         public double PowerAvailable { get; set; }
 
-        public PowerSource(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB)
+        public PowerSource(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
-            Circuit = circuit;
             _nortonEquivalent = new(circuit, nodeA, nodeB);
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             _nortonEquivalent.Dispose();
         }
 
-        public void UpdateState()
+        public override void UpdateState()
         {
             _nortonEquivalent.Resistance = Profile.VoltageNominal * Profile.VoltageNominal / Profile.PowerNominal;
             _nortonEquivalent.CurrentShort = PowerAvailable / Profile.VoltageNominal;
             _nortonEquivalent.UpdateState();
         }
 
-        public void ApplyState()
+        public override void ApplyState()
         {
             _nortonEquivalent.ApplyState();
         }
