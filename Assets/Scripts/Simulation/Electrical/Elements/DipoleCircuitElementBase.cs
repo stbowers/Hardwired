@@ -75,6 +75,8 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void Dispose()
         {
+            base.Dispose();
+
             NodeA?.Dispose();
             NodeB?.Dispose();
         }

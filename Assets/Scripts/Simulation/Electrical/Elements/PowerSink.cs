@@ -77,13 +77,14 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public struct PowerProfile
         {
-            public static readonly PowerProfile Default = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0f, Capacitance = 0f };
+            public static readonly PowerProfile Default = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0f, Capacitance = 0f, MinimumPowerDrawRatio = 1};
 
-            public static readonly PowerProfile SmallMotor = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0.2f, Capacitance = 0f };
+            public static readonly PowerProfile SmallMotor = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0.2f, Capacitance = 0f, MinimumPowerDrawRatio = 1};
 
-            public static readonly PowerProfile LargeMotor = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0.5f, Capacitance = 0f };
+            public static readonly PowerProfile LargeMotor = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0.5f, Capacitance = 0f, MinimumPowerDrawRatio = 1};
 
-            public static readonly PowerProfile LogicDevice = new() { Frequency = 0f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0f, Capacitance = 0f };
+            public static readonly PowerProfile LogicDevice = new() { Frequency = 0f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0f, Capacitance = 0f, MinimumPowerDrawRatio = 1};
+
 
             /// <summary>
             /// The minimum operational voltage a device can accept. If the input voltage is below this, the device will enter an undervoltage protection

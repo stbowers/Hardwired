@@ -117,7 +117,7 @@ namespace Hardwired.Tests.Simulation.Electrical.Elements
             var nodeA = RefCounted.Create(circuit.Solver.AddUnknown());
 
             var pSource = new PowerSource(circuit, nodeA, null) { Profile = new() { PowerNominal = 500, VoltageNominal = 200, Frequency = 50 }, PowerAvailable = 800 };
-            var pSink = new PowerSink(circuit, nodeA, null) { PowerTarget = 100, Profile = new() { VoltageMin = 100, VoltageNominal = 200, VoltageMax = 800 }};
+            var pSink = new PowerSink(circuit, nodeA, null) { PowerTarget = 100, Profile = new() { VoltageMin = 100, VoltageNominal = 200, VoltageMax = 800, MinimumPowerDrawRatio = 1.0}};
 
             // Allow a few ticks to settle
             for (int i = 0; i < 20; i++)
