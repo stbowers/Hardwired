@@ -69,8 +69,8 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public DipoleCircuitElementBase(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit)
         {
-            NodeA = nodeA;
-            NodeB = nodeB;
+            NodeA = nodeA?.Clone();
+            NodeB = nodeB?.Clone();
         }
 
         string ICircuitElement.DebugInfo() => $"A: {NodeA?.Value.Index ?? -1}, B: {NodeB?.Value.Index ?? -1}";

@@ -6,6 +6,9 @@ using Hardwired.Utility;
 
 namespace Hardwired.Simulation.Electrical.Elements
 {
+    /// <summary>
+    /// Represents a device in the circuit which draws some constant amount of power per tick
+    /// </summary>
     public class PowerSink : DipoleCircuitElementBase, ICircuitElement
     {
         private EnergyBuffer _energyBuffer;
@@ -21,19 +24,12 @@ namespace Hardwired.Simulation.Electrical.Elements
         public double PowerTarget { get; set; }
 
         /// <summary>
-        /// The minimum power draw in Watts - if available power is below this value, no power will be drawn this tick.
-        /// </summary>
-        public double MinimumPowerDraw { get; set; }
-
-        /// <summary>
-        /// The calculated power draw in Watts this tick.
+        /// The real power being drawn this tick.
+        /// 
+        /// Note that this is distinct from `Power`, which represents the power transferred through the circuit this tick, which may be different from the power draw since there is an internal energy buffer
+        /// to dampen changes in voltage/current.
         /// </summary>
         public double PowerDraw { get; private set; }
-
-        /// <summary>
-        /// The total power available to be drawn this tick.
-        /// </summary>
-        public double PowerAvailable { get; private set; }
 
         public override Complex Current => _energyBuffer.Current;
 
@@ -49,6 +45,11 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void UpdateState()
         {
+            _energyBuffer.Charge -= PowerDraw;
+
+            _energyBuffer.CurrentMaximum = Profile.VoltageMax * PowerTarget / (Profile.VoltageNominal * Profile.VoltageNominal);
+            _energyBuffer.ChargeMaximum = 1.25 * PowerTarget;
+            _energyBuffer.VoltageMaximum = Profile.VoltageMax;
             _energyBuffer.UpdateState();
         }
 
@@ -56,10 +57,16 @@ namespace Hardwired.Simulation.Electrical.Elements
         {
             _energyBuffer.ApplyState();
 
-            PowerAvailable = _energyBuffer.Charge;
-            PowerDraw = Math.Clamp(PowerAvailable, MinimumPowerDraw, PowerTarget);
-
-            _energyBuffer.Charge -= PowerDraw;
+            if ((VoltageDelta.Magnitude - Profile.VoltageMin) < -0.01
+                || (VoltageDelta.Magnitude - Profile.VoltageMax) > 0.01
+                || _energyBuffer.Charge < Profile.MinimumPowerDrawRatio * PowerTarget)
+            {
+                PowerDraw = 0;
+            }
+            else
+            {
+                PowerDraw = Math.Clamp(_energyBuffer.Charge, 0f, PowerTarget);
+            }
         }
 
         public struct PowerProfile
@@ -105,6 +112,14 @@ namespace Hardwired.Simulation.Electrical.Elements
             /// The nominal capacitance of the load in Farads
             /// </summary>
             public double Capacitance;
+
+            /// <summary>
+            /// The minimum power that this device can draw, as a ratio of `PowerTarget`, and still function.
+            /// 
+            /// By default this will be `1.0` for most devices, meaning the device must have the actual power required available in order to function at all.
+            /// Certain devices that have "brownout" behavior implemented may set this to less than 1.0 in order to draw less power as it's available.
+            /// </summary>
+            public double MinimumPowerDrawRatio;
         }
     }
 }

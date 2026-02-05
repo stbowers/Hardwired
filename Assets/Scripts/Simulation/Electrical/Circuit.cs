@@ -173,7 +173,7 @@ namespace Hardwired.Simulation.Electrical
             {
                 if (frequencySource.Frequency == null) { continue; }
 
-                if (frequencySource.Frequency != frequency)
+                if (frequency != null && frequencySource.Frequency != frequency)
                 {
                     throw new InvalidOperationException($"Circuit network {Id} invalid -- cannot have multiple AC sources at different frequencies");
                 }

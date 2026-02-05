@@ -23,11 +23,15 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void Dispose()
         {
+            base.Dispose();
+
             _nortonEquivalent.Dispose();
         }
 
         public override void UpdateState()
         {
+            base.UpdateState();
+
             _nortonEquivalent.Resistance = Profile.VoltageNominal * Profile.VoltageNominal / Profile.PowerNominal;
             _nortonEquivalent.CurrentShort = PowerAvailable / Profile.VoltageNominal;
             _nortonEquivalent.UpdateState();
@@ -35,6 +39,8 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void ApplyState()
         {
+            base.ApplyState();
+
             _nortonEquivalent.ApplyState();
         }
 
