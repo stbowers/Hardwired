@@ -73,6 +73,12 @@ namespace Hardwired.Simulation.Electrical.Elements
             NodeB = nodeB?.Clone();
         }
 
+        public override void Dispose()
+        {
+            NodeA?.Dispose();
+            NodeB?.Dispose();
+        }
+
         string ICircuitElement.DebugInfo() => $"A: {NodeA?.Value.Index ?? -1}, B: {NodeB?.Value.Index ?? -1}";
     }
 }

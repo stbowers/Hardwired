@@ -43,18 +43,24 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void Dispose()
         {
+            base.Dispose();
+
             _currentSource.Dispose();
             _resistor.Dispose();
         }
 
         public override void UpdateState()
         {
+            base.UpdateState();
+
             _currentSource.UpdateState();
             _resistor.UpdateState();
         }
 
         public override void ApplyState()
         {
+            base.ApplyState();
+
             _currentSource.ApplyState();
             _resistor.ApplyState();
         }

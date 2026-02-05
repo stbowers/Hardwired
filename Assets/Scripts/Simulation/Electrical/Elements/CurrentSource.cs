@@ -28,10 +28,14 @@ namespace Hardwired.Simulation.Electrical.Elements
         public override void Dispose()
         {
             RemoveState();
+
+            base.Dispose();
         }
 
         public override void UpdateState()
         {
+            base.UpdateState();
+
             if (SourceCurrent == _appliedCurrent) { return; }
 
             RemoveState();
@@ -42,6 +46,7 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void ApplyState()
         {
+            base.ApplyState();
         }
 
         private void RemoveState()

@@ -40,11 +40,15 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void Dispose()
         {
+            base.Dispose();
+
             _energyBuffer.Dispose();
         }
 
         public override void UpdateState()
         {
+            base.UpdateState();
+
             _energyBuffer.Charge -= PowerDraw;
 
             _energyBuffer.CurrentMaximum = Profile.VoltageMax * PowerTarget / (Profile.VoltageNominal * Profile.VoltageNominal);
@@ -55,6 +59,8 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void ApplyState()
         {
+            base.ApplyState();
+
             _energyBuffer.ApplyState();
 
             if ((VoltageDelta.Magnitude - Profile.VoltageMin) < -0.01

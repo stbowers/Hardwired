@@ -105,38 +105,38 @@ namespace Hardwired.Tests.Simulation.Electrical.Elements
             }
         }
 
-        // /// <summary>
-        // /// This is testing a specific bug I ran in to - the bug ended up having more to do with cleaning up components from the circuit than with the power source/sink itself,
-        // /// but it wasn't worth rewriting a more representative test in CircuitTests.cs...
-        // /// </summary>
-        // [Test]
-        // public void RemoveFromCircuitWorks()
-        // {
-        //     var circuit = new Circuit();
+        /// <summary>
+        /// This is testing a specific bug I ran in to - the bug ended up having more to do with cleaning up components from the circuit than with the power source/sink itself,
+        /// but it wasn't worth rewriting a more representative test in CircuitTests.cs...
+        /// </summary>
+        [Test]
+        public void RemoveFromCircuitWorks()
+        {
+            var circuit = new Circuit();
 
-        //     var nodeA = RefCounted.Create(circuit.Solver.AddUnknown());
+            var nodeA = RefCounted.Create(circuit.Solver.AddUnknown());
 
-        //     var pSource = new PowerSource(circuit, nodeA, null) { Profile = new() { PowerNominal = 500, VoltageNominal = 200, Frequency = 50 }, PowerAvailable = 800 };
-        //     var pSink = new PowerSink(circuit, nodeA, null) { PowerTarget = 100, Profile = new() { VoltageMin = 100, VoltageNominal = 200, VoltageMax = 800 }};
+            var pSource = new PowerSource(circuit, nodeA, null) { Profile = new() { PowerNominal = 500, VoltageNominal = 200, Frequency = 50 }, PowerAvailable = 800 };
+            var pSink = new PowerSink(circuit, nodeA, null) { PowerTarget = 100, Profile = new() { VoltageMin = 100, VoltageNominal = 200, VoltageMax = 800 }};
 
-        //     // Allow a few ticks to settle
-        //     for (int i = 0; i < 20; i++)
-        //     {
-        //         circuit.ProcessTick();
-        //     }
+            // Allow a few ticks to settle
+            for (int i = 0; i < 20; i++)
+            {
+                circuit.ProcessTick();
+            }
 
-        //     // Remove power source
-        //     // circuit.RemoveComponent(pSource);
-        //     pSource.Dispose();
+            // Remove power source
+            // circuit.RemoveComponent(pSource);
+            pSource.Dispose();
 
-        //     // Check power draw over several ticks
-        //     for (int i = 0; i < 100; i++)
-        //     {
-        //         circuit.ProcessTick();
+            // Check power draw over several ticks
+            for (int i = 0; i < 100; i++)
+            {
+                circuit.ProcessTick();
 
-        //         Assert.AreEqual(0, pSink.PowerDraw, 0.1);
-        //     }
-        // }
+                Assert.AreEqual(0, pSink.PowerDraw, 0.1);
+            }
+        }
     }
 }
 

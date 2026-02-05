@@ -94,11 +94,15 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void Dispose()
         {
+            base.Dispose();
+
             _nortonEquivalent.Dispose();
         }
 
         public override void UpdateState()
         {
+            base.UpdateState();
+
             Charge = Math.Clamp(Charge, 0f, ChargeMaximum);
 
             _nortonEquivalent.Resistance = VoltageMaximum / CurrentMaximum;
@@ -109,6 +113,8 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void ApplyState()
         {
+            base.ApplyState();
+
             Charge = Math.Clamp(Charge + Power.Real, 0f, ChargeMaximum);
         }
     }

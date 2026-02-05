@@ -24,13 +24,15 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void Dispose()
         {
-            NodeA?.Dispose();
-            NodeB?.Dispose();
+            base.Dispose();
+
             _i?.Dispose();
         }
 
         public override void UpdateState()
         {
+            base.UpdateState();
+
             if (SourceVoltage == _appliedVoltage) { return; }
 
             Circuit.Solver.SetVoltage(_i, SourceVoltage);
@@ -39,6 +41,7 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void ApplyState()
         {
+            base.ApplyState();
         }
     }
 }

@@ -21,17 +21,23 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void Dispose()
         {
+            base.Dispose();
+
             _resistor.Dispose();
         }
 
         public override void UpdateState()
         {
+            base.UpdateState();
+
             _resistor.Resistance = Closed ? Resistor.R_SHORT : Resistor.R_OPEN;
             _resistor.UpdateState();
         }
 
         public override void ApplyState()
         {
+            base.ApplyState();
+
             _resistor.ApplyState();
         }
     }

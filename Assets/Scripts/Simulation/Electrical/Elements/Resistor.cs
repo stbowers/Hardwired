@@ -40,12 +40,13 @@ namespace Hardwired.Simulation.Electrical.Elements
             Circuit.Solver.AddResistance(NodeA?.Value, null, -R_OPEN);
             Circuit.Solver.AddResistance(NodeB?.Value, null, -R_OPEN);
 
-            NodeA?.Dispose();
-            NodeB?.Dispose();
+            base.Dispose();
         }
 
         public override void UpdateState()
         {
+            base.UpdateState();
+
             if (Resistance == _appliedResistance) { return; }
 
             RemoveState();
@@ -59,6 +60,7 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override void ApplyState()
         {
+            base.ApplyState();
         }
 
         private void RemoveState()
