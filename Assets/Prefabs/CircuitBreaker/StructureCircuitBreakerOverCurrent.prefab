@@ -603,7 +603,7 @@ MonoBehaviour:
       _visible: 0
     TemperatureRadiationFactor: 0
     Tool:
-      ToolEntry: {fileID: 4248042755683902435, guid: 36e4e9aacdd877d47b0a5c6fcfaccb5d, type: 3}
+      ToolEntry: {fileID: 6917937582475296494, guid: 03435723e9569dec189873a7125dc88b, type: 3}
       ToolEntry2: {fileID: 0}
       EntryTime: 1
       EntryQuantity: 1
@@ -737,9 +737,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cb4d2a64956a3129596e23a73b361e46, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  PinA: 0
-  PinB: 1
-  Closed: 0
+  Connection: 1
 --- !u!114 &8353711774321850121
 MonoBehaviour:
   m_ObjectHideFlags: 0

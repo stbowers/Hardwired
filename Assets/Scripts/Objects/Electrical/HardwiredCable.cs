@@ -53,6 +53,8 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public double DissipationCapacity;
 
+        public override Circuit? OutputCircuit => null;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);

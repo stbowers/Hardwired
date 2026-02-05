@@ -5,8 +5,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
+using Hardwired.Networks;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Utility;
 using UnityEngine;
@@ -35,13 +37,26 @@ namespace Hardwired.Objects.Electrical
             Neutral,
         }
 
+        private Device? _device;
+        private Cable? _cable;
+        private Connection? _powerInput;
+        private Connection? _powerOutput;
+        
         public Dictionary<(Circuit circuit, Connection connection, WireType wireType), RefCounted<MNASolver.Unknown>> Nodes = new();
 
-        public Connection? PowerInput => GetComponent<Device>().OpenEnds.FirstOrDefault(c => c.ConnectionType.HasFlag(NetworkType.Power) && c.ConnectionRole == ConnectionRole.Input);
+        public Device? Device => _device ??= GetComponent<Device>();
 
-        public Connection? PowerOutput => GetComponent<Device>().OpenEnds.FirstOrDefault(c => c.ConnectionType.HasFlag(NetworkType.Power) && c.ConnectionRole == ConnectionRole.Output);
+        public Cable? Cable => _cable ??= GetComponent<Cable>();
 
-        public virtual Circuit? InputCircuit { get; }
+        protected List<Connection>? OpenEnds => Device?.OpenEnds ?? Cable?.OpenEnds;
+
+        public Connection? PowerInput => _powerInput ??= OpenEnds?.FirstOrDefault(c => c.ConnectionType.HasFlag(NetworkType.Power) && c.ConnectionRole != ConnectionRole.Output);
+
+        public Connection? PowerOutput => _powerOutput ??= OpenEnds?.FirstOrDefault(c => c.ConnectionType.HasFlag(NetworkType.Power) && c.ConnectionRole != ConnectionRole.Input && c != PowerInput);
+
+        public virtual Circuit? InputCircuit => (PowerInput?.GetCable()?.CableNetwork?.PowerTick as HardwiredPowerTick)?.CircuitTick?.Circuit;
+
+        public virtual Circuit? OutputCircuit => (PowerOutput?.GetCable()?.CableNetwork?.PowerTick as HardwiredPowerTick)?.CircuitTick?.Circuit;
 
         /// <summary>
         /// For debugging - add info to the passive tooltip
@@ -51,19 +66,24 @@ namespace Hardwired.Objects.Electrical
         {
             stringBuilder.Append($"-- {GetType().Name} [");
 
-            if (PowerInput != null)
+            if (InputCircuit != null)
             {
-                string id = InputCircuit?.Id.ToString() ?? "N/A".AsColor("red");
+                string id = InputCircuit?.Id.ToString().AsColor("green") ?? "N/A".AsColor("red");
                 stringBuilder.Append(id);
             }
 
-            if (PowerOutput != null)
+            if (OutputCircuit != null && OutputCircuit != InputCircuit)
             {
-                string id = InputCircuit?.Id.ToString() ?? "N/A".AsColor("red");
+                string id = OutputCircuit?.Id.ToString().AsColor("green") ?? "N/A".AsColor("red");
                 stringBuilder.Append($" -> {id}");
             }
 
             stringBuilder.AppendLine($"]");
+
+            foreach (var connection in GetComponent<Device>()?.OpenEnds ?? Enumerable.Empty<Connection>())
+            {
+                stringBuilder.AppendLine($"-- {connection.ConnectionRole}: {connection.ConnectionType}");
+            }
 
             foreach (var node in Nodes)
             {
