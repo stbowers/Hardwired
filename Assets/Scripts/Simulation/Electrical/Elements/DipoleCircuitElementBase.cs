@@ -63,7 +63,7 @@ namespace Hardwired.Simulation.Electrical.Elements
             get
             {
                 var s = Power;
-                return s.Real / s.Magnitude;
+                return Math.Abs(s.Real) / s.Magnitude;
             }
         }
 

@@ -18,43 +18,44 @@ namespace Hardwired.Objects.Electrical
 {
     public class Battery : ElectricalComponent
     {
-        private Assets.Scripts.Objects.Pipes.Device? _device;
         private List<Assets.Scripts.Objects.Items.IChargable> _batteries = new();
         private EnergyBuffer? _energyBuffer;
-
-        public ConnectionRole Connection = ConnectionRole.Input;
 
         /// <summary>
         /// The ratio of power that should be equalized between multiple batteries per tick
         /// </summary>
-        public double BalanceRatio = 0.005;
-        
+        public double BalanceRatio { get; set; }= 0.005;
+
+        public double Charge { get; private set; }
+
+        public double MaxCharge { get; private set; }
+
+        public Complex VoltageDelta { get; private set; }
+
+        public Complex Current { get; private set; }
+
+        public double Power { get; private set; }
+
+        public double Resistance { get; private set; }
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            // stringBuilder.AppendLine($"-- Battery --");
-            // stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / {MaxCharge.ToStringPrefix("Wt", "yellow")}");
-            // stringBuilder.AppendLine($"Voltage: {Voltage.ToStringPrefix("V", "yellow")}");
-            // stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
-            // stringBuilder.AppendLine($"Power: {Power.ToStringPrefix("W", "yellow")}");
-            // stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / {MaxCharge.ToStringPrefix("Wt", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")} | Current: {Current.ToStringPrefix(OutputCircuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"Power: {Power.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
         {
             base.AddTo(circuit);
 
-            if (_device == null)
-            {
-                TryGetComponent(out _device);
-            }
-
             var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
-            var nodeB = GetNode(circuit, PowerInput, WireType.Neutral);
 
             _energyBuffer?.Dispose();
-            _energyBuffer = new(circuit, nodeA, nodeB);
+            _energyBuffer = new(circuit, nodeA, null);
         }
 
         public override void UpdateState(Circuit circuit)
@@ -63,7 +64,7 @@ namespace Hardwired.Objects.Electrical
 
             if (_energyBuffer == null) {return;}
 
-            if (_device is AreaPowerControl apc)
+            if (Device is AreaPowerControl apc)
             {
                 _batteries.Clear();
                 if (apc.Battery != null)
@@ -74,8 +75,11 @@ namespace Hardwired.Objects.Electrical
                 _energyBuffer.Charge = apc.Battery?.PowerStored ?? 0f;
                 _energyBuffer.ChargeMaximum = apc.Battery?.PowerMaximum ?? 0f;
             }
-
-            _energyBuffer.UpdateState();
+            else if (Device is Assets.Scripts.Objects.Electrical.Battery battery)
+            {
+                _batteries.Clear();
+                _batteries.Add(battery);
+            }
         }
 
         public override void ApplyState(Circuit circuit)
@@ -84,30 +88,31 @@ namespace Hardwired.Objects.Electrical
 
             var previousCharge = _energyBuffer?.Charge ?? 0f;
 
-            _energyBuffer?.ApplyState();
+            Charge = _energyBuffer?.Charge ?? 0f;
+            MaxCharge = _energyBuffer?.ChargeMaximum ?? 0f;
+            Power = _energyBuffer?.Power.Real ?? 0f;
 
-            var charge = _energyBuffer?.Charge ?? 0f;
-            var power = _energyBuffer?.Power.Real ?? 0f;
-            var chargeMax = _energyBuffer?.ChargeMaximum ?? 0f;
+            VoltageDelta = _energyBuffer?.VoltageDelta ?? 0f;
+            Current = _energyBuffer?.Current ?? 0f;
 
             // Get total amount of charge "headroom" (if charging), or charge available (if discharging)
-            var w = (power >= 0)
-                ? chargeMax - previousCharge
+            var w = (Power >= 0)
+                ? MaxCharge - previousCharge
                 : previousCharge;
 
             // Get average charge ratio
-            var r_average = charge / chargeMax;
+            var r_average = Charge / MaxCharge;
 
             // Update the charge in each battery
             foreach (var battery in _batteries)
             {
                 // Calculate how much of the power this battery cell should take/provide (as ratio of this battery's headroom/available to the total)
-                var wi = (power >= 0)
+                var wi = (Power >= 0)
                     ? (battery.GetPowerMaximum() - battery.PowerStored) / w
                     : battery.PowerStored / w;
                 
                 // Add new charge to battery
-                battery.PowerStored += (float)(wi * power);
+                battery.PowerStored += (float)(wi * Power);
 
                 // Balance battery charges
                 battery.PowerStored += (float)(BalanceRatio * battery.GetPowerMaximum() * (r_average - battery.PowerRatio));

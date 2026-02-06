@@ -19,7 +19,16 @@ namespace Hardwired.Simulation.Electrical
 {
     public class Circuit
     {
+        public enum TickProcessingStatus
+        {
+            Success,
+            InvalidFrequency,
+            NoSolution,
+        }
+
         internal static List<WeakReference<Circuit>> _allCircuits = new();
+
+        private static int _nextId = 0;
 
         private List<ICircuitElement> _elements = new();
         private List<PowerSource> _powerSources = new();
@@ -28,7 +37,7 @@ namespace Hardwired.Simulation.Electrical
         private bool _frequencyInitialized;
         private bool _initialized;
 
-        public int Id { get; } = new System.Random().Next();
+        public int Id { get; } = _nextId += 1;
 
         public MNASolver Solver { get; } = new();
 
@@ -48,6 +57,8 @@ namespace Hardwired.Simulation.Electrical
         public double TimeDelta { get; private set; } = 0.5;
 
         public int TicksProcessed { get; private set; }
+
+        public TickProcessingStatus LastTickStatus { get; private set; }
 
         public Circuit()
         {
@@ -97,12 +108,20 @@ namespace Hardwired.Simulation.Electrical
 
         public void ProcessTick()
         {
+            TicksProcessed += 1;
+
             try
             {
                 if (SolveInitial())
                 {
                     // If initial solve had a solution, iterate non-linear components until convergance
                     SolveIterative();
+
+                    LastTickStatus = TickProcessingStatus.Success;
+                }
+                else
+                {
+                    LastTickStatus = TickProcessingStatus.NoSolution;
                 }
             }
             catch (Exception e)
@@ -175,6 +194,7 @@ namespace Hardwired.Simulation.Electrical
 
                 if (frequency != null && frequencySource.Frequency != frequency)
                 {
+                    LastTickStatus = TickProcessingStatus.InvalidFrequency;
                     throw new InvalidOperationException($"Circuit network {Id} invalid -- cannot have multiple AC sources at different frequencies");
                 }
 

@@ -2,10 +2,14 @@
 
 using System;
 using System.Linq;
+using System.Numerics;
+using System.Text;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Pipes;
+using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
+using Hardwired.Utility.Extensions;
 
 namespace Hardwired.Objects.Electrical
 {
@@ -16,6 +20,25 @@ namespace Hardwired.Objects.Electrical
 
         public PowerSink.PowerProfile PowerProfile { get; set; } = PowerSink.PowerProfile.Default;
 
+        public double PowerTarget { get; private set; }
+
+        public double PowerDraw { get; private set; }
+
+        public double PowerFactor { get; private set; }
+
+        public Complex VoltageDelta { get; private set; }
+
+        public Complex CurrentDraw { get; private set; }
+
+        public override void BuildPassiveToolTip(StringBuilder stringBuilder)
+        {
+            base.BuildPassiveToolTip(stringBuilder);
+
+            stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
+            stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(OutputCircuit?.Frequency, "A", "yellow")}");
+        }
+
         public override void AddTo(Circuit circuit)
         {
             base.AddTo(circuit);
@@ -23,8 +46,8 @@ namespace Hardwired.Objects.Electrical
             _device ??= GetComponent<Device>();
 
             var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
-            var nodeB = GetNode(circuit, PowerOutput, WireType.Neutral);
-            _powerSink = new(circuit, nodeA, nodeB);
+
+            _powerSink = new(circuit, nodeA, null);
         }
 
         public override void UpdateState(Circuit circuit)
@@ -33,9 +56,10 @@ namespace Hardwired.Objects.Electrical
 
             if (_powerSink != null)
             {
+                PowerTarget = _device?.GetUsedPower(_device.PowerCableNetwork) ?? 0f;
+
                 _powerSink.Profile = PowerProfile;
-                _powerSink.PowerTarget = _device?.GetUsedPower(_device.PowerCableNetwork) ?? 0f;
-                _powerSink.UpdateState();
+                _powerSink.PowerTarget = PowerTarget;
             }
         }
 
@@ -43,7 +67,10 @@ namespace Hardwired.Objects.Electrical
         {
             base.ApplyState(circuit);
 
-            _powerSink?.ApplyState();
+            PowerDraw = _powerSink?.PowerDraw ?? 0;
+            PowerFactor = _powerSink?.PowerFactor ?? 0;
+            VoltageDelta = _powerSink?.VoltageDelta ?? 0;
+            CurrentDraw = _powerSink?.Current ?? 0;
 
             if (_powerSink?.PowerDraw > 0f)
             {

@@ -21,7 +21,13 @@ namespace Hardwired.Objects.Electrical
 
         public ConnectionRole Connection = ConnectionRole.Input;
 
-        public double MaximumNodeVoltage { get; private set; }
+        public bool Closed => Device?.OnOff ?? false;
+
+        public Complex VoltageA { get; private set;}
+
+        public Complex VoltageB { get; private set;}
+
+        public Complex VoltageDelta { get; private set; }
 
         public double Current { get; private set; }
 
@@ -29,27 +35,19 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            // stringBuilder.AppendLine($"-- Breaker --");
-            // stringBuilder.AppendLine($"Closed: {Closed}");
-            // stringBuilder.AppendLine($"Vcc: {VoltageGround.ToStringPrefix("V", "yellow")}");
-            // stringBuilder.AppendLine($"ΔV: {VoltageDrop.ToStringPrefix("V", "yellow")}");
-            // stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Closed: {Closed}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | VA: {VoltageA.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | VB: {VoltageB.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
         {
             base.AddTo(circuit);
 
-            if (_device == null)
-            {
-                TryGetComponent(out _device);
-            }
-
             var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
-            var nodeB = GetNode(circuit, PowerInput, WireType.Line1);
 
             _switch?.Dispose();
-            _switch = new(circuit, nodeA, nodeB);
+            _switch = new(circuit, nodeA, null);
         }
 
         public override void UpdateState(Circuit circuit)
@@ -58,8 +56,7 @@ namespace Hardwired.Objects.Electrical
 
             if (_switch != null)
             {
-                _switch.Closed = _device?.OnOff ?? false;
-                _switch.UpdateState();
+                _switch.Closed = Closed;
             }
         }
 
@@ -67,9 +64,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.ApplyState(circuit);
 
-            var nodeVoltageA = _switch?.VoltageA.Magnitude ?? 0f;
-            var nodeVoltageB = _switch?.VoltageB.Magnitude ?? 0f;
-            MaximumNodeVoltage = Math.Max(nodeVoltageA, nodeVoltageB);
+            VoltageA = _switch?.VoltageA.Magnitude ?? 0f;
+            VoltageB = _switch?.VoltageB.Magnitude ?? 0f;
+            VoltageDelta = _switch?.VoltageDelta ?? 0f;
 
             Current = _switch?.Current.Magnitude ?? 0f;
         }
@@ -77,6 +74,9 @@ namespace Hardwired.Objects.Electrical
         public override void RemoveFrom(Circuit circuit)
         {
             base.RemoveFrom(circuit);
+
+            _switch?.Dispose();
+            _switch = null;
         }
     }
 }

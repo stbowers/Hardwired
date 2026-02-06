@@ -11,6 +11,7 @@ using Assets.Scripts.Util;
 using Hardwired.Networks;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Utility;
+using TerrainSystem;
 using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
@@ -66,29 +67,40 @@ namespace Hardwired.Objects.Electrical
         {
             stringBuilder.Append($"-- {GetType().Name} [");
 
-            if (InputCircuit != null)
+            if (InputCircuit is Circuit inputCircuit)
             {
-                string id = InputCircuit?.Id.ToString().AsColor("green") ?? "N/A".AsColor("red");
+                string id = inputCircuit.Id.ToString().AsColor("green");
                 stringBuilder.Append(id);
+
+                if (inputCircuit.LastTickStatus == Circuit.TickProcessingStatus.Success)
+                {
+                    stringBuilder.Append($"({inputCircuit.TicksProcessed})");
+                }
+                else
+                {
+                    stringBuilder.Append($"({inputCircuit.LastTickStatus.ToString().AsColor("red")})");
+                }
             }
 
-            if (OutputCircuit != null && OutputCircuit != InputCircuit)
+            if (OutputCircuit is Circuit outputCircuit && outputCircuit != InputCircuit)
             {
-                string id = OutputCircuit?.Id.ToString().AsColor("green") ?? "N/A".AsColor("red");
+                string id = outputCircuit.Id.ToString().AsColor("green") ?? "N/A".AsColor("red");
                 stringBuilder.Append($" -> {id}");
+
+                if (outputCircuit.LastTickStatus == Circuit.TickProcessingStatus.Success)
+                {
+                    stringBuilder.Append($"({outputCircuit.TicksProcessed})");
+                }
+                else
+                {
+                    stringBuilder.Append($"({outputCircuit.LastTickStatus.ToString().AsColor("red")})");
+                }
             }
 
             stringBuilder.AppendLine($"]");
 
-            foreach (var connection in GetComponent<Device>()?.OpenEnds ?? Enumerable.Empty<Connection>())
-            {
-                stringBuilder.AppendLine($"-- {connection.ConnectionRole}: {connection.ConnectionType}");
-            }
-
-            foreach (var node in Nodes)
-            {
-                stringBuilder.Append($"{node.Key.connection.ConnectionRole}.{node.Key.wireType} = {node.Value.Value.Index} |");
-            }
+            string nodesDebugText = string.Join(" | ", Nodes.Select(n => $"{n.Key.connection.ConnectionRole}<{n.Key.wireType}> = {n.Value.Value.Index}"));
+            stringBuilder.AppendLine(nodesDebugText);
         }
 
         public virtual string DebugInfo()
@@ -157,6 +169,8 @@ namespace Hardwired.Objects.Electrical
             {
                 node = RefCounted.Create(circuit.Solver.AddUnknown());
             }
+
+            Nodes.Add((circuit, connection, wireType), node);
 
             return node;
         }

@@ -24,7 +24,7 @@ namespace Hardwired.Objects.Electrical
     public class HardwiredCable : ElectricalComponent
     {
         private List<Resistor> _resistors = new();
-        private Cable? _cable;
+        private Circuit? _circuit;
 
         public double Resistance;
 
@@ -53,6 +53,14 @@ namespace Hardwired.Objects.Electrical
         [HideInInspector]
         public double DissipationCapacity;
 
+        public Complex VoltageDelta { get; private set; }
+
+        public double CurrentDraw { get; private set; }
+
+        public double PowerDissapated { get; private set;}
+
+        public override Circuit? InputCircuit => _circuit;
+
         public override Circuit? OutputCircuit => null;
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
@@ -61,6 +69,8 @@ namespace Hardwired.Objects.Electrical
 
             double tCelsius = Temperature - 273.15;
 
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")} | Current: {CurrentDraw.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Power dissapated: {PowerDissapated.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")}");
         }
 
@@ -68,15 +78,24 @@ namespace Hardwired.Objects.Electrical
         {
             base.AddTo(circuit);
 
-            _cable ??= GetComponent<Cable>();
-            _resistors.Clear();
-
-            for (int i = 0; i < _cable.OpenEnds.Count; i++)
+            if (_circuit != null && _circuit != circuit)
             {
-                for (int j = i + 1; j < _cable.OpenEnds.Count; j++)
+                RemoveFrom(_circuit);
+            }
+
+            _circuit = circuit;
+
+            if (Cable == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < Cable.OpenEnds.Count; i++)
+            {
+                for (int j = i + 1; j < Cable.OpenEnds.Count; j++)
                 {
-                    var nodeA = GetNode(circuit, _cable.OpenEnds[i], WireType.Line1);
-                    var nodeB = GetNode(circuit, _cable.OpenEnds[j], WireType.Line1);
+                    var nodeA = GetNode(circuit, Cable.OpenEnds[i], WireType.Line1);
+                    var nodeB = GetNode(circuit, Cable.OpenEnds[j], WireType.Line1);
                     Resistor resistor = new(circuit, nodeA, nodeB);
 
                     resistor.Resistance = Resistance;
@@ -86,35 +105,23 @@ namespace Hardwired.Objects.Electrical
             }
         }
 
-        public override void UpdateState(Circuit circuit)
-        {
-            base.UpdateState(circuit);
-
-            foreach (var resistor in _resistors)
-            {
-                resistor.UpdateState();
-            }
-        }
-
         public override void ApplyState(Circuit circuit)
         {
             base.ApplyState(circuit);
 
-            double power = 0;
-            double current = 0;
+            PowerDissapated = 0;
+            CurrentDraw = 0;
 
             foreach (var resistor in _resistors)
             {
-                resistor.ApplyState();
-
-                power += resistor?.Power.Real ?? 0;
-                current = Math.Max(resistor?.Current.Magnitude ?? 0, current);
+                PowerDissapated += resistor?.Power.Real ?? 0;
+                CurrentDraw = Math.Max(resistor?.Current.Magnitude ?? 0, CurrentDraw);
             }
 
             // Calculate temperature change due to resistive heating
             // double dE = PowerDissipated * Circuit.TimeDelta;
             double pRadiated = Math.Max(DissipationCapacity * (Temperature - 293.15f), 0f);
-            double dE = (power - pRadiated) * 0.5f;
+            double dE = (PowerDissapated - pRadiated) * 0.5f;
             double dT = dE / SpecificHeat;
 
             // Cap max change in temperature per tick
@@ -138,12 +145,12 @@ namespace Hardwired.Objects.Electrical
             bool shouldBreak = breakChance >= UnityEngine.Random.Range(0f, 1f);
             if (shouldBreak)
             {
-                _cable?.Break();
-                Hardwired.LogDebug($"Burning cable -- i: {current} | T: {Temperature}");
+                Cable?.Break();
+                Hardwired.LogDebug($"Burning cable -- i: {CurrentDraw} | T: {Temperature}");
             }
 
             // Check fuses
-            var fuses = _cable?.AttachedDevices.OfType<CableFuse>() ?? Enumerable.Empty<CableFuse>();
+            var fuses = Cable?.AttachedDevices.OfType<CableFuse>() ?? Enumerable.Empty<CableFuse>();
             foreach (var fuse in fuses)
             {
                 var cable = fuse.SmallCell.Cable;
@@ -151,12 +158,24 @@ namespace Hardwired.Objects.Electrical
                 var vNominal = 1000f;
                 var iLimit = fuse.PowerBreak / vNominal;
 
-                if (current > iLimit)
+                if (CurrentDraw > iLimit)
                 {
                     fuse.Break();
-                    Hardwired.LogDebug($"Breaking fuse -- i: {current} | iLimit: {iLimit}, PowerBreak: {fuse.PowerBreak}");
+                    Hardwired.LogDebug($"Breaking fuse -- i: {CurrentDraw} | iLimit: {iLimit}, PowerBreak: {fuse.PowerBreak}");
                 }
             }
+        }
+
+        public override void RemoveFrom(Circuit circuit)
+        {
+            base.RemoveFrom(circuit);
+
+            foreach (var resistor in _resistors)
+            {
+                resistor.Dispose();
+            }
+
+            _resistors.Clear();
         }
 
     }

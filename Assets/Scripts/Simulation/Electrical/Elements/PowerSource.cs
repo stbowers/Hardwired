@@ -46,7 +46,7 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public readonly struct PowerProfile
         {
-            public static readonly PowerProfile Default = new() { Frequency = 60f, VoltageNominal = 300f, PowerNominal = 500f};
+            public static readonly PowerProfile Default = new() { Frequency = 60f, VoltageNominal = 200f, PowerNominal = 1000f};
 
             /// <summary>
             /// The nominal power output of the power source.

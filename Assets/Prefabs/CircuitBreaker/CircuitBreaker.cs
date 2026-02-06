@@ -80,7 +80,7 @@ namespace Hardwired.Prefabs.CircuitBreaker
             {
                 OnOff = false;
             }
-            else if (Type == CircuitBreakerType.UnderVoltage && Breaker?.MaximumNodeVoltage < MinVoltage)
+            else if (Type == CircuitBreakerType.UnderVoltage && Breaker?.VoltageA.Magnitude < MinVoltage && Breaker?.VoltageB.Magnitude < MinVoltage)
             {
                 OnOff = false;
             }
