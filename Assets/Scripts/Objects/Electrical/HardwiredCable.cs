@@ -55,6 +55,8 @@ namespace Hardwired.Objects.Electrical
 
         public Complex VoltageDelta { get; private set; }
 
+        public Complex VoltageAverage { get; private set; }
+
         public double CurrentDraw { get; private set; }
 
         public double PowerDissapated { get; private set;}
@@ -69,8 +71,8 @@ namespace Hardwired.Objects.Electrical
 
             double tCelsius = Temperature - 273.15;
 
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")} | Current: {CurrentDraw.ToStringPrefix("A", "yellow")}");
-            stringBuilder.AppendLine($"Power dissapated: {PowerDissapated.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")} | V(avg): {VoltageAverage.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {CurrentDraw.ToStringPrefix("A", "yellow")} | Power loss: {PowerDissapated.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")}");
         }
 
@@ -114,9 +116,14 @@ namespace Hardwired.Objects.Electrical
 
             foreach (var resistor in _resistors)
             {
+                VoltageAverage += resistor?.VoltageA ?? 0;
+                VoltageAverage += resistor?.VoltageB ?? 0;
+
                 PowerDissapated += resistor?.Power.Real ?? 0;
                 CurrentDraw = Math.Max(resistor?.Current.Magnitude ?? 0, CurrentDraw);
             }
+
+            VoltageAverage /= _resistors.Count * 2;
 
             // Calculate temperature change due to resistive heating
             // double dE = PowerDissipated * Circuit.TimeDelta;

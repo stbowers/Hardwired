@@ -99,7 +99,7 @@ namespace Hardwired.Objects.Electrical
 
             stringBuilder.AppendLine($"]");
 
-            string nodesDebugText = string.Join(" | ", Nodes.Select(n => $"{n.Key.connection.ConnectionRole}<{n.Key.wireType}> = {n.Value.Value.Index}"));
+            string nodesDebugText = string.Join(" | ", Nodes.Select(n => $"{n.Key.connection.ConnectionRole}<{n.Key.circuit.Id}|{n.Key.wireType}> = {n.Value.Value.Index}"));
             stringBuilder.AppendLine(nodesDebugText);
         }
 

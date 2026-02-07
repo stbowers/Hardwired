@@ -56,13 +56,19 @@ namespace Hardwired.Objects.Electrical
 
             _energyBuffer?.Dispose();
             _energyBuffer = new(circuit, nodeA, null);
+            _energyBuffer.VoltageMaximum = 400f;
+            _energyBuffer.CurrentMaximum = 10f;
+
+            if (Device is Assets.Scripts.Objects.Electrical.Battery battery)
+            {
+                _batteries.Clear();
+                _batteries.Add(battery);
+            }
         }
 
         public override void UpdateState(Circuit circuit)
         {
             base.UpdateState(circuit);
-
-            if (_energyBuffer == null) {return;}
 
             if (Device is AreaPowerControl apc)
             {
@@ -71,15 +77,18 @@ namespace Hardwired.Objects.Electrical
                 {
                     _batteries.Add(apc.Battery);
                 }
-
-                _energyBuffer.Charge = apc.Battery?.PowerStored ?? 0f;
-                _energyBuffer.ChargeMaximum = apc.Battery?.PowerMaximum ?? 0f;
             }
-            else if (Device is Assets.Scripts.Objects.Electrical.Battery battery)
+            else if (Device is BatteryCellCharger batteryCellCharger)
             {
                 _batteries.Clear();
-                _batteries.Add(battery);
+                _batteries.AddRange(batteryCellCharger.Batteries);
             }
+
+            if (_energyBuffer == null) { return; }
+
+            _energyBuffer.ChargeMaximum = _batteries.Sum(b => b.GetPowerMaximum());
+            _energyBuffer.Charge = _batteries.Sum(b => b.PowerStored);
+
         }
 
         public override void ApplyState(Circuit circuit)
@@ -94,6 +103,7 @@ namespace Hardwired.Objects.Electrical
 
             VoltageDelta = _energyBuffer?.VoltageDelta ?? 0f;
             Current = _energyBuffer?.Current ?? 0f;
+            Resistance = _energyBuffer?.Resistance ?? -1f;
 
             // Get total amount of charge "headroom" (if charging), or charge available (if discharging)
             var w = (Power >= 0)

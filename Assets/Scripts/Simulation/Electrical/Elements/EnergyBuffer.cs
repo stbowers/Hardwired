@@ -87,6 +87,8 @@ namespace Hardwired.Simulation.Electrical.Elements
         /// </summary>
         public double ChargeRatio => ChargeMaximum != 0 ? Math.Clamp(Charge / ChargeMaximum, 0f, 1f) : 0;
 
+        public double Resistance => _nortonEquivalent.Resistance;
+
         public EnergyBuffer(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
             _nortonEquivalent = new(circuit, nodeA, nodeB);
@@ -104,6 +106,10 @@ namespace Hardwired.Simulation.Electrical.Elements
             base.UpdateState();
 
             Charge = Math.Clamp(Charge, 0f, ChargeMaximum);
+            if (double.IsNaN(Charge))
+            {
+                Charge = 0;
+            }
 
             _nortonEquivalent.Resistance = VoltageMaximum / CurrentMaximum;
             _nortonEquivalent.VoltageOpen = VoltageCurve.U(ChargeRatio) * VoltageMaximum;
@@ -116,6 +122,10 @@ namespace Hardwired.Simulation.Electrical.Elements
             base.ApplyState();
 
             Charge = Math.Clamp(Charge + Power.Real, 0f, ChargeMaximum);
+            if (double.IsNaN(Charge))
+            {
+                Charge = 0;
+            }
         }
     }
 }
