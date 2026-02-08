@@ -147,7 +147,7 @@ namespace Hardwired.Networks
                     component.AddTo(Circuit);
                 }
 
-                // foreach (var network in component.GetBridgedNetworks(network)) { toInitialize.Add(...); }
+                foreach (var network in component.GetBridgedNetworks(cableNetwork)) { toInitialize.Enqueue(network); }
             }
         }
 

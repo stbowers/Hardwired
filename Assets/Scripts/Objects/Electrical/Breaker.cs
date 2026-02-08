@@ -1,8 +1,10 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
+using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
@@ -40,14 +42,33 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");
         }
 
+        public override IEnumerable<CableNetwork> GetBridgedNetworks(CableNetwork network)
+        {
+            CableNetwork? inputNetwork = PowerInput?.GetCable().CableNetwork;
+            CableNetwork? outputNetwork = PowerOutput?.GetCable().CableNetwork;
+
+            if (network == inputNetwork && outputNetwork != null)
+            {
+                yield return outputNetwork;
+            }
+            else if (network == outputNetwork && inputNetwork != null)
+            {
+                yield return inputNetwork;
+            }
+        }
+
         public override void AddTo(Circuit circuit)
         {
             base.AddTo(circuit);
 
             var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
-
-            _switch?.Dispose();
-            _switch = new(circuit, nodeA, null);
+            var nodeB = GetNode(circuit, PowerOutput, WireType.Line1);
+            
+            if (_switch?.NodeA != nodeA || _switch?.NodeB != nodeB)
+            {
+                _switch?.Dispose();
+                _switch = new(circuit, nodeA, nodeB);
+            }
         }
 
         public override void UpdateState(Circuit circuit)

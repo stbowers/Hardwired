@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
@@ -106,6 +107,16 @@ namespace Hardwired.Objects.Electrical
         public virtual string DebugInfo()
         {
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Gets a list of cable networks that should be considered to be in the same circuit as the input network
+        /// </summary>
+        /// <param name="network"></param>
+        /// <returns></returns>
+        public virtual IEnumerable<CableNetwork> GetBridgedNetworks(CableNetwork network)
+        {
+            return Enumerable.Empty<CableNetwork>();
         }
 
         /// <summary>
