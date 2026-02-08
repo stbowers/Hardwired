@@ -26,19 +26,12 @@ namespace Hardwired.Objects.Electrical
         private List<Resistor> _resistors = new();
         private Circuit? _circuit;
 
-        public double Resistance;
+        public double Resistance { get; set; }
 
         /// <summary>
         /// The specific heat capacity of this cable, in J/K (i.e. how much energy needs to be added to the cable in order to raise it's temperature by 1 K)
         /// </summary>
-        public double SpecificHeat;
-
-        /// <summary>
-        /// The current temperature (K) of this segment of cable.
-        /// Will slowly rise due to resitive heating
-        /// </summary>
-        [HideInInspector]
-        public double Temperature;
+        public double SpecificHeat { get; set; }
 
         /// <summary>
         /// How much power can this cable dissipate into the void, based on it's temperature (W/K).
@@ -50,8 +43,20 @@ namespace Hardwired.Objects.Electrical
         /// replace this with a more accurate calculation (in particular, cables should heat up the room they're in, and
         /// the temperature around them will determine how effectively they can convect heat)
         /// </summary>
-        [HideInInspector]
-        public double DissipationCapacity;
+        public double DissipationCapacity { get; set; }
+
+        /// <summary>
+        /// The maximum voltage rating for this cable - represents the ability for the cable's insulation to prevent arcing between the wires.
+        /// 
+        /// If the voltage between any node and ground exceeds this value, the cable will have a random chance of burning up.
+        /// </summary>
+        public double MaximumVoltageRating { get; set; }
+
+        /// <summary>
+        /// The current temperature (K) of this segment of cable.
+        /// Will slowly rise due to resitive heating
+        /// </summary>
+        public double Temperature { get; private set; } = 273.15;
 
         public Complex VoltageDeltaAverage { get; private set; }
 
@@ -158,7 +163,21 @@ namespace Hardwired.Objects.Electrical
             if (shouldBreak)
             {
                 Cable?.Break();
-                Hardwired.LogDebug($"Burning cable -- i: {Current} | T: {Temperature}");
+                Hardwired.LogDebug($"Burning cable (too hot/too much current!) -- i: {Current} | T: {Temperature}");
+            }
+
+            // Randomly break cables that are over voltage, with a higher chance the further away from their design voltage they are
+            // 100% of MaximumVoltageRating ~ 0%
+            // 150% of MaximumVoltageRating ~ 100%
+            var voltageCapacity = VoltageAverage.Magnitude / MaximumVoltageRating;
+            breakChance = (voltageCapacity - 1.0) / 0.5f;
+            breakChance = Math.Clamp(breakChance, 0f, 1f);
+
+            shouldBreak = breakChance >= UnityEngine.Random.Range(0f, 1f);
+            if (shouldBreak)
+            {
+                Cable?.Break();
+                Hardwired.LogDebug($"Burning cable (too much voltage!) -- V: {VoltageAverage} / {VoltageDeltaAverage}");
             }
 
             // Check fuses

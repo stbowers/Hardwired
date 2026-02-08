@@ -75,7 +75,7 @@ namespace Hardwired.Patches
             var cableComponent = cable.GetOrAddComponent<HardwiredCable>();
 
             // Physical properties of the cable
-            double resistance, specificHeat, currentCapacity, temperatureCapacity, dissipationCapacity;
+            double resistance, specificHeat, currentCapacity, temperatureCapacity, dissipationCapacity, voltageRating;
 
             // TODO: probably need some better balancing here...
 
@@ -87,6 +87,7 @@ namespace Hardwired.Patches
                 specificHeat = 0.1;
                 currentCapacity = 500;
                 temperatureCapacity = 90;
+                voltageRating = 10_000.0;
             }
             // Normal cable == base game power limit: 5kW => 25A @ 200V ~= 5 kW
             else
@@ -96,6 +97,7 @@ namespace Hardwired.Patches
                 specificHeat = 0.025;
                 currentCapacity = 25;
                 temperatureCapacity = 90;
+                voltageRating = 240;
             }
 
             // I^2 * R = D * T_c
@@ -106,8 +108,9 @@ namespace Hardwired.Patches
             cableComponent.SpecificHeat = specificHeat;
             cableComponent.DissipationCapacity = dissipationCapacity;
             cableComponent.Resistance = resistance;
+            cableComponent.MaximumVoltageRating = voltageRating;
 
-            Hardwired.LogDebug($"patched cable {cable.PrefabName} -- resistance: {resistance} Ohm, max current: {currentCapacity} A");
+            Hardwired.LogDebug($"patched cable {cable.PrefabName} ({cable.CableType}) -- resistance: {resistance} Ohm, max current: {currentCapacity} A");
         }
 
         private static void PatchCableFuse(CableFuse cableFuse)
