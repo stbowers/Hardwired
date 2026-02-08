@@ -14,7 +14,6 @@ using HarmonyLib;
 using Objects.Pipes;
 
 using HardwiredBattery = Hardwired.Objects.Electrical.Battery;
-using HardwiredTransformer = Hardwired.Objects.Electrical.Transformer;
 
 namespace Hardwired.Patches
 {
@@ -30,8 +29,12 @@ namespace Hardwired.Patches
                 var load = d.GetOrAddComponent<DeviceLoad>();
                 load.PowerProfile = PowerSink.PowerProfile.SmallMotor;
             },
-            [typeof(Assets.Scripts.Objects.Electrical.Transformer)] = d => {
-                d.GetOrAddComponent<HardwiredTransformer>();
+            [typeof(Transformer)] = d => {
+                d.GetOrAddComponent<FixedTransformer>();
+                (d as Transformer)!.OutputMaximum = 100;
+                (d as Transformer)!.Setting = 1;
+                (d as Transformer)!.StepNormal = 1;
+                (d as Transformer)!.StepSmall = 0.1f;
             },
             [typeof(BatteryCellCharger)] = d => {
                 d.GetOrAddComponent<HardwiredBattery>();

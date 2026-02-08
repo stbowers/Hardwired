@@ -11,11 +11,16 @@ using Hardwired.Utility.Extensions;
 
 namespace Hardwired.Objects.Electrical
 {
-    public class Transformer : ElectricalComponent
+    /// <summary>
+    /// Component for fixed ratio (i.e. passive) transformer devices.
+    /// 
+    /// note - "fixed" as in the ratio does not dynamically update each tick; however the ratio can be manually changed via the device's Setting value
+    /// </summary>
+    public class FixedTransformer : ElectricalComponent
     {
         MutualInductor? _mutualInductor;
 
-        public double Ratio => (Device as Assets.Scripts.Objects.Electrical.Transformer)?.Setting ?? 1.0;
+        public double Ratio => (Device as Assets.Scripts.Objects.Electrical.Transformer)?.Setting ?? 0.0;
 
         public Complex PrimaryVoltage { get; private set; }
 
@@ -34,9 +39,9 @@ namespace Hardwired.Objects.Electrical
             base.BuildPassiveToolTip(stringBuilder);
 
             stringBuilder.AppendLine($"N: {Ratio}");
-            stringBuilder.AppendLine($"ΔV(Primary): {PrimaryVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV(Secondary): {SecondaryVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
-            stringBuilder.AppendLine($"I(Primary): {PrimaryCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | I(Secondary): {SecondaryCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"P(Primary): {PrimaryApparentPower.ToStringPrefix("VA", "yellow")} | P(Secondary): {SecondaryApparentPower.ToStringPrefix("VA", "yellow")}");
+            stringBuilder.AppendLine($"ΔV(1): {PrimaryVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV(N): {SecondaryVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"I(1): {PrimaryCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | I(N): {SecondaryCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"P(1): {PrimaryApparentPower.ToStringPrefix("VA", "yellow")} | P(N): {SecondaryApparentPower.ToStringPrefix("VA", "yellow")}");
         }
 
         public override IEnumerable<CableNetwork> GetBridgedNetworks(CableNetwork network)

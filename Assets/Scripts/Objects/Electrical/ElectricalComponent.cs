@@ -95,7 +95,7 @@ namespace Hardwired.Objects.Electrical
 
                 if (inputCircuit.LastTickStatus == Circuit.TickProcessingStatus.Success)
                 {
-                    stringBuilder.Append($"({inputCircuit.TicksProcessed})");
+                    stringBuilder.Append($"(f = {inputCircuit.Frequency.ToStringPrefix("Hz", "yellow")})");
                 }
                 else
                 {

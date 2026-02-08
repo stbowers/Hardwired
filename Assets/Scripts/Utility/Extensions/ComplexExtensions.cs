@@ -4,6 +4,7 @@
 using System;
 using System.Numerics;
 using Assets.Scripts.Util;
+using UnityEngine;
 
 namespace Hardwired.Utility.Extensions
 {
@@ -32,20 +33,21 @@ namespace Hardwired.Utility.Extensions
         /// <param name="color"></param>
         /// <param name="adaptive"></param>
         /// <returns></returns>
-        public static string ToStringPrefix(this Complex value, double? f, string unit, string color, bool adaptive = true)
+        public static string ToStringPrefix(this Complex value, double? f, string unit, string color, bool adaptive = true, bool displayFrequency = false)
         {
-            double magnitude = value.Magnitude;
-            double phaseDegrees = 180f * value.Phase / Math.PI;
-
             // AC
-            if (f > 0)
+            if (f > 0 && displayFrequency)
             {
                 return $"{ToStringPrefix(value, unit, color, adaptive)} ({f.Value.ToStringPrefix("Hz", color, adaptive)})";
+            }
+            else if (f > 0 && !displayFrequency)
+            {
+                return $"{ToStringPrefix(value, unit, color, adaptive)}";
             }
             // DC
             else
             {
-                return magnitude.ToStringPrefix(unit, color, adaptive);
+                return value.Magnitude.ToStringPrefix(unit, color, adaptive);
             }
         }
     }
