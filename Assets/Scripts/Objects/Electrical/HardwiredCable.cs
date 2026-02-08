@@ -26,12 +26,12 @@ namespace Hardwired.Objects.Electrical
         private List<Resistor> _resistors = new();
         private Circuit? _circuit;
 
-        public double Resistance { get; set; }
+        public double Resistance;
 
         /// <summary>
         /// The specific heat capacity of this cable, in J/K (i.e. how much energy needs to be added to the cable in order to raise it's temperature by 1 K)
         /// </summary>
-        public double SpecificHeat { get; set; }
+        public double SpecificHeat;
 
         /// <summary>
         /// How much power can this cable dissipate into the void, based on it's temperature (W/K).
@@ -43,14 +43,14 @@ namespace Hardwired.Objects.Electrical
         /// replace this with a more accurate calculation (in particular, cables should heat up the room they're in, and
         /// the temperature around them will determine how effectively they can convect heat)
         /// </summary>
-        public double DissipationCapacity { get; set; }
+        public double DissipationCapacity;
 
         /// <summary>
         /// The maximum voltage rating for this cable - represents the ability for the cable's insulation to prevent arcing between the wires.
         /// 
         /// If the voltage between any node and ground exceeds this value, the cable will have a random chance of burning up.
         /// </summary>
-        public double MaximumVoltageRating { get; set; }
+        public double MaximumVoltageRating;
 
         /// <summary>
         /// The current temperature (K) of this segment of cable.
@@ -76,7 +76,7 @@ namespace Hardwired.Objects.Electrical
 
             double tCelsius = Temperature - 273.15;
 
-            stringBuilder.AppendLine($"ΔV(avg): {VoltageDeltaAverage.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")} | Vg(avg): {VoltageAverage.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"ΔV(avg): {VoltageDeltaAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Vg(avg): {VoltageAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")} | Power loss: {PowerDissapated.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")}");
         }
@@ -177,7 +177,7 @@ namespace Hardwired.Objects.Electrical
             if (shouldBreak)
             {
                 Cable?.Break();
-                Hardwired.LogDebug($"Burning cable (too much voltage!) -- V: {VoltageAverage} / {VoltageDeltaAverage}");
+                Hardwired.LogDebug($"Burning cable (too much voltage!) -- V: {VoltageAverage} / {MaximumVoltageRating}");
             }
 
             // Check fuses

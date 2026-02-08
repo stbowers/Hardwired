@@ -15,7 +15,6 @@ namespace Hardwired.Objects.Electrical
 {
     public class Generator : ElectricalComponent
     {
-        private Device? _device;
         private PowerSource? _powerSource;
 
         public double PowerAvailable { get; private set; }
@@ -34,14 +33,12 @@ namespace Hardwired.Objects.Electrical
 
             stringBuilder.AppendLine($"Power Available: {PowerAvailable.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(OutputCircuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
         {
             base.AddTo(circuit);
-
-            _device ??= GetComponent<Device>();
 
             var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
             _powerSource = new(circuit, nodeA, null);
@@ -53,7 +50,7 @@ namespace Hardwired.Objects.Electrical
 
             if (_powerSource != null)
             {
-                _powerSource.PowerAvailable = _device?.GetGeneratedPower(_device.PowerCableNetwork) ?? 0;
+                _powerSource.PowerAvailable = Device?.GetGeneratedPower(Device.PowerCableNetwork) ?? 0;
             }
         }
 
@@ -67,7 +64,7 @@ namespace Hardwired.Objects.Electrical
             VoltageDelta = _powerSource?.VoltageDelta ?? 0;
             CurrentDraw = _powerSource?.Current ?? 0;
 
-            _device?.UsePower(_device.PowerCableNetwork, (float)PowerDraw);
+            Device?.UsePower(Device.PowerCableNetwork, (float)PowerDraw);
         }
 
         public override void RemoveFrom(Circuit circuit)

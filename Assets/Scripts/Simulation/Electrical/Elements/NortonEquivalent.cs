@@ -52,6 +52,12 @@ namespace Hardwired.Simulation.Electrical.Elements
             set => _resistor.Resistance = value;
         }
 
+        public double? Frequency
+        {
+            get => _currentSource.Frequency;
+            set => _currentSource.Frequency = value;
+        }
+
         /// <summary>
         /// Gets the current output by the Norton equivalent circuit (i.e. the current flowing from node A to node B "outside" of the norton circuit, _not_ the current produced by the current source)
         /// </summary>

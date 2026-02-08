@@ -32,6 +32,7 @@ namespace Hardwired.Simulation.Electrical.Elements
         {
             base.UpdateState();
 
+            _nortonEquivalent.Frequency = Profile.Frequency;
             _nortonEquivalent.Resistance = Profile.VoltageNominal * Profile.VoltageNominal / Profile.PowerNominal;
             _nortonEquivalent.CurrentShort = PowerAvailable / Profile.VoltageNominal;
             _nortonEquivalent.UpdateState();

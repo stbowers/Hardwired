@@ -14,6 +14,7 @@ using HarmonyLib;
 using Objects.Pipes;
 
 using HardwiredBattery = Hardwired.Objects.Electrical.Battery;
+using HardwiredTransformer = Hardwired.Objects.Electrical.Transformer;
 
 namespace Hardwired.Patches
 {
@@ -30,14 +31,7 @@ namespace Hardwired.Patches
                 load.PowerProfile = PowerSink.PowerProfile.SmallMotor;
             },
             [typeof(Assets.Scripts.Objects.Electrical.Transformer)] = d => {
-                // var transformer = d.GetOrAddComponent<HardwiredTransformer>();
-
-                // transformer.PinA = -2;
-                // transformer.PinB = -1;
-                // transformer.PinC = d.OpenEnds.FindIndex(IsConnectionPowerOutput);
-                // transformer.PinD = -1;
-
-                // AddBreaker(d, pinOutput: -2);
+                d.GetOrAddComponent<HardwiredTransformer>();
             },
             [typeof(BatteryCellCharger)] = d => {
                 d.GetOrAddComponent<HardwiredBattery>();
@@ -97,7 +91,7 @@ namespace Hardwired.Patches
                 specificHeat = 0.025;
                 currentCapacity = 25;
                 temperatureCapacity = 90;
-                voltageRating = 240;
+                voltageRating = 500;
             }
 
             // I^2 * R = D * T_c
@@ -110,7 +104,7 @@ namespace Hardwired.Patches
             cableComponent.Resistance = resistance;
             cableComponent.MaximumVoltageRating = voltageRating;
 
-            Hardwired.LogDebug($"patched cable {cable.PrefabName} ({cable.CableType}) -- resistance: {resistance} Ohm, max current: {currentCapacity} A");
+            Hardwired.LogDebug($"patched cable {cable.PrefabName} ({cable.CableType}) -- resistance: {resistance} Ohm, max current: {currentCapacity} A, max voltage: {voltageRating}");
         }
 
         private static void PatchCableFuse(CableFuse cableFuse)

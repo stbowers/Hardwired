@@ -43,7 +43,7 @@ namespace Hardwired.Objects.Electrical
             base.BuildPassiveToolTip(stringBuilder);
 
             stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / {MaxCharge.ToStringPrefix("Wt", "yellow")}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")} | Current: {Current.ToStringPrefix(OutputCircuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current: {Current.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Power: {Power.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
         }

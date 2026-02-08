@@ -35,7 +35,6 @@ namespace Hardwired.Simulation.Electrical
         private List<INonlinearCircuitElement> _nonlinearElements = new();
         private List<IFrequencySource> _frequencySources = new();
         private bool _frequencyInitialized;
-        private bool _initialized;
 
         public int Id { get; } = _nextId += 1;
 
@@ -136,11 +135,12 @@ namespace Hardwired.Simulation.Electrical
         }
 
         /// <summary>
-        /// Marks the circuit as uninitialized so it will be re-initialized on the next power tick
+        /// Marks the circuit a having an uninitialized frequency, so it will re-evaluate all frequency sources next tick.
+        /// Used when the frequency of a source might have changed
         /// </summary>
-        public void Invalidate()
+        public void InvalidateFrequency()
         {
-            _initialized = false;
+            _frequencyInitialized = false;
         }
 
         private bool SolveInitial()

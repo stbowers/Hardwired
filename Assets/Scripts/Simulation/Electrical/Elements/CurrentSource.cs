@@ -9,6 +9,7 @@ namespace Hardwired.Simulation.Electrical.Elements
     public class CurrentSource : DipoleCircuitElementBase, ICircuitElement, IFrequencySource
     {
         private Complex? _appliedCurrent;
+        private double? _frequency;
 
         /// <summary>
         /// The current being produced by this source, which flows from node "B" (negative) to node "A" (positive)
@@ -19,7 +20,17 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override Complex Current => -SourceCurrent;
 
-        public double? Frequency { get; set; }
+        public double? Frequency
+        {
+            get => _frequency;
+            set
+            {
+                if (_frequency == value) { return; }
+
+                _frequency = value;
+                Circuit.InvalidateFrequency();
+            }
+        }
 
         public CurrentSource(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {

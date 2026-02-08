@@ -10,6 +10,7 @@ using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility.Extensions;
+using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
@@ -36,7 +37,7 @@ namespace Hardwired.Objects.Electrical
 
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(OutputCircuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)

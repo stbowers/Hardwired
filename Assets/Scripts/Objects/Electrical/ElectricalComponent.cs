@@ -31,11 +31,31 @@ namespace Hardwired.Objects.Electrical
     /// </summary>
     public abstract class ElectricalComponent : MonoBehaviour
     {
+        /// <summary>
+        /// Identifies a wire type in a connection, which can be used to get different nodes for different "wires" in a cable
+        /// </summary>
         public enum WireType
         {
+            /// <summary>
+            /// The positive (DC) or "live" (AC) wire.
+            /// </summary>
             Line1,
+
+            /// <summary>
+            /// The "live" wire for phase 2 for multi-phase AC cables (not used for DC or single phase AC)
+            /// </summary>
             Line2,
+
+            /// <summary>
+            /// The "live" wire for phase 3 for multi-phase AC cables (not used for DC or single phase AC)
+            /// </summary>
             Line3,
+
+            /// <summary>
+            /// The negative/common (DC) or neutral (AC) wire.
+            /// 
+            /// This is usually not used explicitly, because the common pin does not need to be referenced in most cases
+            /// </summary>
             Neutral,
         }
 
@@ -100,8 +120,8 @@ namespace Hardwired.Objects.Electrical
 
             stringBuilder.AppendLine($"]");
 
-            string nodesDebugText = string.Join(" | ", Nodes.Select(n => $"{n.Key.connection.ConnectionRole}<{n.Key.circuit.Id}|{n.Key.wireType}> = {n.Value.Value.Index}"));
-            stringBuilder.AppendLine(nodesDebugText);
+            // string nodesDebugText = string.Join(" | ", Nodes.Select(n => $"{n.Key.connection.ConnectionRole}<{n.Key.circuit.Id}|{n.Key.wireType}> = {n.Value.Value.Index}"));
+            // stringBuilder.AppendLine(nodesDebugText);
         }
 
         public virtual string DebugInfo()

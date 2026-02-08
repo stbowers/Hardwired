@@ -18,7 +18,6 @@ namespace Hardwired.Objects.Electrical
 {
     public class Breaker : ElectricalComponent
     {
-        private Assets.Scripts.Objects.Pipes.Device? _device;
         private Switch? _switch;
 
         public ConnectionRole Connection = ConnectionRole.Input;
@@ -44,8 +43,8 @@ namespace Hardwired.Objects.Electrical
 
         public override IEnumerable<CableNetwork> GetBridgedNetworks(CableNetwork network)
         {
-            CableNetwork? inputNetwork = PowerInput?.GetCable().CableNetwork;
-            CableNetwork? outputNetwork = PowerOutput?.GetCable().CableNetwork;
+            CableNetwork? inputNetwork = PowerInput?.GetCable()?.CableNetwork;
+            CableNetwork? outputNetwork = PowerOutput?.GetCable()?.CableNetwork;
 
             if (network == inputNetwork && outputNetwork != null)
             {
