@@ -57,7 +57,7 @@ namespace Hardwired.Objects.Electrical
 
         public Complex VoltageAverage { get; private set; }
 
-        public double CurrentDraw { get; private set; }
+        public double Current { get; private set; }
 
         public double PowerDissapated { get; private set;}
 
@@ -72,7 +72,7 @@ namespace Hardwired.Objects.Electrical
             double tCelsius = Temperature - 273.15;
 
             stringBuilder.AppendLine($"ΔV(avg): {VoltageDeltaAverage.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")} | Vg(avg): {VoltageAverage.ToStringPrefix(OutputCircuit?.Frequency, "V", "yellow")}");
-            stringBuilder.AppendLine($"Current: {CurrentDraw.ToStringPrefix("A", "yellow")} | Power loss: {PowerDissapated.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")} | Power loss: {PowerDissapated.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")}");
         }
 
@@ -112,7 +112,7 @@ namespace Hardwired.Objects.Electrical
             base.ApplyState(circuit);
 
             PowerDissapated = 0;
-            CurrentDraw = 0;
+            Current = 0;
 
             VoltageDeltaAverage = 0;
             VoltageAverage = 0;
@@ -124,7 +124,7 @@ namespace Hardwired.Objects.Electrical
                 VoltageAverage += resistor?.VoltageB ?? 0;
 
                 PowerDissapated += resistor?.Power.Real ?? 0;
-                CurrentDraw = Math.Max(resistor?.Current.Magnitude ?? 0, CurrentDraw);
+                Current += resistor?.Current.Magnitude ?? 0;
             }
 
             VoltageDeltaAverage /= _resistors.Count;
@@ -132,8 +132,8 @@ namespace Hardwired.Objects.Electrical
 
             // Calculate temperature change due to resistive heating
             // double dE = PowerDissipated * Circuit.TimeDelta;
-            double pRadiated = Math.Max(DissipationCapacity * (Temperature - 293.15f), 0f);
-            double dE = (PowerDissapated - pRadiated) * 0.5f;
+            double pRadiated = DissipationCapacity * (Temperature - 293.15f);
+            double dE = (PowerDissapated - pRadiated) * circuit.TimeDelta;
             double dT = dE / SpecificHeat;
 
             // Cap max change in temperature per tick
@@ -143,9 +143,9 @@ namespace Hardwired.Objects.Electrical
             // it's the voltage drop across the resistor), causing current/power to be much higher than it should be.
             // Eventually I'd like to replace the power sink with a non-linear solution that can exactly determine the voltage/current/power draw in
             // one tick, after which this shouldn't be an issue.
-            dT = Math.Min(dT, 10f);
+            // dT = Math.Min(dT, 10f);
 
-            // Update temperature (with min temp ~20 C, to avoid DissipationCapacity bringing the temp down to absolute zero)
+            // Update temperature
             Temperature += dT;
 
             // Randomly break cables that are over temp, with a higher chance the hotter they are
@@ -158,7 +158,7 @@ namespace Hardwired.Objects.Electrical
             if (shouldBreak)
             {
                 Cable?.Break();
-                Hardwired.LogDebug($"Burning cable -- i: {CurrentDraw} | T: {Temperature}");
+                Hardwired.LogDebug($"Burning cable -- i: {Current} | T: {Temperature}");
             }
 
             // Check fuses
@@ -170,10 +170,10 @@ namespace Hardwired.Objects.Electrical
                 var vNominal = 1000f;
                 var iLimit = fuse.PowerBreak / vNominal;
 
-                if (CurrentDraw > iLimit)
+                if (Current > iLimit)
                 {
                     fuse.Break();
-                    Hardwired.LogDebug($"Breaking fuse -- i: {CurrentDraw} | iLimit: {iLimit}, PowerBreak: {fuse.PowerBreak}");
+                    Hardwired.LogDebug($"Breaking fuse -- i: {Current} | iLimit: {iLimit}, PowerBreak: {fuse.PowerBreak}");
                 }
             }
         }
