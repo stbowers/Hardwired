@@ -20,6 +20,10 @@ namespace Hardwired.Simulation.Electrical.Elements
         private CurrentSource _currentSource;
         private Resistor _resistor;
 
+        public CurrentSource CurrentSource => _currentSource;
+
+        public Resistor Resistor => _resistor;
+
         /// <summary>
         /// Gets or sets the "open voltage" - i.e. the voltage that would be measured between A and B when "open circuited" (no connection/load).
         /// This is in practice the voltage of the equivalent Thévenin voltage source.

@@ -61,6 +61,8 @@ namespace Hardwired.Objects.Electrical
 
                 _powerSink.Profile = PowerProfile;
                 _powerSink.PowerTarget = PowerTarget;
+
+                _powerSink.UpdateState();
             }
         }
 
@@ -68,14 +70,17 @@ namespace Hardwired.Objects.Electrical
         {
             base.ApplyState(circuit);
 
-            PowerDraw = _powerSink?.PowerDraw ?? 0;
+            _powerSink?.ApplyState();
+
+            PowerDraw = _powerSink?.PowerAvailable ?? 0;
             PowerFactor = _powerSink?.PowerFactor ?? 0;
             VoltageDelta = _powerSink?.VoltageDelta ?? 0;
             CurrentDraw = _powerSink?.Current ?? 0;
 
-            if (_powerSink?.PowerDraw > 0f)
+            if (_powerSink?.PowerAvailable > 0f)
             {
-                _device?.ReceivePower(_device.PowerCableNetwork, (float)_powerSink.PowerDraw);
+                _powerSink.UsePower(PowerDraw);
+                _device?.ReceivePower(_device.PowerCableNetwork, (float)_powerSink.PowerAvailable);
                 _device?.SetPowerFromThread(_device.PowerCableNetwork, true).Forget();
             }
             else

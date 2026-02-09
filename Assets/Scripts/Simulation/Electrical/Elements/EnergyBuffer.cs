@@ -54,6 +54,8 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         private NortonEquivalent _nortonEquivalent { get; }
 
+        public NortonEquivalent NortonEquivalent => _nortonEquivalent;
+
         /// <summary>
         /// The voltage curve to use when evaluating the voltage this energy buffer will output based on the current state of charge.
         /// </summary>
@@ -120,6 +122,8 @@ namespace Hardwired.Simulation.Electrical.Elements
         public override void ApplyState()
         {
             base.ApplyState();
+
+            _nortonEquivalent.ApplyState();
 
             Charge = Math.Clamp(Charge + Power.Real, 0f, ChargeMaximum);
             if (double.IsNaN(Charge))

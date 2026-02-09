@@ -89,11 +89,14 @@ namespace Hardwired.Objects.Electrical
             _energyBuffer.ChargeMaximum = _batteries.Sum(b => b.GetPowerMaximum());
             _energyBuffer.Charge = _batteries.Sum(b => b.PowerStored);
 
+            _energyBuffer.UpdateState();
         }
 
         public override void ApplyState(Circuit circuit)
         {
             base.ApplyState(circuit);
+
+            _energyBuffer?.ApplyState();
 
             var previousCharge = _energyBuffer?.Charge ?? 0f;
 

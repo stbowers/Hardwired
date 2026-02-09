@@ -77,12 +77,15 @@ namespace Hardwired.Objects.Electrical
             if (_switch != null)
             {
                 _switch.Closed = Closed;
+                _switch.UpdateState();
             }
         }
 
         public override void ApplyState(Circuit circuit)
         {
             base.ApplyState(circuit);
+
+            _switch?.ApplyState();
 
             VoltageA = _switch?.VoltageA.Magnitude ?? 0f;
             VoltageB = _switch?.VoltageB.Magnitude ?? 0f;

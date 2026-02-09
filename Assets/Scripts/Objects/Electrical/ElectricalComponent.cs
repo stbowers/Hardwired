@@ -110,7 +110,7 @@ namespace Hardwired.Objects.Electrical
 
                 if (outputCircuit.LastTickStatus == Circuit.TickProcessingStatus.Success)
                 {
-                    stringBuilder.Append($"({outputCircuit.TicksProcessed})");
+                    stringBuilder.Append($"(f = {outputCircuit.Frequency.ToStringPrefix("Hz", "yellow")})");
                 }
                 else
                 {

@@ -53,7 +53,7 @@ namespace Hardwired.Tests.Simulation.Electrical.Elements
 
             circuit.ProcessTick();
 
-            Assert.AreEqual(pExpected, pSink.PowerDraw, 0.01);
+            Assert.AreEqual(pExpected, pSink.PowerAvailable, 0.01);
         }
 
         [Test]
@@ -76,7 +76,7 @@ namespace Hardwired.Tests.Simulation.Electrical.Elements
                 ComplexAssert.AreEqual(-iSource.Power, pSink.Power, 0.01);
 
                 // Energy output by the sink should always exactly match the expected energy given the power target
-                Assert.AreEqual(pSink.PowerTarget, pSink.PowerDraw, 0.01);
+                Assert.AreEqual(pSink.PowerTarget, pSink.PowerAvailable, 0.01);
             }
         }
 
@@ -101,7 +101,7 @@ namespace Hardwired.Tests.Simulation.Electrical.Elements
                 ComplexAssert.AreEqual(-pSource.Power, pSink.Power, 0.01);
 
                 // Energy output by the sink should always exactly match the expected energy given the power target
-                Assert.AreEqual(pSink.PowerTarget, pSink.PowerDraw, 0.01);
+                Assert.AreEqual(pSink.PowerTarget, pSink.PowerAvailable, 0.01);
             }
         }
 
@@ -134,7 +134,7 @@ namespace Hardwired.Tests.Simulation.Electrical.Elements
             {
                 circuit.ProcessTick();
 
-                Assert.AreEqual(0, pSink.PowerDraw, 0.1);
+                Assert.AreEqual(0, pSink.PowerAvailable, 0.1);
             }
         }
     }

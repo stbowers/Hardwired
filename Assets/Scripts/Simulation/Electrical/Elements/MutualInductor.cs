@@ -139,6 +139,8 @@ namespace Hardwired.Simulation.Electrical.Elements
         {
             base.Dispose();
 
+            RemoveState();
+
             NodeA?.Dispose();
             NodeB?.Dispose();
             NodeC?.Dispose();

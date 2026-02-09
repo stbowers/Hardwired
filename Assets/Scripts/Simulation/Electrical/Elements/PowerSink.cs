@@ -13,6 +13,8 @@ namespace Hardwired.Simulation.Electrical.Elements
     {
         private EnergyBuffer _energyBuffer;
 
+        public EnergyBuffer EnergyBuffer => _energyBuffer;
+
         /// <summary>
         /// The power profile (i.e. nominal voltage, voltage tolerance, etc)
         /// </summary>
@@ -24,12 +26,14 @@ namespace Hardwired.Simulation.Electrical.Elements
         public double PowerTarget { get; set; }
 
         /// <summary>
-        /// The real power being drawn this tick.
+        /// The real power in Watts available to be used this tick.
         /// 
         /// Note that this is distinct from `Power`, which represents the power transferred through the circuit this tick, which may be different from the power draw since there is an internal energy buffer
         /// to dampen changes in voltage/current.
+        /// 
+        /// Note that any power actually used by external device(s) this tick should be subtracted from PowerAvailable by calling `UsePower()`
         /// </summary>
-        public double PowerDraw { get; private set; }
+        public double PowerAvailable { get; private set; }
 
         public override Complex Current => _energyBuffer.Current;
 
@@ -49,11 +53,10 @@ namespace Hardwired.Simulation.Electrical.Elements
         {
             base.UpdateState();
 
-            _energyBuffer.Charge -= PowerDraw;
-
-            _energyBuffer.CurrentMaximum = Profile.VoltageMax * PowerTarget / (Profile.VoltageNominal * Profile.VoltageNominal);
-            _energyBuffer.ChargeMaximum = 1.25 * PowerTarget;
+            _energyBuffer.CurrentMaximum = PowerTarget / Profile.VoltageNominal;
+            _energyBuffer.ChargeMaximum = 2 * PowerTarget;
             _energyBuffer.VoltageMaximum = Profile.VoltageMax;
+            _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
             _energyBuffer.UpdateState();
         }
 
@@ -67,12 +70,25 @@ namespace Hardwired.Simulation.Electrical.Elements
                 || (VoltageDelta.Magnitude - Profile.VoltageMax) > 0.01
                 || _energyBuffer.Charge < Profile.MinimumPowerDrawRatio * PowerTarget)
             {
-                PowerDraw = 0;
+                PowerAvailable = 0;
             }
             else
             {
-                PowerDraw = Math.Clamp(_energyBuffer.Charge, 0f, PowerTarget);
+                PowerAvailable = Math.Clamp(_energyBuffer.Charge, 0f, PowerTarget);
             }
+        }
+
+        /// <summary>
+        /// Accounts for power being used by an external device by subtracting it from PowerAvailable and updating the internal state.
+        /// </summary>
+        /// <param name="power"></param>
+        public void UsePower(double power)
+        {
+            power = Math.Clamp(power, 0, PowerAvailable);
+
+            _energyBuffer.Charge -= power;
+
+            PowerAvailable = Math.Clamp(_energyBuffer.Charge, 0f, PowerTarget);
         }
 
         public struct PowerProfile

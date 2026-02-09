@@ -39,9 +39,9 @@ namespace Hardwired.Objects.Electrical
             base.BuildPassiveToolTip(stringBuilder);
 
             stringBuilder.AppendLine($"N: {Ratio}");
-            stringBuilder.AppendLine($"ΔV(1): {PrimaryVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV(N): {SecondaryVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
-            stringBuilder.AppendLine($"I(1): {PrimaryCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | I(N): {SecondaryCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"P(1): {PrimaryApparentPower.ToStringPrefix("VA", "yellow")} | P(N): {SecondaryApparentPower.ToStringPrefix("VA", "yellow")}");
+            stringBuilder.AppendLine($"ΔV(In): {PrimaryVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV(Out): {SecondaryVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"I(In): {PrimaryCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | I(Out): {SecondaryCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"P(In): {PrimaryApparentPower.ToStringPrefix("VA", "yellow")} | P(Out): {SecondaryApparentPower.ToStringPrefix("VA", "yellow")}");
         }
 
         public override IEnumerable<CableNetwork> GetBridgedNetworks(CableNetwork network)
@@ -74,11 +74,15 @@ namespace Hardwired.Objects.Electrical
         public override void UpdateState(Circuit circuit)
         {
             base.UpdateState(circuit);
+
+            _mutualInductor?.UpdateState();
         }
 
         public override void ApplyState(Circuit circuit)
         {
             base.ApplyState(circuit);
+
+            _mutualInductor?.ApplyState();
 
             PrimaryVoltage = _mutualInductor?.PrimaryVoltageDelta ?? 0f;
             SecondaryVoltage = _mutualInductor?.SecondaryVoltageDelta ?? 0f;

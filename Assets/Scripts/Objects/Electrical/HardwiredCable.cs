@@ -112,9 +112,24 @@ namespace Hardwired.Objects.Electrical
             }
         }
 
+        public override void UpdateState(Circuit circuit)
+        {
+            base.UpdateState(circuit);
+
+            foreach (var resistor in _resistors)
+            {
+                resistor.UpdateState();
+            }
+        }
+
         public override void ApplyState(Circuit circuit)
         {
             base.ApplyState(circuit);
+
+            foreach (var resistor in _resistors)
+            {
+                resistor.ApplyState();
+            }
 
             PowerDissapated = 0;
             Current = 0;

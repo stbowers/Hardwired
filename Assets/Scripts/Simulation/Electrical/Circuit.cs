@@ -130,8 +130,6 @@ namespace Hardwired.Simulation.Electrical
                 Solver?.Z?.Clear();
                 Solver?.X?.Clear();
             }
-
-            ApplyState();
         }
 
         /// <summary>
@@ -147,9 +145,6 @@ namespace Hardwired.Simulation.Electrical
         {
             // Initialize
             InitializeFrequency();
-
-            // Update A matrix & Z vector
-            UpdateState();
 
             // Solve initial state (x_0)
             return Solver.SolveInitial();
@@ -203,24 +198,6 @@ namespace Hardwired.Simulation.Electrical
 
             Frequency = frequency ?? 0;
             _frequencyInitialized = true;
-        }
-
-        private void UpdateState()
-        {
-            // Update solver inputs (voltage source voltages, current source currents, etc) from each component
-            foreach (var component in Elements)
-            {
-                component.UpdateState();
-            }
-        }
-
-        private void ApplyState()
-        {
-            // Update components with solver output
-            foreach (var component in Elements)
-            {
-                component.ApplyState();
-            }
         }
 
         public static Circuit? Merge(Circuit? a, Circuit? b)

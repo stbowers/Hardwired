@@ -10,6 +10,8 @@ namespace Hardwired.Simulation.Electrical.Elements
     {
         private NortonEquivalent _nortonEquivalent;
 
+        public NortonEquivalent NortonEquivalent => _nortonEquivalent;
+
         public override Complex Current => _nortonEquivalent.Current;
 
         public PowerProfile Profile { get; set; } = PowerProfile.Default;

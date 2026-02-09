@@ -51,12 +51,15 @@ namespace Hardwired.Objects.Electrical
             if (_powerSource != null)
             {
                 _powerSource.PowerAvailable = Device?.GetGeneratedPower(Device.PowerCableNetwork) ?? 0;
+                _powerSource.UpdateState();
             }
         }
 
         public override void ApplyState(Circuit circuit)
         {
             base.ApplyState(circuit);
+
+            _powerSource?.ApplyState();
 
             PowerAvailable = _powerSource?.PowerAvailable ?? 0;
             PowerDraw = _powerSource?.Power.Real ?? 0;
