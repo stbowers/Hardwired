@@ -31,6 +31,8 @@ namespace Hardwired.Objects.Electrical
 
         public Complex CurrentDraw { get; private set; }
 
+        public double EnergyBuffer { get; private set; }
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -38,6 +40,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("Wt", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
@@ -72,15 +75,16 @@ namespace Hardwired.Objects.Electrical
 
             _powerSink?.ApplyState();
 
-            PowerDraw = _powerSink?.PowerAvailable ?? 0;
+            EnergyBuffer = _powerSink?.EnergyBuffer.Charge ?? 0;
+            PowerDraw = Math.Min(_powerSink?.PowerAvailable ?? 0, PowerTarget);
             PowerFactor = _powerSink?.PowerFactor ?? 0;
             VoltageDelta = _powerSink?.VoltageDelta ?? 0;
             CurrentDraw = _powerSink?.Current ?? 0;
 
-            if (_powerSink?.PowerAvailable > 0f)
+            if (PowerDraw > 0f)
             {
-                _powerSink.UsePower(PowerDraw);
-                _device?.ReceivePower(_device.PowerCableNetwork, (float)_powerSink.PowerAvailable);
+                _powerSink?.UsePower(PowerDraw);
+                _device?.ReceivePower(_device.PowerCableNetwork, (float)PowerDraw);
                 _device?.SetPowerFromThread(_device.PowerCableNetwork, true).Forget();
             }
             else

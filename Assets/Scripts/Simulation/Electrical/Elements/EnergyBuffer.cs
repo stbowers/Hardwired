@@ -80,7 +80,11 @@ namespace Hardwired.Simulation.Electrical.Elements
         /// The maximum current that this energy buffer is designed to draw.
         /// Used to size the internal resistor such that Current == CurrentMaximum when Charge == 0 and VoltageDelta == VoltageMaximum.
         /// </summary>
-        public double CurrentMaximum { get; set; }
+        public double CurrentMaximum
+        {
+            get => VoltageMaximum / Resistance;
+            set => Resistance = VoltageMaximum / value;
+        }
 
         public override Complex Current => _nortonEquivalent.Current;
 
@@ -89,7 +93,11 @@ namespace Hardwired.Simulation.Electrical.Elements
         /// </summary>
         public double ChargeRatio => ChargeMaximum != 0 ? Math.Clamp(Charge / ChargeMaximum, 0f, 1f) : 0;
 
-        public double Resistance => _nortonEquivalent.Resistance;
+        public double Resistance
+        {
+            get => _nortonEquivalent.Resistance;
+            set => _nortonEquivalent.Resistance = value;
+        }
 
         public EnergyBuffer(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
@@ -113,7 +121,6 @@ namespace Hardwired.Simulation.Electrical.Elements
                 Charge = 0;
             }
 
-            _nortonEquivalent.Resistance = VoltageMaximum / CurrentMaximum;
             _nortonEquivalent.VoltageOpen = VoltageCurve.U(ChargeRatio) * VoltageMaximum;
 
             _nortonEquivalent.UpdateState();

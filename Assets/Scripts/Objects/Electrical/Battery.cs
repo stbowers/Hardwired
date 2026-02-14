@@ -24,7 +24,7 @@ namespace Hardwired.Objects.Electrical
         /// <summary>
         /// The ratio of power that should be equalized between multiple batteries per tick
         /// </summary>
-        public double BalanceRatio { get; set; }= 0.005;
+        public double BalanceRatio { get; set; }= 0.01;
 
         public double Charge { get; private set; }
 
@@ -46,6 +46,9 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current: {Current.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Power: {Power.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
+
+            stringBuilder.AppendLine($"src.Resistance: {_energyBuffer?.NortonEquivalent.Resistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"src.Current: {_energyBuffer?.NortonEquivalent.CurrentShort.ToStringPrefix("A", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
@@ -57,7 +60,8 @@ namespace Hardwired.Objects.Electrical
             _energyBuffer?.Dispose();
             _energyBuffer = new(circuit, nodeA, null);
             _energyBuffer.VoltageMaximum = 400f;
-            _energyBuffer.CurrentMaximum = 10f;
+            _energyBuffer.CurrentMaximum = 50f;
+            _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
 
             if (Device is Assets.Scripts.Objects.Electrical.Battery battery)
             {
@@ -96,9 +100,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.ApplyState(circuit);
 
-            _energyBuffer?.ApplyState();
-
             var previousCharge = _energyBuffer?.Charge ?? 0f;
+
+            _energyBuffer?.ApplyState();
 
             Charge = _energyBuffer?.Charge ?? 0f;
             MaxCharge = _energyBuffer?.ChargeMaximum ?? 0f;
@@ -109,7 +113,8 @@ namespace Hardwired.Objects.Electrical
             Resistance = _energyBuffer?.Resistance ?? -1f;
 
             // Get total amount of charge "headroom" (if charging), or charge available (if discharging)
-            var w = (Power >= 0)
+            var dCharge = Charge - previousCharge;
+            var w = (dCharge >= 0)
                 ? MaxCharge - previousCharge
                 : previousCharge;
 
@@ -120,12 +125,12 @@ namespace Hardwired.Objects.Electrical
             foreach (var battery in _batteries)
             {
                 // Calculate how much of the power this battery cell should take/provide (as ratio of this battery's headroom/available to the total)
-                var wi = (Power >= 0)
+                var wi = (dCharge >= 0)
                     ? (battery.GetPowerMaximum() - battery.PowerStored) / w
                     : battery.PowerStored / w;
                 
                 // Add new charge to battery
-                battery.PowerStored += (float)(wi * Power);
+                battery.PowerStored += (float)(wi * dCharge);
 
                 // Balance battery charges
                 battery.PowerStored += (float)(BalanceRatio * battery.GetPowerMaximum() * (r_average - battery.PowerRatio));

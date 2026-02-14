@@ -34,6 +34,8 @@ namespace Hardwired.Objects.Electrical
 
         public double OutputPower { get; private set; }
 
+        public double EnergyBuffer { get; private set; }
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -41,6 +43,12 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"ΔV(In): {InputVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV(Out): {OutputVoltage.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"I(In): {InputCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | I(Out): {OutputCurrent.ToStringPrefix(OutputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"P(In): {InputPower.ToStringPrefix("VA", "yellow")} | P(Out): {OutputPower.ToStringPrefix("VA", "yellow")}");
+            stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("VAt", "yellow")}");
+
+            stringBuilder.AppendLine($"src.Resistance: {_powerSource?.NortonEquivalent.Resistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"src.Current: {_powerSource?.NortonEquivalent.CurrentShort.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"sink.Resistance: {_powerSink?.EnergyBuffer.Resistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"sink.Charge: {_powerSink?.EnergyBuffer.Charge.ToStringPrefix("Wt", "yellow")} / {_powerSink?.EnergyBuffer.ChargeMaximum.ToStringPrefix("Wt", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
@@ -85,7 +93,7 @@ namespace Hardwired.Objects.Electrical
 
             if (circuit == _powerSource?.Circuit)
             {
-                _powerSource.PowerAvailable = _powerSink?.PowerAvailable ?? 0;
+                _powerSource.PowerAvailable = _powerSink?.EnergyBuffer.Charge ?? 0;
                 _powerSource.Profile = new() { Frequency = 60, PowerNominal = Math.Max(_powerSource.PowerAvailable, 1), VoltageNominal = TargetOutputVoltage };
 
                 _powerSource.UpdateState();
@@ -102,6 +110,7 @@ namespace Hardwired.Objects.Electrical
             OutputCurrent = _powerSource?.Current ?? 0f;
             InputPower = _powerSink?.Power.Real ?? 0f;
             OutputPower = _powerSource?.Power.Real ?? 0f;
+            EnergyBuffer = _powerSink?.EnergyBuffer.Charge ?? 0f;
 
             if (circuit == _powerSink?.Circuit)
             {

@@ -53,10 +53,12 @@ namespace Hardwired.Simulation.Electrical.Elements
         {
             base.UpdateState();
 
-            _energyBuffer.CurrentMaximum = PowerTarget / Profile.VoltageNominal;
+            _energyBuffer.Resistance = (Profile.VoltageNominal * Profile.VoltageNominal) / PowerTarget;
             _energyBuffer.ChargeMaximum = 2 * PowerTarget;
+
             _energyBuffer.VoltageMaximum = Profile.VoltageMax;
             _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
+
             _energyBuffer.UpdateState();
         }
 
@@ -74,7 +76,7 @@ namespace Hardwired.Simulation.Electrical.Elements
             }
             else
             {
-                PowerAvailable = Math.Clamp(_energyBuffer.Charge, 0f, PowerTarget);
+                PowerAvailable = Math.Max(_energyBuffer.Charge, 0f);
             }
         }
 
@@ -88,7 +90,7 @@ namespace Hardwired.Simulation.Electrical.Elements
 
             _energyBuffer.Charge -= power;
 
-            PowerAvailable = Math.Clamp(_energyBuffer.Charge, 0f, PowerTarget);
+            PowerAvailable = Math.Max(_energyBuffer.Charge, 0f);
         }
 
         public struct PowerProfile
