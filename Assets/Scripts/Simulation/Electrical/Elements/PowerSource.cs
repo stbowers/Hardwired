@@ -14,7 +14,19 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public override Complex Current => _nortonEquivalent.Current;
 
-        public PowerProfile Profile { get; set; } = PowerProfile.Default;
+        /// <summary>
+        /// The nominal output voltage of the power source when there is no load.
+        /// </summary>
+        public double VoltageNominal { get; set; }
+
+        /// <summary>
+        /// The AC frequency this power source should generate, or 0 for DC, or null to follow the grid.
+        /// </summary>
+        public double? Frequency
+        {
+            get => _nortonEquivalent.Frequency;
+            set => _nortonEquivalent.Frequency = value;
+        }
 
         public double PowerAvailable { get; set; }
 
@@ -34,9 +46,17 @@ namespace Hardwired.Simulation.Electrical.Elements
         {
             base.UpdateState();
 
-            _nortonEquivalent.Frequency = Profile.Frequency;
-            _nortonEquivalent.Resistance = Profile.VoltageNominal * Profile.VoltageNominal / Profile.PowerNominal;
-            _nortonEquivalent.CurrentShort = PowerAvailable / Profile.VoltageNominal;
+            if (Math.Abs(PowerAvailable) < 0.1)
+            {
+                _nortonEquivalent.Resistance = Resistor.R_OPEN;
+            }
+            else
+            {
+                _nortonEquivalent.Resistance = VoltageNominal * VoltageNominal / PowerAvailable;
+            }
+
+            _nortonEquivalent.CurrentShort = PowerAvailable / VoltageNominal;
+
             _nortonEquivalent.UpdateState();
         }
 
@@ -45,26 +65,6 @@ namespace Hardwired.Simulation.Electrical.Elements
             base.ApplyState();
 
             _nortonEquivalent.ApplyState();
-        }
-
-        public readonly struct PowerProfile
-        {
-            public static readonly PowerProfile Default = new() { Frequency = 60f, VoltageNominal = 200f, PowerNominal = 1000f};
-
-            /// <summary>
-            /// The nominal power output of the power source.
-            /// </summary>
-            public double PowerNominal { get; init; }
-
-            /// <summary>
-            /// The nominal output voltage of the power source when there is no load.
-            /// </summary>
-            public double VoltageNominal { get; init; }
-
-            /// <summary>
-            /// The AC frequency this power source should generate, or 0 for DC, or null to follow the grid.
-            /// </summary>
-            public double? Frequency { get; init; }
         }
     }
 }

@@ -27,6 +27,8 @@ namespace Hardwired.Objects.Electrical
 
         public Complex CurrentDraw { get; private set; }
 
+        public double Charge { get; private set; }
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -34,6 +36,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Available: {PowerAvailable.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / 5000 Wt");
         }
 
         public override void AddTo(Circuit circuit)
@@ -41,7 +44,7 @@ namespace Hardwired.Objects.Electrical
             base.AddTo(circuit);
 
             var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
-            _powerSource = new(circuit, nodeA, null);
+            _powerSource = new(circuit, nodeA, null) { Frequency = 60, VoltageNominal = 160 };
         }
 
         public override void UpdateState(Circuit circuit)
@@ -50,7 +53,7 @@ namespace Hardwired.Objects.Electrical
 
             if (_powerSource != null)
             {
-                _powerSource.PowerAvailable = Device?.GetGeneratedPower(Device.PowerCableNetwork) ?? 0;
+                _powerSource.PowerAvailable = Charge;
                 _powerSource.UpdateState();
             }
         }
@@ -61,11 +64,14 @@ namespace Hardwired.Objects.Electrical
 
             _powerSource?.ApplyState();
 
-            PowerAvailable = _powerSource?.PowerAvailable ?? 0;
+            PowerAvailable = Device?.GetGeneratedPower(Device.PowerCableNetwork) ?? 0;
             PowerDraw = _powerSource?.Power.Real ?? 0;
             PowerFactor = _powerSource?.PowerFactor ?? 0;
             VoltageDelta = _powerSource?.VoltageDelta ?? 0;
             CurrentDraw = _powerSource?.Current ?? 0;
+
+            Charge += PowerAvailable + PowerDraw;
+            Charge = Math.Clamp(Charge, 0f, 5000f);
 
             Device?.UsePower(Device.PowerCableNetwork, (float)PowerDraw);
         }

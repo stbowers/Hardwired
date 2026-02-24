@@ -163,7 +163,7 @@ namespace Hardwired.Objects.Electrical
             // it's the voltage drop across the resistor), causing current/power to be much higher than it should be.
             // Eventually I'd like to replace the power sink with a non-linear solution that can exactly determine the voltage/current/power draw in
             // one tick, after which this shouldn't be an issue.
-            // dT = Math.Min(dT, 10f);
+            dT = Math.Min(dT, 10f);
 
             // Update temperature
             Temperature += dT;

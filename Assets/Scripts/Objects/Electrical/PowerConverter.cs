@@ -60,7 +60,7 @@ namespace Hardwired.Objects.Electrical
                 var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
 
                 _powerSink?.Dispose();
-                _powerSink = new(circuit, nodeA, null) { Profile = new() { VoltageNominal = 20, VoltageMin = 0, VoltageMax = 800 }, PowerTarget = 5000 };
+                _powerSink = new(circuit, nodeA, null) { PowerTarget = 5000 };
             }
 
             if (circuit == OutputCircuit)
@@ -68,7 +68,7 @@ namespace Hardwired.Objects.Electrical
                 var nodeC = GetNode(circuit, PowerOutput, WireType.Line1);
 
                 _powerSource?.Dispose();
-                _powerSource = new(circuit, nodeC, null);
+                _powerSource = new(circuit, nodeC, null) { Frequency = 60 };
             }
         }
 
@@ -94,7 +94,7 @@ namespace Hardwired.Objects.Electrical
             if (circuit == _powerSource?.Circuit)
             {
                 _powerSource.PowerAvailable = _powerSink?.EnergyBuffer.Charge ?? 0;
-                _powerSource.Profile = new() { Frequency = 60, PowerNominal = Math.Max(_powerSource.PowerAvailable, 1), VoltageNominal = TargetOutputVoltage };
+                _powerSource.VoltageNominal = TargetOutputVoltage;
 
                 _powerSource.UpdateState();
             }
