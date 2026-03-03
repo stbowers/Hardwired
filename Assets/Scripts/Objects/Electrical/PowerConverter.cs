@@ -40,15 +40,19 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
+            stringBuilder.AppendLine($"Produces a stable AC output voltage, provided the input voltage remains within its operating range.");
+            stringBuilder.AppendLine($"Conceptually similar to a multi-tap transformer, variable transformer, or rectifier + inverter.");
+            stringBuilder.AppendLine($"Modeled internally as a power sink on the input and a power source on the output, connected by an energy buffer.");
+            stringBuilder.AppendLine($"The input stage charges the internal buffer, and the output stage draws power from it.");
+            stringBuilder.AppendLine($"The buffer settles into equilibrium when input power equals output power.");
+            stringBuilder.AppendLine($"Electrically isolates the input and output networks; unlike a fixed transformer, power (including reactive power) cannot flow from output back to input.");
+
+            stringBuilder.AppendLine($"\n---\n");
+
             stringBuilder.AppendLine($"ΔV(In): {InputVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV(Out): {OutputVoltage.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"I(In): {InputCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | I(Out): {OutputCurrent.ToStringPrefix(OutputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"P(In): {InputPower.ToStringPrefix("VA", "yellow")} | P(Out): {OutputPower.ToStringPrefix("VA", "yellow")}");
             stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("VAt", "yellow")}");
-
-            stringBuilder.AppendLine($"src.Resistance: {_powerSource?.NortonEquivalent.Resistance.ToStringPrefix("Ω", "yellow")}");
-            stringBuilder.AppendLine($"src.Current: {_powerSource?.NortonEquivalent.CurrentShort.ToStringPrefix("A", "yellow")}");
-            stringBuilder.AppendLine($"sink.Resistance: {_powerSink?.EnergyBuffer.Resistance.ToStringPrefix("Ω", "yellow")}");
-            stringBuilder.AppendLine($"sink.Charge: {_powerSink?.EnergyBuffer.Charge.ToStringPrefix("Wt", "yellow")} / {_powerSink?.EnergyBuffer.ChargeMaximum.ToStringPrefix("Wt", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)

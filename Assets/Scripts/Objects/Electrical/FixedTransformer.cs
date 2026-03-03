@@ -38,6 +38,15 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
+            stringBuilder.AppendLine($"Transforms AC power from one voltage level to another.");
+            stringBuilder.AppendLine($"Modeled as two coupled inductors with a fixed winding ratio of 1:N.");
+            stringBuilder.AppendLine($"The output voltage is N times the input voltage.");
+            stringBuilder.AppendLine($"The output current is 1/N times the input current.");
+            stringBuilder.AppendLine($"Power is conserved (ignoring losses), so increasing voltage reduces current proportionally.");
+            stringBuilder.AppendLine($"Higher voltages are ideal for long transmission lines, since lower current reduces resistive losses in cables.");
+
+            stringBuilder.AppendLine($"\n---\n");
+
             stringBuilder.AppendLine($"N: {Ratio}");
             stringBuilder.AppendLine($"ΔV(In): {PrimaryVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV(Out): {SecondaryVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"I(In): {PrimaryCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | I(Out): {SecondaryCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");

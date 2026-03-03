@@ -24,7 +24,9 @@ namespace Hardwired.Objects.Electrical
         /// <summary>
         /// The ratio of power that should be equalized between multiple batteries per tick
         /// </summary>
-        public double BalanceRatio { get; set; }= 0.01;
+        public double BalanceRatio { get; set; } = 0.01;
+
+        public double MaximumVoltage { get; set; } = 200;
 
         public double Charge { get; private set; }
 
@@ -42,13 +44,19 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / {MaxCharge.ToStringPrefix("Wt", "yellow")}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current: {Current.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"Power: {Power.ToStringPrefix("W", "yellow")}");
-            stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"Stores electrical energy in the circuit.");
+            stringBuilder.AppendLine($"Modeled as a non-ideal voltage source with a series resistance.");
+            stringBuilder.AppendLine($"The internal voltage is set each tick by the state of charge (SoC).");
+            stringBuilder.AppendLine($"The voltage is 0 V when fully discharged and V_max when fully charged.");
+            stringBuilder.AppendLine($"If the internal voltage is below the circuit voltage, current flows into the battery and it charges.");
+            stringBuilder.AppendLine($"If the internal voltage is above the circuit voltage, current flows out of the battery and it discharges.");
 
-            stringBuilder.AppendLine($"src.Resistance: {_energyBuffer?.NortonEquivalent.Resistance.ToStringPrefix("Ω", "yellow")}");
-            stringBuilder.AppendLine($"src.Current: {_energyBuffer?.NortonEquivalent.CurrentShort.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"\n---\n");
+
+            stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / {MaxCharge.ToStringPrefix("Wt", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | V_max: {MaximumVoltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | Power: {Power.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Internal Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
@@ -59,9 +67,9 @@ namespace Hardwired.Objects.Electrical
 
             _energyBuffer?.Dispose();
             _energyBuffer = new(circuit, nodeA, null);
-            _energyBuffer.VoltageMaximum = 400f;
-            _energyBuffer.CurrentMaximum = 50f;
-            _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
+            _energyBuffer.VoltageMaximum = MaximumVoltage;
+            _energyBuffer.CurrentMaximum = 40f;
+            _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Tangent;
 
             if (Device is Assets.Scripts.Objects.Electrical.Battery battery)
             {

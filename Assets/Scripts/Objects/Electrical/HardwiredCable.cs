@@ -53,6 +53,11 @@ namespace Hardwired.Objects.Electrical
         public double MaximumVoltageRating;
 
         /// <summary>
+        /// The maximum rated current this cable can sustain before it burns up.
+        /// </summary>
+        public double MaximumCurrentRating { get; set; }
+
+        /// <summary>
         /// The current temperature (K) of this segment of cable.
         /// Will slowly rise due to resitive heating
         /// </summary>
@@ -74,11 +79,25 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
+            stringBuilder.AppendLine($"Transfers electrical power between devices.");
+            stringBuilder.AppendLine($"Each cable is modeled as a resistor, causing a voltage drop that increases with current flow.");
+            stringBuilder.AppendLine($"Power dissipated as heat is given by P = I^2 · R.");
+            stringBuilder.AppendLine($"Resistive heating raises the cable's temperature; if it exceeds 100 °C, the cable will burn up.");
+            stringBuilder.AppendLine($"Each cable has a maximum rated current, limited by heating from resistive losses.");
+            stringBuilder.AppendLine($"Each cable also has a maximum rated voltage to ground, representing insulation strength.");
+            stringBuilder.AppendLine($"If the voltage to ground exceeds the rated value, the cable may fail due to an arc fault.");
+            stringBuilder.AppendLine($"ΔV(avg) is the average voltage drop between the cable's nodes.");
+            stringBuilder.AppendLine($"Vg(avg) is the average voltage to ground.");
+
+            stringBuilder.AppendLine($"\n---\n");
+
             double tCelsius = Temperature - 273.15;
 
-            stringBuilder.AppendLine($"ΔV(avg): {VoltageDeltaAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Vg(avg): {VoltageAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
-            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")} | Power loss: {PowerDissapated.ToStringPrefix("W", "yellow")}");
-            stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")}");
+            stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")} | I_max: {MaximumCurrentRating.ToStringPrefix("A", "yellow")}");
+            stringBuilder.AppendLine($"Vg(avg): {VoltageAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Vg_max: {MaximumVoltageRating.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"ΔV(avg): {VoltageDeltaAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")} | Dissapated: {PowerDissapated.ToStringPrefix("W", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)

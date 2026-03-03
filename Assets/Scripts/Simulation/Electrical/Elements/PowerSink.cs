@@ -54,7 +54,7 @@ namespace Hardwired.Simulation.Electrical.Elements
             base.UpdateState();
 
             _energyBuffer.Resistance = (Profile.VoltageNominal * Profile.VoltageNominal) / PowerTarget;
-            _energyBuffer.ChargeMaximum = (Profile.VoltageMax / Profile.VoltageNominal) * PowerTarget;
+            _energyBuffer.ChargeMaximum = 2 * PowerTarget;
 
             _energyBuffer.VoltageMaximum = Profile.VoltageMax;
             _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;

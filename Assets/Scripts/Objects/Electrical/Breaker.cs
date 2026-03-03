@@ -36,6 +36,15 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
+            stringBuilder.AppendLine($"Interrupts or allows power flow in the circuit.");
+            stringBuilder.AppendLine($"When closed, it is modeled as a small series resistance between input and output.");
+            stringBuilder.AppendLine($"When open, it is modeled as a very large resistance to prevent current flow.");
+            stringBuilder.AppendLine($"A large but finite open resistance improves numerical stability in the circuit solver.");
+            stringBuilder.AppendLine($"The over-current varient will automatically trip open if current exceeds a configurable threshold.");
+            stringBuilder.AppendLine($"The under-voltage varient will automatically trip open if voltage to ground falls below a set threshold.");
+
+            stringBuilder.AppendLine($"\n---\n");
+
             stringBuilder.AppendLine($"Closed: {Closed}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | VA: {VoltageA.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | VB: {VoltageB.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")}");

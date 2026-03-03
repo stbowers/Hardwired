@@ -17,7 +17,7 @@ namespace Hardwired.Objects.Electrical
     {
         private PowerSource? _powerSource;
 
-        public double PowerAvailable { get; private set; }
+        public double PowerGenerated { get; private set; }
 
         public double PowerDraw { get; private set; }
 
@@ -29,14 +29,29 @@ namespace Hardwired.Objects.Electrical
 
         public double Charge { get; private set; }
 
+        public double ChargeMaximum { get; set; } = 2500;
+
+        public double VoltageMaximum { get; set; } = 200;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Power Available: {PowerAvailable.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Supplies electrical power to the circuit.");
+            stringBuilder.AppendLine($"Modeled as a non-ideal voltage source with a maximum output voltage and a series power-limiting resistor.");
+            stringBuilder.AppendLine($"Includes an internal energy buffer that is charged each tick by generated power and discharged by the load.");
+            stringBuilder.AppendLine($"As current increases, the series resistance causes the output voltage to droop.");
+            stringBuilder.AppendLine($"Maximum power draw occurs at 1/2 · V_max and is limited by the available energy in the buffer.");
+            stringBuilder.AppendLine($"The internal buffer smooths grid transients and is computationally cheaper to simulate than a fully non-linear power source/sink.");
+
+            stringBuilder.AppendLine($"\n---\n");
+
+            stringBuilder.AppendLine($"Power Generated: {PowerGenerated.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / 5000 Wt");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV_max: {VoltageMaximum.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"Internal resistance: {_powerSource?.NortonEquivalent.Resistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"Internal Buffer: {Charge.ToStringPrefix("Wt", "yellow")} / {ChargeMaximum.ToStringPrefix("Wt", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
@@ -44,7 +59,7 @@ namespace Hardwired.Objects.Electrical
             base.AddTo(circuit);
 
             var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
-            _powerSource = new(circuit, nodeA, null) { Frequency = 60, VoltageNominal = 160 };
+            _powerSource = new(circuit, nodeA, null) { Frequency = 60, VoltageNominal = VoltageMaximum };
         }
 
         public override void UpdateState(Circuit circuit)
@@ -64,14 +79,14 @@ namespace Hardwired.Objects.Electrical
 
             _powerSource?.ApplyState();
 
-            PowerAvailable = Device?.GetGeneratedPower(Device.PowerCableNetwork) ?? 0;
+            PowerGenerated = Device?.GetGeneratedPower(Device.PowerCableNetwork) ?? 0;
             PowerDraw = _powerSource?.Power.Real ?? 0;
             PowerFactor = _powerSource?.PowerFactor ?? 0;
             VoltageDelta = _powerSource?.VoltageDelta ?? 0;
             CurrentDraw = _powerSource?.Current ?? 0;
 
-            Charge += PowerAvailable + PowerDraw;
-            Charge = Math.Clamp(Charge, 0f, 5000f);
+            Charge += PowerGenerated + PowerDraw;
+            Charge = Math.Clamp(Charge, 0f, ChargeMaximum);
 
             Device?.UsePower(Device.PowerCableNetwork, (float)PowerDraw);
         }
