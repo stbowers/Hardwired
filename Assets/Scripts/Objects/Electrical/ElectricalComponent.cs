@@ -72,9 +72,9 @@ namespace Hardwired.Objects.Electrical
 
         protected List<Connection>? OpenEnds => Device?.OpenEnds ?? Cable?.OpenEnds;
 
-        public Connection? PowerInput => _powerInput ??= OpenEnds?.FirstOrDefault(c => c.ConnectionType.HasFlag(NetworkType.Power) && c.ConnectionRole != ConnectionRole.Output);
+        public virtual Connection? PowerInput => _powerInput ??= OpenEnds?.FirstOrDefault(c => c.ConnectionType.HasFlag(NetworkType.Power) && c.ConnectionRole != ConnectionRole.Output);
 
-        public Connection? PowerOutput => _powerOutput ??= OpenEnds?.FirstOrDefault(c => c.ConnectionType.HasFlag(NetworkType.Power) && c.ConnectionRole != ConnectionRole.Input && c != PowerInput);
+        public virtual Connection? PowerOutput => _powerOutput ??= OpenEnds?.FirstOrDefault(c => c.ConnectionType.HasFlag(NetworkType.Power) && c.ConnectionRole != ConnectionRole.Input && c != PowerInput);
 
         public virtual Circuit? InputCircuit => (PowerInput?.GetCable()?.CableNetwork?.PowerTick as HardwiredPowerTick)?.CircuitTick?.Circuit;
 

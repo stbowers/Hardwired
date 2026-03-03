@@ -79,17 +79,21 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Transfers electrical power between devices.");
-            stringBuilder.AppendLine($"Each cable is modeled as a resistor, causing a voltage drop that increases with current flow.");
-            stringBuilder.AppendLine($"Power dissipated as heat is given by P = I^2 · R.");
-            stringBuilder.AppendLine($"Resistive heating raises the cable's temperature; if it exceeds 100 °C, the cable will burn up.");
-            stringBuilder.AppendLine($"Each cable has a maximum rated current, limited by heating from resistive losses.");
-            stringBuilder.AppendLine($"Each cable also has a maximum rated voltage to ground, representing insulation strength.");
-            stringBuilder.AppendLine($"If the voltage to ground exceeds the rated value, the cable may fail due to an arc fault.");
-            stringBuilder.AppendLine($"ΔV(avg) is the average voltage drop between the cable's nodes.");
-            stringBuilder.AppendLine($"Vg(avg) is the average voltage to ground.");
+            // If this is the only component, add a description (otherwise, only show debug values so we don't take up too much space...)
+            if (GetComponents<ElectricalComponent>().Length == 1)
+            {
+                stringBuilder.AppendLine($"Transfers electrical power between devices.");
+                stringBuilder.AppendLine($"Each cable is modeled as a resistor, causing a voltage drop that increases with current flow.");
+                stringBuilder.AppendLine($"Power dissipated as heat is given by P = I^2 · R.");
+                stringBuilder.AppendLine($"Resistive heating raises the cable's temperature; if it exceeds 100 °C, the cable will burn up.");
+                stringBuilder.AppendLine($"Each cable has a maximum rated current, limited by heating from resistive losses.");
+                stringBuilder.AppendLine($"Each cable also has a maximum rated voltage to ground, representing insulation strength.");
+                stringBuilder.AppendLine($"If the voltage to ground exceeds the rated value, the cable may fail due to an arc fault.");
+                stringBuilder.AppendLine($"ΔV(avg) is the average voltage drop between the cable's nodes.");
+                stringBuilder.AppendLine($"Vg(avg) is the average voltage to ground.");
 
-            stringBuilder.AppendLine($"\n---\n");
+                stringBuilder.AppendLine($"\n---\n");
+            }
 
             double tCelsius = Temperature - 273.15;
 
@@ -98,6 +102,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Vg(avg): {VoltageAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Vg_max: {MaximumVoltageRating.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"ΔV(avg): {VoltageDeltaAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")} | Dissapated: {PowerDissapated.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"dbg: {_resistors.FirstOrDefault()?.NodeA?.Value.Index} | {_resistors.FirstOrDefault()?.NodeB?.Value.Index}");
         }
 
         public override void AddTo(Circuit circuit)

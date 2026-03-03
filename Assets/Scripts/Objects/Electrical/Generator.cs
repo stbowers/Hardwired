@@ -7,6 +7,7 @@ using System.Text;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
+using Hardwired.Networks;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility.Extensions;
@@ -33,18 +34,24 @@ namespace Hardwired.Objects.Electrical
 
         public double VoltageMaximum { get; set; } = 200;
 
+        public override Connection? PowerOutput => base.PowerOutput ?? base.PowerInput;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Supplies electrical power to the circuit.");
-            stringBuilder.AppendLine($"Modeled as a non-ideal voltage source with a maximum output voltage and a series power-limiting resistor.");
-            stringBuilder.AppendLine($"Includes an internal energy buffer that is charged each tick by generated power and discharged by the load.");
-            stringBuilder.AppendLine($"As current increases, the series resistance causes the output voltage to droop.");
-            stringBuilder.AppendLine($"Maximum power draw occurs at 1/2 · V_max and is limited by the available energy in the buffer.");
-            stringBuilder.AppendLine($"The internal buffer smooths grid transients and is computationally cheaper to simulate than a fully non-linear power source/sink.");
+            // If this is the only component, add a description (otherwise, only show debug values so we don't take up too much space...)
+            if (GetComponents<ElectricalComponent>().Length == 1)
+            {
+                stringBuilder.AppendLine($"Supplies electrical power to the circuit.");
+                stringBuilder.AppendLine($"Modeled as a non-ideal voltage source with a maximum output voltage and a series power-limiting resistor.");
+                stringBuilder.AppendLine($"Includes an internal energy buffer that is charged each tick by generated power and discharged by the load.");
+                stringBuilder.AppendLine($"As current increases, the series resistance causes the output voltage to droop.");
+                stringBuilder.AppendLine($"Maximum power draw occurs at 1/2 · V_max and is limited by the available energy in the buffer.");
+                stringBuilder.AppendLine($"The internal buffer smooths grid transients and is computationally cheaper to simulate than a fully non-linear power source/sink.");
 
-            stringBuilder.AppendLine($"\n---\n");
+                stringBuilder.AppendLine($"\n---\n");
+            }
 
             stringBuilder.AppendLine($"Power Generated: {PowerGenerated.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
@@ -52,21 +59,31 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV_max: {VoltageMaximum.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Internal resistance: {_powerSource?.NortonEquivalent.Resistance.ToStringPrefix("Ω", "yellow")}");
             stringBuilder.AppendLine($"Internal Buffer: {Charge.ToStringPrefix("Wt", "yellow")} / {ChargeMaximum.ToStringPrefix("Wt", "yellow")}");
+            stringBuilder.AppendLine($"output circuit: {OutputCircuit?.Id} ({_powerSource?.Circuit.Id} -- {_powerSource?.NodeA?.Value.Index})");
         }
 
         public override void AddTo(Circuit circuit)
         {
             base.AddTo(circuit);
 
-            var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
-            _powerSource = new(circuit, nodeA, null) { Frequency = 60, VoltageNominal = VoltageMaximum };
+            if (OutputCircuit == circuit)
+            {
+                if (_powerSource != null)
+                {
+                    RemoveFrom(_powerSource.Circuit);
+                }
+
+                var nodeA = GetNode(circuit, PowerOutput, WireType.Line1);
+
+                _powerSource = new(circuit, nodeA, null) { Frequency = 60, VoltageNominal = VoltageMaximum };
+            }
         }
 
         public override void UpdateState(Circuit circuit)
         {
             base.UpdateState(circuit);
 
-            if (_powerSource != null)
+            if (_powerSource != null && OutputCircuit == circuit)
             {
                 _powerSource.PowerAvailable = Charge;
                 _powerSource.UpdateState();
@@ -77,26 +94,35 @@ namespace Hardwired.Objects.Electrical
         {
             base.ApplyState(circuit);
 
-            _powerSource?.ApplyState();
+            if (OutputCircuit == circuit)
+            {
+                _powerSource?.ApplyState();
 
-            PowerGenerated = Device?.GetGeneratedPower(Device.PowerCableNetwork) ?? 0;
-            PowerDraw = _powerSource?.Power.Real ?? 0;
-            PowerFactor = _powerSource?.PowerFactor ?? 0;
-            VoltageDelta = _powerSource?.VoltageDelta ?? 0;
-            CurrentDraw = _powerSource?.Current ?? 0;
+                PowerGenerated = Device?.GetGeneratedPower(PowerOutput?.GetCable()?.CableNetwork) ?? 0;
+                PowerDraw = _powerSource?.Power.Real ?? 0;
+                PowerFactor = _powerSource?.PowerFactor ?? 0;
+                VoltageDelta = _powerSource?.VoltageDelta ?? 0;
+                CurrentDraw = _powerSource?.Current ?? 0;
 
-            Charge += PowerGenerated + PowerDraw;
-            Charge = Math.Clamp(Charge, 0f, ChargeMaximum);
+                // Update internal charge
+                Charge += PowerDraw;
+                var powerUsed = Math.Clamp(PowerGenerated, 0, ChargeMaximum - Charge);
+                Charge += powerUsed;
+                Charge = Math.Clamp(Charge, 0f, ChargeMaximum);
 
-            Device?.UsePower(Device.PowerCableNetwork, (float)PowerDraw);
+                Device?.UsePower(Device.PowerCableNetwork, (float)powerUsed);
+            }
         }
 
         public override void RemoveFrom(Circuit circuit)
         {
             base.RemoveFrom(circuit);
 
-            _powerSource?.Dispose();
-            _powerSource = null;
+            if (circuit == _powerSource?.Circuit)
+            {
+                _powerSource?.Dispose();
+                _powerSource = null;
+            }
         }
     }
 }

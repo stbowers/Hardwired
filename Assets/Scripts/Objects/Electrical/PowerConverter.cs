@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
 using Assets.Scripts.Networks;
+using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
@@ -20,7 +21,7 @@ namespace Hardwired.Objects.Electrical
         private PowerSink? _powerSink;
         private PowerSource? _powerSource;
 
-        public double TargetOutputVoltage => (Device as Assets.Scripts.Objects.Electrical.Transformer)?.Setting ?? 0.0;
+        public double TargetOutputVoltage => (Device as Assets.Scripts.Objects.Electrical.Transformer)?.Setting ?? 200.0;
 
         public Complex InputVoltage { get; private set; }
 
@@ -40,14 +41,18 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Produces a stable AC output voltage, provided the input voltage remains within its operating range.");
-            stringBuilder.AppendLine($"Conceptually similar to a multi-tap transformer, variable transformer, or rectifier + inverter.");
-            stringBuilder.AppendLine($"Modeled internally as a power sink on the input and a power source on the output, connected by an energy buffer.");
-            stringBuilder.AppendLine($"The input stage charges the internal buffer, and the output stage draws power from it.");
-            stringBuilder.AppendLine($"The buffer settles into equilibrium when input power equals output power.");
-            stringBuilder.AppendLine($"Electrically isolates the input and output networks; unlike a fixed transformer, power (including reactive power) cannot flow from output back to input.");
+            // If this is the only component, add a description (otherwise, only show debug values so we don't take up too much space...)
+            if (GetComponents<ElectricalComponent>().Length == 1)
+            {
+                stringBuilder.AppendLine($"Produces a stable AC output voltage, provided the input voltage remains within its operating range.");
+                stringBuilder.AppendLine($"Conceptually similar to a multi-tap transformer, variable transformer, or rectifier + inverter.");
+                stringBuilder.AppendLine($"Modeled internally as a power sink on the input and a power source on the output, connected by an energy buffer.");
+                stringBuilder.AppendLine($"The input stage charges the internal buffer, and the output stage draws power from it.");
+                stringBuilder.AppendLine($"The buffer settles into equilibrium when input power equals output power.");
+                stringBuilder.AppendLine($"Electrically isolates the input and output networks; unlike a fixed transformer, power (including reactive power) cannot flow from output back to input.");
 
-            stringBuilder.AppendLine($"\n---\n");
+                stringBuilder.AppendLine($"\n---\n");
+            }
 
             stringBuilder.AppendLine($"ΔV(In): {InputVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV(Out): {OutputVoltage.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"I(In): {InputCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | I(Out): {OutputCurrent.ToStringPrefix(OutputCircuit?.Frequency, "A", "yellow")}");
@@ -97,9 +102,16 @@ namespace Hardwired.Objects.Electrical
 
             if (circuit == _powerSource?.Circuit)
             {
-                _powerSource.PowerAvailable = _powerSink?.EnergyBuffer.Charge ?? 0;
-                _powerSource.VoltageNominal = TargetOutputVoltage;
+                if (Device is AreaPowerControl apc)
+                {
+                    _powerSource.PowerAvailable = apc.Battery?.PowerStored ?? 0f;
+                }
+                else
+                {
+                    _powerSource.PowerAvailable = _powerSink?.EnergyBuffer.Charge ?? 0;
+                }
 
+                _powerSource.VoltageNominal = TargetOutputVoltage;
                 _powerSource.UpdateState();
             }
         }
@@ -119,11 +131,26 @@ namespace Hardwired.Objects.Electrical
             if (circuit == _powerSink?.Circuit)
             {
                 _powerSink.ApplyState();
-                _powerSink.UsePower(-OutputPower);
+
+                if (Device is AreaPowerControl apc && apc.Battery != null)
+                {
+                    var powerUsed = Math.Clamp(apc.Battery.PowerMaximum - apc.Battery.PowerStored, 0, EnergyBuffer);
+                    apc.Battery.PowerStored += (float)powerUsed;
+                    _powerSink.UsePower(powerUsed);
+                }
             }
 
             if (circuit == _powerSource?.Circuit)
             {
+                if (Device is AreaPowerControl apc && apc.Battery != null)
+                {
+                    apc.Battery.PowerStored += (float)OutputPower;
+                }
+                else
+                {
+                    _powerSink?.UsePower(-OutputPower);
+                }
+
                 _powerSource.ApplyState();
             }
 

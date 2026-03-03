@@ -37,19 +37,19 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            stringBuilder.AppendLine($"Consumes electrical power from the circuit.");
-            stringBuilder.AppendLine($"Modeled as a constant impedance (resistive or resistive + reactive) in series with a controllable voltage source.");
-            stringBuilder.AppendLine($"Includes an internal energy buffer charged by power flowing through the impedance and discharged by the device's power demand.");
-            stringBuilder.AppendLine($"As the buffer charges, the internal voltage source increases, pushing back on the circuit and reducing current draw on the next tick.");
-            stringBuilder.AppendLine($"The system settles into equilibrium when input power equals the device's power consumption.");
-            stringBuilder.AppendLine($"Each device has a minimum design voltage; below this, it will not draw power.");
-            stringBuilder.AppendLine($"Each device also has a maximum design voltage; above this, it will not draw power.");
-            stringBuilder.AppendLine($"Each device has a nominal design voltage at which the impedance is sized to draw the rated power.");
-            stringBuilder.AppendLine($"If input voltage is above nominal (but below maximum), excess power charges the buffer until equilibrium is reached.");
-            stringBuilder.AppendLine($"If input voltage is below nominal (but above minimum), the device enters a brownout state where available power is limited.");
-            stringBuilder.AppendLine($"During brownout, devices may flicker, shut off intermittently, or reduce performance depending on available buffer energy.");
+            // If this is the only component, add a description (otherwise, only show debug values so we don't take up too much space...)
+            if (GetComponents<ElectricalComponent>().Length == 1)
+            {
+                stringBuilder.AppendLine($"Consumes electrical power from the circuit.");
+                stringBuilder.AppendLine($"Modeled as a constant impedance (resistive or resistive + reactive) in series with a controllable voltage source, and an internal energy buffer.");
+                stringBuilder.AppendLine($"As the energy buffer charges, the internal voltage source increases, pushing back on the circuit and reducing current draw on the next tick.");
+                stringBuilder.AppendLine($"The system settles into equilibrium when input power equals the device's power consumption.");
+                stringBuilder.AppendLine($"Each device has a nominal, minimum, and maximum design voltage; if voltage is above maximum or below minimum, it will not draw power.");
+                stringBuilder.AppendLine($"If input voltage is above nominal (but below maximum), excess power charges the buffer until equilibrium is reached.");
+                stringBuilder.AppendLine($"If input voltage is below nominal (but above minimum), the device enters a brownout state where available power is limited.");
 
-            stringBuilder.AppendLine($"\n---\n");
+                stringBuilder.AppendLine($"\n---\n");
+            }
 
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
