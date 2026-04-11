@@ -53,11 +53,11 @@ namespace Hardwired.Simulation.Electrical.Elements
         {
             base.UpdateState();
 
-            _energyBuffer.Resistance = (Profile.VoltageNominal * Profile.VoltageNominal) / PowerTarget;
-            _energyBuffer.ChargeMaximum = 2.5 * PowerTarget;
+            // _energyBuffer.Resistance = (Profile.VoltageNominal * Profile.VoltageNominal) / PowerTarget;
+            // _energyBuffer.ChargeMaximum = 2.5 * PowerTarget;
 
-            _energyBuffer.VoltageMaximum = 1.25 * Profile.VoltageMax;
-            _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
+            // _energyBuffer.VoltageMaximum = 1.25 * Profile.VoltageMax;
+            // _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
 
             // - A non-ideal voltage source at max power output will show a voltage of VoltageNominal/2
             //   - Size resistor to draw power target at VoltageNominal/2
@@ -66,11 +66,11 @@ namespace Hardwired.Simulation.Electrical.Elements
             // ChargeMaximum = 4 * PowerTarget;
             // VoltageMaximum = 2 * VoltageNominal;
 
-            // _energyBuffer.Resistance = (Profile.VoltageNominal * Profile.VoltageNominal) / (4 * PowerTarget);
-            // _energyBuffer.ChargeMaximum = 4 * PowerTarget;
+            _energyBuffer.Resistance = (Profile.VoltageMax * Profile.VoltageMax) / (4 * PowerTarget);
+            _energyBuffer.ChargeMaximum = 4 * PowerTarget;
 
-            // _energyBuffer.VoltageMaximum = 2 * Profile.VoltageNominal;
-            // _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
+            _energyBuffer.VoltageMaximum = 2 * Profile.VoltageMax;
+            _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
 
             _energyBuffer.UpdateState();
         }
@@ -108,13 +108,13 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public struct PowerProfile
         {
-            public static readonly PowerProfile Default = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0f, Capacitance = 0f, MinimumPowerDrawRatio = 1};
+            public static readonly PowerProfile Default = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0f, Capacitance = 0f, MinimumPowerDrawRatio = 0.1};
 
-            public static readonly PowerProfile SmallMotor = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0.2f, Capacitance = 0f, MinimumPowerDrawRatio = 1};
+            public static readonly PowerProfile SmallMotor = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0.2f, Capacitance = 0f, MinimumPowerDrawRatio = 0.1};
 
-            public static readonly PowerProfile LargeMotor = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0.5f, Capacitance = 0f, MinimumPowerDrawRatio = 1};
+            public static readonly PowerProfile LargeMotor = new() { Frequency = 60f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0.5f, Capacitance = 0f, MinimumPowerDrawRatio = 0.1};
 
-            public static readonly PowerProfile LogicDevice = new() { Frequency = 0f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0f, Capacitance = 0f, MinimumPowerDrawRatio = 1};
+            public static readonly PowerProfile LogicDevice = new() { Frequency = 0f, VoltageMin = 50f, VoltageMax = 200f, VoltageNominal = 100f, Inductance = 0f, Capacitance = 0f, MinimumPowerDrawRatio = 0.1};
 
 
             /// <summary>

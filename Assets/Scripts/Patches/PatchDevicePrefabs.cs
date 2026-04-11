@@ -45,7 +45,8 @@ namespace Hardwired.Patches
                 d.GetOrAddComponent<HardwiredBattery>();
             },
             [typeof(AreaPowerControl)] = d => {
-                d.GetOrAddComponent<PowerConverter>();
+                d.GetOrAddComponent<DeviceLoad>();
+                d.GetOrAddComponent<Generator>();
             }
         };
 

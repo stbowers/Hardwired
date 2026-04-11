@@ -54,7 +54,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("Wt", "yellow")} / {(PowerTarget * 2).ToStringPrefix("Wt", "yellow")}");
+            stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("Wt", "yellow")} / {(_powerSink?.EnergyBuffer.ChargeMaximum ?? 0).ToStringPrefix("Wt", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
@@ -63,9 +63,17 @@ namespace Hardwired.Objects.Electrical
 
             _device ??= GetComponent<Device>();
 
-            var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
+            if (InputCircuit == circuit)
+            {
+                if (_powerSink != null)
+                {
+                    RemoveFrom(_powerSink.Circuit);
+                }
 
-            _powerSink = new(circuit, nodeA, null);
+                var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
+
+                _powerSink = new(circuit, nodeA, null);
+            }
         }
 
         public override void UpdateState(Circuit circuit)
@@ -74,7 +82,7 @@ namespace Hardwired.Objects.Electrical
 
             if (_powerSink != null)
             {
-                PowerTarget = _device?.GetUsedPower(_device.PowerCableNetwork) ?? 0f;
+                PowerTarget = _device?.GetUsedPower(InputCableNetwork) ?? 0f;
 
                 _powerSink.Profile = PowerProfile;
                 _powerSink.PowerTarget = PowerTarget;

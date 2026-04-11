@@ -12,6 +12,7 @@ using Assets.Scripts.Util;
 using Hardwired.Networks;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Utility;
+using Hardwired.Utility.Extensions;
 using TerrainSystem;
 using UnityEngine;
 
@@ -64,8 +65,6 @@ namespace Hardwired.Objects.Electrical
         private Connection? _powerInput;
         private Connection? _powerOutput;
         
-        public Dictionary<(Circuit circuit, Connection connection, WireType wireType), RefCounted<MNASolver.Unknown>> Nodes = new();
-
         public Device? Device => _device ??= GetComponent<Device>();
 
         public Cable? Cable => _cable ??= GetComponent<Cable>();
@@ -76,9 +75,13 @@ namespace Hardwired.Objects.Electrical
 
         public virtual Connection? PowerOutput => _powerOutput ??= OpenEnds?.FirstOrDefault(c => c.ConnectionType.HasFlag(NetworkType.Power) && c.ConnectionRole != ConnectionRole.Input && c != PowerInput);
 
-        public virtual Circuit? InputCircuit => (PowerInput?.GetCable()?.CableNetwork?.PowerTick as HardwiredPowerTick)?.CircuitTick?.Circuit;
+        public virtual CableNetwork? InputCableNetwork => PowerInput?.GetCable()?.CableNetwork;
 
-        public virtual Circuit? OutputCircuit => (PowerOutput?.GetCable()?.CableNetwork?.PowerTick as HardwiredPowerTick)?.CircuitTick?.Circuit;
+        public virtual CableNetwork? OutputCableNetwork => PowerOutput?.GetCable()?.CableNetwork;
+
+        public virtual Circuit? InputCircuit => (InputCableNetwork?.PowerTick as HardwiredPowerTick)?.CircuitTick?.Circuit;
+
+        public virtual Circuit? OutputCircuit => (OutputCableNetwork?.PowerTick as HardwiredPowerTick)?.CircuitTick?.Circuit;
 
         /// <summary>
         /// For debugging - add info to the passive tooltip
@@ -153,12 +156,19 @@ namespace Hardwired.Objects.Electrical
         /// <param name="circuit"></param>
         public virtual void RemoveFrom(Circuit circuit)
         {
-            foreach (var port in Nodes.ToList())
+            if (this == null || !TryGetComponent<SmallGrid>(out var smallGrid))
+            {
+                return;
+            }
+
+            var nodes = smallGrid.GetNodes();
+
+            foreach (var port in nodes.ToList())
             {
                 if (port.Key.circuit != circuit) { continue; }
 
                 port.Value.Dispose();
-                Nodes.Remove(port.Key);
+                nodes.Remove(port.Key);
             }
         }
 
@@ -186,11 +196,13 @@ namespace Hardwired.Objects.Electrical
 
         protected RefCounted<MNASolver.Unknown>? GetNode(Circuit circuit, Connection? connection, WireType wireType)
         {
+            var nodes = GetComponent<SmallGrid>().GetNodes();
+
             RefCounted<MNASolver.Unknown>? node;
 
             if (connection == null) { return null; }
 
-            if (Nodes.TryGetValue((circuit, connection, wireType), out node)) { return node; }
+            if (nodes.TryGetValue((circuit, connection, wireType), out node)) { return node; }
 
             if (TryGetPeerNode(circuit, connection, wireType, out node))
             {
@@ -201,7 +213,7 @@ namespace Hardwired.Objects.Electrical
                 node = RefCounted.Create(circuit.Solver.AddUnknown());
             }
 
-            Nodes.Add((circuit, connection, wireType), node);
+            nodes.Add((circuit, connection, wireType), node);
 
             return node;
         }
@@ -210,8 +222,8 @@ namespace Hardwired.Objects.Electrical
         {
             if (TryGetComponent<SmallGrid>(out var smallGrid)
                 && connection.GetPeer() is Connection peerConnection
-                && peerConnection.Parent.TryGetComponent<ElectricalComponent>(out var peerDevice)
-                && peerDevice.Nodes.TryGetValue((circuit, peerConnection, wireType), out node))
+                && peerConnection.Parent.TryGetComponent<SmallGrid>(out var peerDevice)
+                && peerDevice.GetNodes().TryGetValue((circuit, peerConnection, wireType), out node))
             {
                 return true;
             }

@@ -37,6 +37,8 @@ namespace Hardwired.Objects.Electrical
 
         public double EnergyBuffer { get; private set; }
 
+        public StringBuilder ToolTipInfo { get; } = new();
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -57,7 +59,9 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"ΔV(In): {InputVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV(Out): {OutputVoltage.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"I(In): {InputCurrent.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | I(Out): {OutputCurrent.ToStringPrefix(OutputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"P(In): {InputPower.ToStringPrefix("VA", "yellow")} | P(Out): {OutputPower.ToStringPrefix("VA", "yellow")}");
-            stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("VAt", "yellow")}");
+            stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("VAt", "yellow")} / {(_powerSink?.EnergyBuffer.ChargeMaximum ?? 0).ToStringPrefix("VAt", "yellow")}");
+
+            stringBuilder.AppendLine(ToolTipInfo.ToString());
         }
 
         public override void AddTo(Circuit circuit)
@@ -84,6 +88,8 @@ namespace Hardwired.Objects.Electrical
         public override void UpdateState(Circuit circuit)
         {
             base.UpdateState(circuit);
+
+            ToolTipInfo.Clear();
 
             if (_powerSink != null && InputCircuit != _powerSink.Circuit)
             {
@@ -120,38 +126,46 @@ namespace Hardwired.Objects.Electrical
         {
             base.ApplyState(circuit);
 
-            InputVoltage = _powerSink?.VoltageDelta ?? 0f;
-            OutputVoltage = _powerSource?.VoltageDelta ?? 0f;
-            InputCurrent = _powerSink?.Current ?? 0f;
-            OutputCurrent = _powerSource?.Current ?? 0f;
-            InputPower = _powerSink?.Power.Real ?? 0f;
-            OutputPower = _powerSource?.Power.Real ?? 0f;
-            EnergyBuffer = _powerSink?.EnergyBuffer.Charge ?? 0f;
+            ToolTipInfo.AppendLine($"ApplyState({circuit.Id})");
 
             if (circuit == _powerSink?.Circuit)
             {
                 _powerSink.ApplyState();
 
+                InputVoltage = _powerSink.VoltageDelta;
+                InputCurrent = _powerSink.Current;
+                InputPower = _powerSink.Power.Real;
+                EnergyBuffer = _powerSink.EnergyBuffer.Charge;
+
                 if (Device is AreaPowerControl apc && apc.Battery != null)
                 {
-                    var powerUsed = Math.Clamp(apc.Battery.PowerMaximum - apc.Battery.PowerStored, 0, EnergyBuffer);
+                    var powerUsed = Math.Clamp(apc.Battery.PowerMaximum - apc.Battery.PowerStored, 0, _powerSink.PowerAvailable);
                     apc.Battery.PowerStored += (float)powerUsed;
                     _powerSink.UsePower(powerUsed);
+
+                    ToolTipInfo.AppendLine($"  - powerInput: {powerUsed}");
                 }
             }
 
             if (circuit == _powerSource?.Circuit)
             {
+                _powerSource.ApplyState();
+
+                OutputPower = _powerSource.Power.Real;
+                OutputVoltage = _powerSource.VoltageDelta;
+                OutputCurrent = _powerSource.Current;
+
                 if (Device is AreaPowerControl apc && apc.Battery != null)
                 {
-                    apc.Battery.PowerStored += (float)OutputPower;
+                    apc.Battery.PowerStored += (float)(_powerSink?.Power.Real ?? 0);
                 }
                 else
                 {
                     _powerSink?.UsePower(-OutputPower);
                 }
 
-                _powerSource.ApplyState();
+                ToolTipInfo.AppendLine($"  - powerOutput: {OutputPower}");
+
             }
 
         }

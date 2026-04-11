@@ -85,6 +85,14 @@ namespace Hardwired.Objects.Electrical
 
             if (_powerSource != null && OutputCircuit == circuit)
             {
+                PowerGenerated = Device?.GetGeneratedPower(PowerOutput?.GetCable()?.CableNetwork) ?? 0;
+
+                // Update internal charge
+                var powerUsed = Math.Clamp(PowerGenerated, 0, ChargeMaximum - Charge);
+                Charge = Math.Clamp(Charge + powerUsed, 0f, ChargeMaximum);
+
+                Device?.UsePower(OutputCableNetwork, (float)powerUsed);
+
                 _powerSource.PowerAvailable = Charge;
                 _powerSource.UpdateState();
             }
@@ -98,19 +106,13 @@ namespace Hardwired.Objects.Electrical
             {
                 _powerSource?.ApplyState();
 
-                PowerGenerated = Device?.GetGeneratedPower(PowerOutput?.GetCable()?.CableNetwork) ?? 0;
                 PowerDraw = _powerSource?.Power.Real ?? 0;
                 PowerFactor = _powerSource?.PowerFactor ?? 0;
                 VoltageDelta = _powerSource?.VoltageDelta ?? 0;
                 CurrentDraw = _powerSource?.Current ?? 0;
 
                 // Update internal charge
-                Charge += PowerDraw;
-                var powerUsed = Math.Clamp(PowerGenerated, 0, ChargeMaximum - Charge);
-                Charge += powerUsed;
-                Charge = Math.Clamp(Charge, 0f, ChargeMaximum);
-
-                Device?.UsePower(Device.PowerCableNetwork, (float)powerUsed);
+                Charge = Math.Clamp(Charge + PowerDraw, 0f, ChargeMaximum);
             }
         }
 
