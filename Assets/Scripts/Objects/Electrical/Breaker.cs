@@ -36,8 +36,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            // If this is the only component, add a description (otherwise, only show debug values so we don't take up too much space...)
-            if (GetComponents<ElectricalComponent>().Length == 1)
+            bool altKey = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+
+            if (altKey)
             {
                 stringBuilder.AppendLine($"Interrupts or allows power flow in the circuit.");
                 stringBuilder.AppendLine($"When closed, it is modeled as a small series resistance between input and output.");
@@ -46,7 +47,11 @@ namespace Hardwired.Objects.Electrical
                 stringBuilder.AppendLine($"The over-current varient will automatically trip open if current exceeds a configurable threshold.");
                 stringBuilder.AppendLine($"The under-voltage varient will automatically trip open if voltage to ground falls below a set threshold.");
 
-                stringBuilder.AppendLine($"\n---\n");
+                stringBuilder.AppendLine($"\n");
+            }
+            else
+            {
+                stringBuilder.AppendLine($"Press [alt] for description");
             }
 
             stringBuilder.AppendLine($"Closed: {Closed}");

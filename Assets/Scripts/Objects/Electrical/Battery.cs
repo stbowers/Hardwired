@@ -44,8 +44,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            // If this is the only component, add a description (otherwise, only show debug values so we don't take up too much space...)
-            if (GetComponents<ElectricalComponent>().Length == 1)
+            bool altKey = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+
+            if (altKey)
             {
                 stringBuilder.AppendLine($"Stores electrical energy in the circuit.");
                 stringBuilder.AppendLine($"Modeled as a non-ideal voltage source with a series resistance.");
@@ -54,7 +55,11 @@ namespace Hardwired.Objects.Electrical
                 stringBuilder.AppendLine($"If the internal voltage is below the circuit voltage, current flows into the battery and it charges.");
                 stringBuilder.AppendLine($"If the internal voltage is above the circuit voltage, current flows out of the battery and it discharges.");
 
-                stringBuilder.AppendLine($"\n---\n");
+                stringBuilder.AppendLine($"\n");
+            }
+            else
+            {
+                stringBuilder.AppendLine($"Press [alt] for description");
             }
 
             stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / {MaxCharge.ToStringPrefix("Wt", "yellow")}");

@@ -8,6 +8,7 @@ using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility.Extensions;
+using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
@@ -38,8 +39,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            // If this is the only component, add a description (otherwise, only show debug values so we don't take up too much space...)
-            if (GetComponents<ElectricalComponent>().Length == 1)
+            bool altKey = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+
+            if (altKey)
             {
                 stringBuilder.AppendLine($"Transforms AC power from one voltage level to another.");
                 stringBuilder.AppendLine($"Modeled as two coupled inductors with a fixed winding ratio of 1:N.");
@@ -48,7 +50,11 @@ namespace Hardwired.Objects.Electrical
                 stringBuilder.AppendLine($"Power is conserved (ignoring losses), so increasing voltage reduces current proportionally.");
                 stringBuilder.AppendLine($"Higher voltages are ideal for long transmission lines, since lower current reduces resistive losses in cables.");
 
-                stringBuilder.AppendLine($"\n---\n");
+                stringBuilder.AppendLine($"\n");
+            }
+            else
+            {
+                stringBuilder.AppendLine($"Press [alt] for description");
             }
 
             stringBuilder.AppendLine($"N: {Ratio}");

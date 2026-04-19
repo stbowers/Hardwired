@@ -37,8 +37,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            // If this is the only component, add a description (otherwise, only show debug values so we don't take up too much space...)
-            if (GetComponents<ElectricalComponent>().Length == 1)
+            bool altKey = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+
+            if (altKey)
             {
                 stringBuilder.AppendLine($"Consumes electrical power from the circuit.");
                 stringBuilder.AppendLine($"Modeled as a constant impedance (resistive or resistive + reactive) in series with a controllable voltage source, and an internal energy buffer.");
@@ -48,7 +49,11 @@ namespace Hardwired.Objects.Electrical
                 stringBuilder.AppendLine($"If input voltage is above nominal (but below maximum), excess power charges the buffer until equilibrium is reached.");
                 stringBuilder.AppendLine($"If input voltage is below nominal (but above minimum), the device enters a brownout state where available power is limited.");
 
-                stringBuilder.AppendLine($"\n---\n");
+                stringBuilder.AppendLine($"\n");
+            }
+            else
+            {
+                stringBuilder.AppendLine($"Press [alt] for description");
             }
 
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");

@@ -10,6 +10,7 @@ using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility.Extensions;
+using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
@@ -43,8 +44,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            // If this is the only component, add a description (otherwise, only show debug values so we don't take up too much space...)
-            if (GetComponents<ElectricalComponent>().Length == 1)
+            bool altKey = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+
+            if (altKey)
             {
                 stringBuilder.AppendLine($"Produces a stable AC output voltage, provided the input voltage remains within its operating range.");
                 stringBuilder.AppendLine($"Conceptually similar to a multi-tap transformer, variable transformer, or rectifier + inverter.");
@@ -53,7 +55,11 @@ namespace Hardwired.Objects.Electrical
                 stringBuilder.AppendLine($"The buffer settles into equilibrium when input power equals output power.");
                 stringBuilder.AppendLine($"Electrically isolates the input and output networks; unlike a fixed transformer, power (including reactive power) cannot flow from output back to input.");
 
-                stringBuilder.AppendLine($"\n---\n");
+                stringBuilder.AppendLine($"\n");
+            }
+            else
+            {
+                stringBuilder.AppendLine($"Press [alt] for description");
             }
 
             stringBuilder.AppendLine($"ΔV(In): {InputVoltage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV(Out): {OutputVoltage.ToStringPrefix("V", "yellow")}");

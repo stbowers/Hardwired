@@ -79,8 +79,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            // If this is the only component, add a description (otherwise, only show debug values so we don't take up too much space...)
-            if (GetComponents<ElectricalComponent>().Length == 1)
+            bool altKey = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+
+            if (altKey)
             {
                 stringBuilder.AppendLine($"Transfers electrical power between devices.");
                 stringBuilder.AppendLine($"Each cable is modeled as a resistor, causing a voltage drop that increases with current flow.");
@@ -92,7 +93,11 @@ namespace Hardwired.Objects.Electrical
                 stringBuilder.AppendLine($"ΔV(avg) is the average voltage drop between the cable's nodes.");
                 stringBuilder.AppendLine($"Vg(avg) is the average voltage to ground.");
 
-                stringBuilder.AppendLine($"\n---\n");
+                stringBuilder.AppendLine($"\n");
+            }
+            else
+            {
+                stringBuilder.AppendLine($"Press [alt] for description");
             }
 
             double tCelsius = Temperature - 273.15;
