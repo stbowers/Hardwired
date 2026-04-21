@@ -53,21 +53,11 @@ namespace Hardwired.Simulation.Electrical.Elements
         {
             base.UpdateState();
 
-            // _energyBuffer.Resistance = (Profile.VoltageNominal * Profile.VoltageNominal) / PowerTarget;
-            // _energyBuffer.ChargeMaximum = 2.5 * PowerTarget;
+            // Use a minimum power target of 10 W, to avoid dividing by zero
+            var powerTarget = Math.Max(10, PowerTarget);
 
-            // _energyBuffer.VoltageMaximum = 1.25 * Profile.VoltageMax;
-            // _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
-
-            // - A non-ideal voltage source at max power output will show a voltage of VoltageNominal/2
-            //   - Size resistor to draw power target at VoltageNominal/2
-            // - An ideal voltage sourcea at VoltageNominal will deliver 4x PowerTarget
-            //   - Size energy buffer to hold 4x PowerTarget, to absorb full power for a tick
-            // ChargeMaximum = 4 * PowerTarget;
-            // VoltageMaximum = 2 * VoltageNominal;
-
-            _energyBuffer.Resistance = (Profile.VoltageMax * Profile.VoltageMax) / (4 * PowerTarget);
-            _energyBuffer.ChargeMaximum = 4 * PowerTarget;
+            _energyBuffer.Resistance = (Profile.VoltageMax * Profile.VoltageMax) / (4 * powerTarget);
+            _energyBuffer.ChargeMaximum = 4 * powerTarget;
 
             _energyBuffer.VoltageMaximum = 2 * Profile.VoltageMax;
             _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;

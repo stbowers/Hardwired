@@ -121,7 +121,9 @@ namespace Hardwired.Simulation.Electrical.Elements
                 Charge = 0;
             }
 
-            _nortonEquivalent.VoltageOpen = VoltageCurve.U(ChargeRatio) * VoltageMaximum;
+            var targetVoltage = VoltageCurve.U(ChargeRatio) * VoltageMaximum;
+            var dV = targetVoltage - _nortonEquivalent.VoltageOpen;
+            _nortonEquivalent.VoltageOpen += 0.8 * dV;
 
             _nortonEquivalent.UpdateState();
         }
