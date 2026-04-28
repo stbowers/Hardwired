@@ -17,9 +17,43 @@ namespace Hardwired.Objects.Electrical
     public class DeviceLoad : ElectricalComponent
     {
         private Device? _device;
-        private PowerSink? _powerSink;
+        private EnergyBuffer? _energyBuffer;
 
-        public PowerSink.PowerProfile PowerProfile { get; set; } = PowerSink.PowerProfile.Default;
+        /// <summary>
+        /// The maximum operational voltage a device can accept. If the input voltage is above this, the device will enter an overvoltage protection
+        /// state and stop drawing power.
+        /// </summary>
+        public double VoltageMax = 200f;
+
+        /// <summary>
+        /// The nominal operational voltage for a device. If voltage is at this value or above (up to V_max), the device will draw the target power.
+        /// If voltage is below this value (down to V_min), the device enters a "brownout" state where it draws less power in proportion to voltage.
+        /// </summary>
+        public double VoltageNominal = 100f;
+
+        /// <summary>
+        /// The preferred AC frequency for the load.
+        /// Not currently used; but will likely cause a small efficiency loss if not matched.
+        /// </summary>
+        public double Frequency = 60f;
+
+        /// <summary>
+        /// The nominal inductance of the load in Henrys
+        /// </summary>
+        public double Inductance = 0f;
+
+        /// <summary>
+        /// The nominal capacitance of the load in Farads
+        /// </summary>
+        public double Capacitance = 0f;
+
+        /// <summary>
+        /// The minimum power that this device can draw, as a ratio of `PowerTarget`, and still function.
+        /// 
+        /// By default this will be `1.0` for most devices, meaning the device must have the actual power required available in order to function at all.
+        /// Certain devices that have "brownout" behavior implemented may set this to less than 1.0 in order to draw less power as it's available.
+        /// </summary>
+        public double MinimumPowerDrawRatio = 1f;
 
         public double PowerTarget { get; private set; }
 
@@ -31,7 +65,7 @@ namespace Hardwired.Objects.Electrical
 
         public Complex CurrentDraw { get; private set; }
 
-        public double EnergyBuffer { get; private set; }
+        public double BufferCharge { get; private set; }
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
@@ -59,7 +93,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"Energy Buffer: {EnergyBuffer.ToStringPrefix("Wt", "yellow")} / {(_powerSink?.EnergyBuffer.ChargeMaximum ?? 0).ToStringPrefix("Wt", "yellow")}");
+            stringBuilder.AppendLine($"Buffer charge: {BufferCharge.ToStringPrefix("Wt", "yellow")} / {(_energyBuffer?.ChargeMaximum ?? 0).ToStringPrefix("Wt", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
@@ -70,14 +104,14 @@ namespace Hardwired.Objects.Electrical
 
             if (InputCircuit == circuit)
             {
-                if (_powerSink != null)
+                if (_energyBuffer != null)
                 {
-                    RemoveFrom(_powerSink.Circuit);
+                    RemoveFrom(_energyBuffer.Circuit);
                 }
 
                 var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
 
-                _powerSink = new(circuit, nodeA, null);
+                _energyBuffer = new(circuit, nodeA, null);
             }
         }
 
@@ -85,14 +119,20 @@ namespace Hardwired.Objects.Electrical
         {
             base.UpdateState(circuit );
 
-            if (_powerSink != null)
+            if (_energyBuffer != null)
             {
                 PowerTarget = _device?.GetUsedPower(InputCableNetwork) ?? 0f;
 
-                _powerSink.Profile = PowerProfile;
-                _powerSink.PowerTarget = PowerTarget;
+                // Use a minimum power target of 10 W, to avoid dividing by zero
+                var powerTarget = Math.Max(10, PowerTarget);
 
-                _powerSink.UpdateState();
+                _energyBuffer.Resistance = (VoltageMax * VoltageMax) / (4 * powerTarget);
+                _energyBuffer.ChargeMaximum = Math.Max(4 * powerTarget, _energyBuffer.ChargeMaximum);
+
+                _energyBuffer.VoltageMaximum = 2 * VoltageMax;
+                _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
+
+                _energyBuffer.UpdateState();
             }
         }
 
@@ -100,32 +140,32 @@ namespace Hardwired.Objects.Electrical
         {
             base.ApplyState(circuit);
 
-            _powerSink?.ApplyState();
+            _energyBuffer?.ApplyState();
 
-            EnergyBuffer = _powerSink?.EnergyBuffer.Charge ?? 0;
-            PowerDraw = Math.Min(_powerSink?.PowerAvailable ?? 0, PowerTarget);
-            PowerFactor = _powerSink?.PowerFactor ?? 0;
-            VoltageDelta = _powerSink?.VoltageDelta ?? 0;
-            CurrentDraw = _powerSink?.Current ?? 0;
+            BufferCharge = _energyBuffer?.Charge ?? 0;
+            PowerFactor = _energyBuffer?.PowerFactor ?? 0;
+            VoltageDelta = _energyBuffer?.VoltageDelta ?? 0;
+            CurrentDraw = _energyBuffer?.Current ?? 0;
 
-            if (PowerDraw > 0f)
+            PowerDraw = Math.Min(BufferCharge, PowerTarget);
+
+            if (_energyBuffer != null)
             {
-                _powerSink?.UsePower(PowerDraw);
-                _device?.ReceivePower(_device.PowerCableNetwork, (float)PowerDraw);
-                _device?.SetPowerFromThread(_device.PowerCableNetwork, true).Forget();
+                _energyBuffer.Charge -= PowerDraw;
             }
-            else
-            {
-                _device?.SetPowerFromThread(_device.PowerCableNetwork, false).Forget();
-            }
+
+            var minPower = MinimumPowerDrawRatio * PowerTarget;
+
+            _device?.ReceivePower(_device.PowerCableNetwork, (float)PowerDraw);
+            _device?.SetPowerFromThread(_device.PowerCableNetwork, PowerDraw >= minPower).Forget();
         }
 
         public override void RemoveFrom(Circuit circuit)
         {
             base.RemoveFrom(circuit);
 
-            _powerSink?.Dispose();
-            _powerSink = null;
+            _energyBuffer?.Dispose();
+            _energyBuffer = null;
         }
     }
 }

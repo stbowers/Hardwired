@@ -121,9 +121,15 @@ namespace Hardwired.Simulation.Electrical.Elements
                 Charge = 0;
             }
 
+            // Set VoltageOpen based on the charge ratio, but dampen changes to the voltage
+            // Note - Dampening the voltage change helps settle the voltage quicker, especially when the power would otherwise fluctuate by large ammounts each
+            //        tick (for example, a power sink with relatively low power target).
+            //        Dampening the voltage should not affect power accounting, since power transferred between components is always calculated exactly each tick
+            //        from the power available, so even if the voltage "lags behind" what it should be, either more or less power will be transferred than expected,
+            //        but each component will still calculate the correct amount of power to transfer so net power transferred across the circuit is zero.
             var targetVoltage = VoltageCurve.U(ChargeRatio) * VoltageMaximum;
             var dV = targetVoltage - _nortonEquivalent.VoltageOpen;
-            _nortonEquivalent.VoltageOpen += 0.8 * dV;
+            _nortonEquivalent.VoltageOpen += 0.9 * dV;
 
             _nortonEquivalent.UpdateState();
         }

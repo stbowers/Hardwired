@@ -27,7 +27,7 @@ namespace Hardwired.Patches
         {
             [typeof(VolumePump)] = d => {
                 var load = d.GetOrAddComponent<DeviceLoad>();
-                load.PowerProfile = PowerSink.PowerProfile.SmallMotor;
+                load.Inductance = 0.2;
             },
             [typeof(Transformer)] = d => {
                 d.GetOrAddComponent<FixedTransformer>();
@@ -45,8 +45,10 @@ namespace Hardwired.Patches
                 d.GetOrAddComponent<HardwiredBattery>();
             },
             [typeof(AreaPowerControl)] = d => {
-                d.GetOrAddComponent<DeviceLoad>();
+                var load = d.GetOrAddComponent<DeviceLoad>();
                 d.GetOrAddComponent<Generator>();
+
+                load.MinimumPowerDrawRatio = 0;
             }
         };
 
