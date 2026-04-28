@@ -31,7 +31,7 @@ namespace Hardwired.Objects.Electrical
 
         public double Charge { get; private set; }
 
-        public double ChargeMaximum { get; set; } = 2500;
+        public double ChargeMaximum { get; set; } = 2000;
 
         public double VoltageMaximum { get; set; } = 200;
 
@@ -91,7 +91,13 @@ namespace Hardwired.Objects.Electrical
 
             if (_powerSource != null && OutputCircuit == circuit)
             {
+                // Get generated power
                 PowerGenerated = Device?.GetGeneratedPower(PowerOutput?.GetCable()?.CableNetwork) ?? 0;
+
+                // Ensure the maximum buffer charge is at least 4x the generated power.
+                // This is the minimum required to ensure a generator can sustain a situation where PowerDraw == PowerGenerated
+                // (otherwise the voltage will eventually droop below 0.5 * VoltageMaximum, which is where most power sinks will fail).
+                ChargeMaximum = Math.Max(4.5 * PowerGenerated, ChargeMaximum);
 
                 // Update internal charge
                 var powerUsed = Math.Clamp(PowerGenerated, 0, ChargeMaximum - Charge);
