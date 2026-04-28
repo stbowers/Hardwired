@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
-    public class DeviceLoad : ElectricalComponent
+    public class PowerSink : ElectricalComponent
     {
         private Device? _device;
         private EnergyBuffer? _energyBuffer;
@@ -126,7 +126,7 @@ namespace Hardwired.Objects.Electrical
                 // Use a minimum power target of 10 W, to avoid dividing by zero
                 var powerTarget = Math.Max(10, PowerTarget);
 
-                _energyBuffer.Resistance = (VoltageMax * VoltageMax) / (4 * powerTarget);
+                _energyBuffer.Resistance = VoltageNominal * VoltageNominal / powerTarget;
                 _energyBuffer.ChargeMaximum = Math.Max(4 * powerTarget, _energyBuffer.ChargeMaximum);
 
                 _energyBuffer.VoltageMaximum = 2 * VoltageMax;

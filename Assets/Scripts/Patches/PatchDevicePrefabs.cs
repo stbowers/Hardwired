@@ -26,8 +26,8 @@ namespace Hardwired.Patches
         public static readonly Dictionary<Type, Action<Device>> CustomPatches = new()
         {
             [typeof(VolumePump)] = d => {
-                var load = d.GetOrAddComponent<DeviceLoad>();
-                load.Inductance = 0.2;
+                var sink = d.GetOrAddComponent<PowerSink>();
+                sink.Inductance = 0.2;
             },
             [typeof(Transformer)] = d => {
                 d.GetOrAddComponent<FixedTransformer>();
@@ -45,10 +45,10 @@ namespace Hardwired.Patches
                 d.GetOrAddComponent<HardwiredBattery>();
             },
             [typeof(AreaPowerControl)] = d => {
-                var load = d.GetOrAddComponent<DeviceLoad>();
+                var sink = d.GetOrAddComponent<PowerSink>();
                 d.GetOrAddComponent<Generator>();
 
-                load.MinimumPowerDrawRatio = 0;
+                sink.MinimumPowerDrawRatio = 0;
             }
         };
 
@@ -150,7 +150,7 @@ namespace Hardwired.Patches
             // Generic power sink
             else if (TryGetPowerInput(device, out powerInput) && device.UsedPower > 0f)
             {
-                device.GetOrAddComponent<DeviceLoad>();
+                device.GetOrAddComponent<PowerSink>();
 
                 Hardwired.LogDebug($"patching device {device.PrefabName} -- Generic power sink, P_nom: {device.UsedPower} W");
             }
