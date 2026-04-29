@@ -105,6 +105,7 @@ namespace Hardwired.Objects.Electrical
 
                 Device?.UsePower(OutputCableNetwork, (float)powerUsed);
 
+                _powerSource.VoltageNominal = VoltageMaximum;
                 _powerSource.PowerAvailable = Charge;
                 _powerSource.UpdateState();
             }

@@ -35,11 +35,6 @@ namespace Hardwired.Patches
                 (d as Transformer)!.Setting = 1;
                 (d as Transformer)!.StepNormal = 1;
                 (d as Transformer)!.StepSmall = 0.1f;
-                // var converter = d.GetOrAddComponent<PowerConverter>();
-                // (d as Transformer)!.OutputMaximum = 500;
-                // (d as Transformer)!.Setting = 1;
-                // (d as Transformer)!.StepNormal = 10;
-                // (d as Transformer)!.StepSmall = 1f;
             },
             [typeof(BatteryCellCharger)] = d => {
                 d.GetOrAddComponent<HardwiredBattery>();
