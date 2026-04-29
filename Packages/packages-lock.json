@@ -207,14 +207,16 @@
         "com.unity.textmeshpro": "3.0.6",
         "com.unity.ugui": "1.0.0"
       },
-      "hash": "c16976b1476d4b07e8518875d402f512656003f8"
+      "hash": "4635919369a74c2194c47f09a1d0e469c9ddc424"
     },
     "stationeers.modding.exporter": {
       "version": "https://github.com/ilodev/stationeers.modding.exporter.git",
       "depth": 0,
       "source": "git",
-      "dependencies": {},
-      "hash": "c380fc83201955790f7a490e26a98f37698cadf2"
+      "dependencies": {
+        "com.unity.modules.assetbundle": "1.0.0"
+      },
+      "hash": "645efedf4618db6125ddd90f91706770777529bc"
     },
     "com.unity.modules.ai": {
       "version": "1.0.0",
