@@ -489,6 +489,9 @@ MonoBehaviour:
   MaxQuantity: 10
   Constructables:
   - {fileID: 7288037614237896951, guid: c22ce743d41e234c0ae223dd74663470, type: 3}
+  - {fileID: 7288037614237896951, guid: bffaa8c39f89757c6ba06e9af6309d25, type: 3}
+  - {fileID: 7288037614237896951, guid: d31324430a5100896abd8b4ec380ef7e, type: 3}
+  - {fileID: 7288037614237896951, guid: 587947faac9390a8ba49ebd5579d4daa, type: 3}
 --- !u!1001 &5942017347989965426
 PrefabInstance:
   m_ObjectHideFlags: 0

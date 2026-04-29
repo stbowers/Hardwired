@@ -226,7 +226,7 @@ GameObject:
   - component: {fileID: 2635364139034290347}
   - component: {fileID: 4970972849212651262}
   m_Layer: 0
-  m_Name: StructurePowerConverterACAC
+  m_Name: StructurePowerConverterDCAC
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -275,8 +275,8 @@ MonoBehaviour:
   Forward: {x: 0, y: 0, z: 0}
   HideInStationpedia: 0
   IsEmergency: 0
-  PrefabName: StructurePowerConverterACAC
-  PrefabHash: -1757572353
+  PrefabName: StructurePowerConverterDCAC
+  PrefabHash: -1595710771
   ThingTransform: {fileID: 391518567535503507}
   Slots: []
   Bounds:
@@ -560,7 +560,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   VoltageMax: 200
   VoltageNominal: 100
-  Frequency: 60
+  Frequency: 0
   Inductance: 0
   Capacitance: 0
   MinimumPowerDrawRatio: 1
@@ -708,7 +708,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: cce364d5889ff0dc1997663d2794568d, type: 2}
+  - {fileID: 2100000, guid: a7a8117f14496e522850ee8218cbef9a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

@@ -19,6 +19,8 @@ namespace Hardwired.Objects.Electrical
     {
         private PowerSource? _powerSource;
 
+        public double Frequency = 60;
+
         public double PowerGenerated { get; private set; }
 
         public double PowerDraw { get; private set; }
@@ -105,6 +107,7 @@ namespace Hardwired.Objects.Electrical
 
                 Device?.UsePower(OutputCableNetwork, (float)powerUsed);
 
+                _powerSource.Frequency = Frequency;
                 _powerSource.VoltageNominal = VoltageMaximum;
                 _powerSource.PowerAvailable = Charge;
                 _powerSource.UpdateState();
