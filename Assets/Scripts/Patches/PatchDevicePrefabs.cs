@@ -41,7 +41,7 @@ namespace Hardwired.Patches
             },
             [typeof(AreaPowerControl)] = d => {
                 var sink = d.GetOrAddComponent<PowerSink>();
-                d.GetOrAddComponent<Generator>();
+                d.GetOrAddComponent<PowerSource>();
 
                 sink.PowerProfiles = new() {
                     // AC power input (default, high efficiency)
@@ -159,7 +159,7 @@ namespace Hardwired.Patches
             // Generic power source
             else if (TryGetPowerOutput(device, out powerOutput))
             {
-                device.GetOrAddComponent<Generator>();
+                device.GetOrAddComponent<PowerSource>();
 
                 Hardwired.LogDebug($"patching device {device.PrefabName} -- Generic power source, P_nom: 500 W");
             }

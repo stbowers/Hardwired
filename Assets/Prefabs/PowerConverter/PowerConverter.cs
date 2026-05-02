@@ -15,7 +15,7 @@ namespace Hardwired.Prefabs.CircuitBreaker
     {
         public PowerSink? PowerSink;
 
-        public Generator? Generator;
+        public PowerSource? Generator;
 
         public double OutputVoltage = 200;
 

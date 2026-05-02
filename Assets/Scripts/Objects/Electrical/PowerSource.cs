@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
-    public class Generator : ElectricalComponent
+    public class PowerSource : ElectricalComponent
     {
         private NortonEquivalent? _nortonEquivalent;
 
