@@ -21,12 +21,13 @@ namespace Hardwired.Objects.Electrical
         private List<Assets.Scripts.Objects.Items.IChargable> _batteries = new();
         private EnergyBuffer? _energyBuffer;
 
+        [SerializeReference]
+        public PowerProfile PowerProfile = new(PowerProfile.DefaultGenerator);
+
         /// <summary>
         /// The ratio of power that should be equalized between multiple batteries per tick
         /// </summary>
         public double BalanceRatio { get; set; } = 0.01;
-
-        public double MaximumVoltage { get; set; } = 200;
 
         public double Charge { get; private set; }
 
@@ -63,7 +64,7 @@ namespace Hardwired.Objects.Electrical
             }
 
             stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / {MaxCharge.ToStringPrefix("Wt", "yellow")}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | V_max: {MaximumVoltage.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | V_max: {PowerProfile.VoltageNominal.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | Power: {Power.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Internal Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
         }
@@ -78,8 +79,9 @@ namespace Hardwired.Objects.Electrical
 
                 _energyBuffer?.Dispose();
                 _energyBuffer = new(circuit, nodeA, null);
-                _energyBuffer.VoltageMaximum = MaximumVoltage;
-                _energyBuffer.CurrentMaximum = 40f;
+                _energyBuffer.NortonEquivalent.Frequency = PowerProfile.Frequency;
+                _energyBuffer.VoltageMaximum = PowerProfile.VoltageNominal;
+                _energyBuffer.CurrentMaximum = 20f;
                 _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Tangent;
 
                 if (Device is Assets.Scripts.Objects.Electrical.Battery battery)
