@@ -46,7 +46,7 @@ namespace Hardwired.Simulation.Electrical
         public IReadOnlyList<IFrequencySource> FrequencySources => _frequencySources.AsReadOnly();
 
         /// <summary>
-        /// The frequency of any AC voltages or currents in the circuit.
+        /// The frequency of any AC voltages or currents in the circuit, or 0 for DC.
         /// </summary>
         public double Frequency { get; private set; }
 

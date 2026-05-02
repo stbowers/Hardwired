@@ -44,7 +44,7 @@ namespace Hardwired.Patches
                 d.GetOrAddComponent<Generator>();
 
                 sink.PowerProfiles = new() {
-                    new() { VoltageNominal = 100f },
+                    PowerProfile.Default,
                     new() { Frequency = 0f, VoltageNominal = 250f, VoltageMax = 500f },
                 };
 

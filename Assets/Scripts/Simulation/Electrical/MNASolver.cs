@@ -443,7 +443,7 @@ namespace Hardwired.Simulation.Electrical
         public Complex? GetValue(Unknown? unknown)
         {
             if (unknown == null) { return null; }
-            if (unknown.Index < 0 || unknown.Index > X.RowCount) { return null; }
+            if (unknown.Index < 0 || unknown.Index >= X.RowCount) { return null; }
 
             var val = X[unknown.Index, 0];
 

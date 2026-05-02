@@ -28,13 +28,13 @@ namespace Hardwired.Objects.Electrical
         /// The maximum operational voltage a device can accept. If the input voltage is above this, the device will enter an overvoltage protection
         /// state and stop drawing power.
         /// </summary>
-        public double VoltageMax = 200.0;
+        public double VoltageMax = 250.0;
 
         /// <summary>
         /// The nominal operational voltage for a device. If voltage is at this value or above (up to V_max), the device will draw the target power.
         /// If voltage is below this value (down to V_min), the device enters a "brownout" state where it draws less power in proportion to voltage.
         /// </summary>
-        public double VoltageNominal = 100.0;
+        public double VoltageNominal = 150.0;
 
         /// <summary>
         /// The maximum power draw that this power sink should target (i.e. PowerTarget will be capped to this value).

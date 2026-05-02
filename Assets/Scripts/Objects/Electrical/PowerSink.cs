@@ -21,6 +21,7 @@ namespace Hardwired.Objects.Electrical
     {
         private Device? _device;
         private EnergyBuffer? _energyBuffer;
+        private DateTime _lastPowerProfileChanged = DateTime.Now;
 
         /// <summary>
         /// Gets the list of "power profiles" that this power sink can use.
@@ -50,6 +51,12 @@ namespace Hardwired.Objects.Electrical
         /// </summary>
         public double MinimumPowerDrawRatio = 1f;
 
+        /// <summary>
+        /// True if the input circuit matches the constraints of the active power profile (and therefore the device can
+        /// draw power), or false otherwise.
+        /// </summary>
+        public bool IsInputValid { get; private set; }
+
         public double PowerTarget { get; private set; }
 
         public double PowerDraw { get; private set; }
@@ -61,8 +68,6 @@ namespace Hardwired.Objects.Electrical
         public Complex CurrentDraw { get; private set; }
 
         public double BufferCharge { get; private set; }
-
-        public double MaxPowerTarget = 0;
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
@@ -87,7 +92,7 @@ namespace Hardwired.Objects.Electrical
                 stringBuilder.AppendLine($"Press [alt] for description");
             }
 
-            stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")} (max: {MaxPowerTarget.ToStringPrefix("W", "yellow")})");
+            stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Buffer charge: {BufferCharge.ToStringPrefix("Wt", "yellow")} / {(_energyBuffer?.ChargeMaximum ?? 0).ToStringPrefix("Wt", "yellow")}");
@@ -95,10 +100,17 @@ namespace Hardwired.Objects.Electrical
             bool hasScrewdriver = InventoryManager.ActiveHandSlot.Get()?.PrefabName == "ItemScrewdriver";
             bool primaryButtonDown = KeyManager.GetButtonDown(KeyMap.PrimaryAction);
 
+            // Set a 1s cooldown on changing power profiles...
+            // This prevents one input causing multiple changes if the tooltip is rendered more than once per tick.
+            bool canChangePowerProfile = (DateTime.Now - _lastPowerProfileChanged).TotalSeconds > 1.0;
+
             // On click with screwdriver, cycle active profile index
-            if (hasScrewdriver && primaryButtonDown)
+            if (canChangePowerProfile && hasScrewdriver && primaryButtonDown)
             {
                 ActiveProfileIndex = (ActiveProfileIndex + 1) % PowerProfiles.Count;
+                Hardwired.LogDebug($"Changing active profile to {ActiveProfileIndex} (nProfiles: {PowerProfiles.Count})");
+
+                _lastPowerProfileChanged = DateTime.Now;
             }
 
             stringBuilder.AppendLine();
@@ -120,6 +132,12 @@ namespace Hardwired.Objects.Electrical
             else
             {
                 stringBuilder.AppendLine($"{ActiveProfile}");
+            }
+
+            // Show power input warning
+            if (!IsInputValid)
+            {
+                stringBuilder.AppendLine($"WARNING! Attached power input does not match selected power input profile. No power will be drawn.".AsColor("red"));
             }
         }
 
@@ -146,27 +164,38 @@ namespace Hardwired.Objects.Electrical
         {
             base.UpdateState(circuit );
 
-            if (_energyBuffer != null)
+            // Check input conditions of circuit, to validate the current power profile
+            IsInputValid = 
+                InputCircuit != null
+                && (InputCircuit.Frequency == ActiveProfile.Frequency)
+                && (_energyBuffer?.VoltageDelta.Magnitude <= ActiveProfile.VoltageMax);
+
+            if (IsInputValid)
             {
-                // Set power target to the amount of power requested by the device
+                // Set power target to the amount of power requested by the device (divided by efficiency of current profile)
                 PowerTarget = _device?.GetUsedPower(InputCableNetwork) ?? 0f;
                 PowerTarget = PowerTarget / ActiveProfile.Efficiency;
                 PowerTarget = Math.Min(ActiveProfile.MaximumPower, PowerTarget);
-                MaxPowerTarget = Math.Max(MaxPowerTarget, PowerTarget);
+            }
+            else
+            {
+                // Input circuit is not valid, don't draw any power.
+                PowerTarget = 0;
+            }
 
-                // Use a minimum power target of 1 W for the energy buffer, to avoid dividing by zero
-                // (note, if PowerTarget is 0 no power will actually be used, this minimum of 1 W is just for the
-                // static components, which will eventually balance)
-                var powerTarget = Math.Max(1, PowerTarget);
+            if (_energyBuffer != null)
+            {
+                // Set a very low minimum power target to use for the actual calculations, to avoid dividing by zero.
+                // This low of a power target will cause the resistance to be very high, which will effectively act
+                // as if the sink were disconnected from the circuit if PowerTarget ~= 0.
+                var powerTarget = Math.Max(1e-5, PowerTarget);
 
                 // Set resistance such that the energy buffer would draw the full power target at nominal voltage
                 _energyBuffer.Resistance = ActiveProfile.VoltageNominal * ActiveProfile.VoltageNominal / powerTarget;
 
-                // Set maximum voltage of buffer to twice that of the power profile's max voltage
-                // (so that in theory if max voltage is supplied the buffer should stay at ~50% charge)
-                _energyBuffer.VoltageMaximum = 2 * ActiveProfile.VoltageMax;
+                _energyBuffer.VoltageMaximum = ActiveProfile.VoltageMax;
 
-                // The maximum power delivered to the energy buffer (at V = VoltageMax) should be
+                // The maximum power delivered to the energy buffer (at V = VoltageMax, Charge = 0) should be
                 // (VoltageMax / VoltageNominal)^2 * PowerTarget.
                 // Ensure the buffer is at least large enough to hold one tick at that power rate.
                 var rVmaxVnom = ActiveProfile.VoltageMax / ActiveProfile.VoltageNominal;
@@ -190,6 +219,7 @@ namespace Hardwired.Objects.Electrical
             VoltageDelta = _energyBuffer?.VoltageDelta ?? 0;
             CurrentDraw = _energyBuffer?.Current ?? 0;
 
+            // Calculate how much power to actually remove from the buffer (based on PowerTarget)
             PowerDraw = Math.Min(BufferCharge, PowerTarget);
 
             if (_energyBuffer != null)
@@ -197,9 +227,12 @@ namespace Hardwired.Objects.Electrical
                 _energyBuffer.Charge -= PowerDraw;
             }
 
+            // Calculate how much power will actually go to the device (after active profile's efficiency loss),
+            // and the minimum power draw required in order to enable the device
+            var powerDelivered = PowerDraw * ActiveProfile.Efficiency;
             var minPower = MinimumPowerDrawRatio * PowerTarget;
 
-            _device?.ReceivePower(InputCableNetwork, (float)PowerDraw);
+            _device?.ReceivePower(InputCableNetwork, (float)powerDelivered);
             _device?.SetPowerFromThread(InputCableNetwork, PowerDraw >= minPower).Forget();
         }
 
