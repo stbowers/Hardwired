@@ -22,6 +22,14 @@ namespace Hardwired.Objects.Electrical
         [SerializeReference]
         public PowerProfile PowerProfile = new(PowerProfile.DefaultGenerator);
 
+        /// <summary>
+        /// Gets whether or not this power source is outputting power to the circuit.
+        /// 
+        /// If the attached device has an on/off state (i.e. power switch), that state will be used.
+        /// Otherwise, the output is always enabled.
+        /// </summary>
+        public bool OutputEnabled => Device != null && (!Device.HasOnOffState || Device.OnOff);
+
         public double PowerGenerated { get; private set; }
 
         public double PowerDraw { get; private set; }
@@ -60,10 +68,11 @@ namespace Hardwired.Objects.Electrical
                 stringBuilder.AppendLine($"Press [alt] for description");
             }
 
+            stringBuilder.AppendLine($"Output enabled: {OutputEnabled}");
             stringBuilder.AppendLine($"Power Generated: {PowerGenerated.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV_max: {PowerProfile.VoltageMaximum.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV_max: {PowerProfile.VoltageNominal.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Internal resistance: {_nortonEquivalent?.Resistance.ToStringPrefix("Ω", "yellow")}");
             stringBuilder.AppendLine($"Internal Buffer: {Charge.ToStringPrefix("Wt", "yellow")} / {ChargeMaximum.ToStringPrefix("Wt", "yellow")}");
         }
@@ -111,8 +120,10 @@ namespace Hardwired.Objects.Electrical
             {
                 _nortonEquivalent.Frequency = PowerProfile.Frequency;
 
-                // Set minimum charge to avoid dividing by zero
-                var charge = Math.Max(1e-5, Charge);
+                // Determine charge to use for actual calculations
+                // - No output if output is disabled (device is off)
+                // - Set minimum charge to avoid dividing by zero
+                var charge = Math.Max(1e-5, OutputEnabled ? Charge : 0.0);
 
                 _nortonEquivalent.Resistance = PowerProfile.VoltageNominal * PowerProfile.VoltageNominal / charge;
                 _nortonEquivalent.CurrentShort = charge / PowerProfile.VoltageNominal;
