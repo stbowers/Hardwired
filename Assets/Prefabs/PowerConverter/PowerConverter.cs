@@ -66,14 +66,16 @@ namespace Hardwired.Prefabs.CircuitBreaker
         {
             base.OnPowerTick();
 
-            if (PowerSink != null)
+            if (PowerSink != null && PowerSink.PowerProfiles.Count >= 1)
             {
-                PowerSink.PowerProfiles[0] = new() { VoltageMax = (float)OutputVoltage, VoltageNominal = (float)OutputVoltage };
+                PowerSink.PowerProfiles[0].VoltageMaximum = 1.5 * OutputVoltage;
+                PowerSink.PowerProfiles[0].VoltageNominal = OutputVoltage;
+                PowerSink.PowerProfiles[0].VoltageMinimum = OutputVoltage;
             }
 
             if (Generator != null)
             {
-                Generator.VoltageMaximum = OutputVoltage;
+                Generator.PowerProfile.VoltageNominal = OutputVoltage;
             }
 
             OnOff = true;

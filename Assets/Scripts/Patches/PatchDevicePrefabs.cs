@@ -27,7 +27,7 @@ namespace Hardwired.Patches
         {
             [typeof(VolumePump)] = d => {
                 var sink = d.GetOrAddComponent<PowerSink>();
-                sink.PowerProfiles = new() { new PowerProfile() { Inductance = 0.2f } };
+                sink.PowerProfiles = new() { new PowerProfile(PowerProfile.DefaultGrid) { Inductance = 0.2f } };
             },
             [typeof(Transformer)] = d => {
                 d.GetOrAddComponent<FixedTransformer>();
@@ -41,16 +41,20 @@ namespace Hardwired.Patches
             },
             [typeof(AreaPowerControl)] = d => {
                 var sink = d.GetOrAddComponent<PowerSink>();
-                d.GetOrAddComponent<PowerSource>();
+                var source = d.GetOrAddComponent<PowerSource>();
 
+                // APC can receive power either from the grid, or directly from generators (at an efficiency penalty)
                 sink.PowerProfiles = new() {
-                    // AC power input (default, high efficiency)
-                    new() { Efficiency = 0.98 },
-                    // DC power input (low efficiency, for initial power setup)
-                    new() { Frequency = 0f, VoltageNominal = 300f, VoltageMax = 500f, Efficiency = 0.85 },
+                    // Grid supply (default, high efficiency)
+                    new(PowerProfile.DefaultGrid) { Efficiency = 0.98 },
+                    // Direct connect to generators (lower efficiency)
+                    new(PowerProfile.DefaultGenerator) { Efficiency = 0.85 },
                 };
 
                 sink.MinimumPowerDrawRatio = 0;
+
+                // APC outputs power using the default grid profile
+                source.PowerProfile = new(PowerProfile.DefaultGrid);
             }
         };
 

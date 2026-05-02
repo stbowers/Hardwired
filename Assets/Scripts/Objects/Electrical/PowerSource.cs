@@ -20,7 +20,7 @@ namespace Hardwired.Objects.Electrical
         private NortonEquivalent? _nortonEquivalent;
 
         [SerializeReference]
-        public PowerProfile PowerProfile = new ();
+        public PowerProfile PowerProfile = new(PowerProfile.DefaultGenerator);
 
         public double PowerGenerated { get; private set; }
 
@@ -35,8 +35,6 @@ namespace Hardwired.Objects.Electrical
         public double Charge { get; private set; }
 
         public double ChargeMaximum { get; set; } = 4500;
-
-        public double VoltageMaximum { get; set; } = 200;
 
         public override Connection? PowerOutput => base.PowerOutput ?? base.PowerInput;
 
@@ -65,7 +63,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Generated: {PowerGenerated.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV_max: {VoltageMaximum.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV_max: {PowerProfile.VoltageMaximum.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Internal resistance: {_nortonEquivalent?.Resistance.ToStringPrefix("Ω", "yellow")}");
             stringBuilder.AppendLine($"Internal Buffer: {Charge.ToStringPrefix("Wt", "yellow")} / {ChargeMaximum.ToStringPrefix("Wt", "yellow")}");
         }
@@ -116,9 +114,8 @@ namespace Hardwired.Objects.Electrical
                 // Set minimum charge to avoid dividing by zero
                 var charge = Math.Max(1e-5, Charge);
 
-                PowerProfile.VoltageMax = VoltageMaximum;
-                _nortonEquivalent.Resistance = PowerProfile.VoltageMax * PowerProfile.VoltageMax / charge;
-                _nortonEquivalent.CurrentShort = charge / PowerProfile.VoltageMax;
+                _nortonEquivalent.Resistance = PowerProfile.VoltageNominal * PowerProfile.VoltageNominal / charge;
+                _nortonEquivalent.CurrentShort = charge / PowerProfile.VoltageNominal;
 
                 _nortonEquivalent.UpdateState();
             }

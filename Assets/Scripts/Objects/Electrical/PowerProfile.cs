@@ -8,10 +8,21 @@ using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
+    /// <summary>
+    /// Describes a set of design parameters (voltage range, frequency, etc) for power sinks and power sources.
+    /// </summary>
     [Serializable]
     public class PowerProfile
     {
-        public static readonly PowerProfile Default = new();
+        /// <summary>
+        /// Default power profile for devices that directly connect to the "grid" (~200V AC, default for most consumers)
+        /// </summary>
+        public static readonly PowerProfile DefaultGrid = new() { Frequency = 60, VoltageMaximum = 250, VoltageNominal = 200, VoltageMinimum = 150 };
+
+        /// <summary>
+        /// Default profile for generators, and other power production/infrastructure related devices (~500V DC)
+        /// </summary>
+        public static readonly PowerProfile DefaultGenerator = new() { Frequency = 0, VoltageMaximum = 550, VoltageNominal = 500, VoltageMinimum = 450 };
 
         /// <summary>
         /// The efficiency of this power profile.
@@ -20,21 +31,34 @@ namespace Hardwired.Objects.Electrical
         public double Efficiency = 1.0;
 
         /// <summary>
-        /// The preferred AC frequency for the load, or 0 for DC.
+        /// The design circuit AC frequency, or 0 for DC.
         /// </summary>
         public double Frequency = 60.0;
 
         /// <summary>
-        /// The maximum operational voltage a device can accept. If the input voltage is above this, the device will enter an overvoltage protection
-        /// state and stop drawing power.
+        /// The maximum design voltage for this profile.
+        /// 
+        /// Power sinks: This will be the maximum voltage the device can accept (it will not draw power if voltage is higher). This is also
+        ///   the voltage at which the buffer will have a full charge.
+        /// Power sources: This voltage is not generally used.
         /// </summary>
-        public double VoltageMax = 250.0;
+        public double VoltageMaximum = 250.0;
 
         /// <summary>
-        /// The nominal operational voltage for a device. If voltage is at this value or above (up to V_max), the device will draw the target power.
-        /// If voltage is below this value (down to V_min), the device enters a "brownout" state where it draws less power in proportion to voltage.
+        /// The nominal design voltage.
+        /// 
+        /// Power sinks: This voltage is not generally used.
+        /// Power sources: This will be the target output voltage (i.e. output voltage under no load)
         /// </summary>
-        public double VoltageNominal = 150.0;
+        public double VoltageNominal = 200.0;
+
+        /// <summary>
+        /// The minimum design voltage for this profile.
+        /// 
+        /// Power sinks: This will be the voltage at which the sink is designed to draw the power target (lower voltage = brownout, higher voltage = charge buffer)
+        /// Power sources: This will be the voltage the source is designed to "droop" to when at maximum load
+        /// </summary>
+        public double VoltageMinimum = 150.0;
 
         /// <summary>
         /// The maximum power draw that this power sink should target (i.e. PowerTarget will be capped to this value).
@@ -58,8 +82,22 @@ namespace Hardwired.Objects.Electrical
         /// </summary>
         public double Capacitance = 0.0;
 
+        public PowerProfile() { }
+
+        public PowerProfile(PowerProfile other)
+        {
+            Efficiency = other.Efficiency;
+            Frequency = other.Frequency;
+            VoltageMaximum = other.VoltageMaximum;
+            VoltageNominal = other.VoltageNominal;
+            VoltageMinimum = other.VoltageMinimum;
+            MaximumPower = other.MaximumPower;
+            Inductance = other.Inductance;
+            Capacitance = other.Capacitance;
+        }
+
         public override string ToString()
-            => $"{VoltageNominal}-{VoltageMax.ToStringPrefix("V")} {CurrentTypeString()} (Efficiency: {(int)(Efficiency * 100)}%)";
+            => $"{VoltageMinimum}-{VoltageMaximum.ToStringPrefix("V")} {CurrentTypeString()} (Efficiency: {(int)(Efficiency * 100)}%)";
 
         private string CurrentTypeString()
             => Frequency switch

@@ -30,14 +30,13 @@ namespace Hardwired.Objects.Electrical
         /// as the effects of using that profile (inductance/capacitance to add to the circuit, power draw efficiency, etc).
         /// </summary>
         [NonSerialized]
-        public List<PowerProfile> PowerProfiles = new() { PowerProfile.Default };
-
-        public int ActiveProfileIndex;
+        public List<PowerProfile> PowerProfiles = new();
 
         /// <summary>
-        /// Gets the currently active "power profile" (change with ActiveProfileIndex)
+        /// Gets the currently active "power profile"
         /// </summary>
-        public PowerProfile ActiveProfile => ActiveProfileIndex < PowerProfiles.Count ? PowerProfiles[ActiveProfileIndex] : new PowerProfile();
+        [SerializeReference]
+        public PowerProfile ActivePowerProfile = new(PowerProfile.DefaultGrid);
 
         /// <summary>
         /// The minimum power that this device can draw, as a ratio of `PowerTarget`, and still function.
@@ -98,15 +97,21 @@ namespace Hardwired.Objects.Electrical
             bool hasScrewdriver = InventoryManager.ActiveHandSlot.Get()?.PrefabName == "ItemScrewdriver";
             bool primaryButtonDown = KeyManager.GetButtonDown(KeyMap.PrimaryAction);
 
-            // Set a 1s cooldown on changing power profiles...
-            // This prevents one input causing multiple changes if the tooltip is rendered more than once per tick.
-            bool canChangePowerProfile = (DateTime.Now - _lastPowerProfileChanged).TotalSeconds > 1.0;
+            // Set a cooldown on changing power profiles...
+            // This prevents one input causing multiple changes if the tooltip is rendered more than once per frame.
+            bool canChangePowerProfile = (DateTime.Now - _lastPowerProfileChanged).TotalSeconds > 0.2;
 
             // On click with screwdriver, cycle active profile index
-            if (canChangePowerProfile && hasScrewdriver && primaryButtonDown)
+            if (PowerProfiles.Count > 1
+                && canChangePowerProfile
+                && hasScrewdriver
+                && primaryButtonDown)
             {
-                ActiveProfileIndex = (ActiveProfileIndex + 1) % PowerProfiles.Count;
-                Hardwired.LogDebug($"Changing active profile to {ActiveProfileIndex} (nProfiles: {PowerProfiles.Count})");
+                var activeProfileIndex = PowerProfiles.IndexOf(ActivePowerProfile);
+                activeProfileIndex = (activeProfileIndex + 1) % PowerProfiles.Count;
+                ActivePowerProfile = PowerProfiles[activeProfileIndex];
+
+                Hardwired.LogDebug($"Changing active profile to {activeProfileIndex} (nProfiles: {PowerProfiles.Count})");
 
                 _lastPowerProfileChanged = DateTime.Now;
             }
@@ -121,7 +126,7 @@ namespace Hardwired.Objects.Electrical
                 for (int i = 0; i < PowerProfiles.Count; i++)
                 {
                     var powerProfile = PowerProfiles[i];
-                    var isActive = i == ActiveProfileIndex;
+                    var isActive = powerProfile == ActivePowerProfile;
 
                     stringBuilder.AppendLine($"[{(isActive ? "*".AsColor("green") : " ")}] {powerProfile}");
                 }
@@ -129,7 +134,7 @@ namespace Hardwired.Objects.Electrical
             // Otherwise, only show currently active profile
             else
             {
-                stringBuilder.AppendLine($"{ActiveProfile}");
+                stringBuilder.AppendLine($"{ActivePowerProfile}");
             }
 
             // Show power input warning
@@ -167,15 +172,15 @@ namespace Hardwired.Objects.Electrical
             // Check input conditions of circuit, to validate the current power profile
             IsInputValid = 
                 InputCircuit != null
-                && (InputCircuit.Frequency == ActiveProfile.Frequency)
-                && (_energyBuffer?.VoltageDelta.Magnitude <= ActiveProfile.VoltageMax);
+                && (InputCircuit.Frequency == ActivePowerProfile.Frequency)
+                && (_energyBuffer?.VoltageDelta.Magnitude <= ActivePowerProfile.VoltageMaximum);
 
             if (IsInputValid)
             {
                 // Set power target to the amount of power requested by the device (divided by efficiency of current profile)
                 PowerTarget = _device?.GetUsedPower(InputCableNetwork) ?? 0f;
-                PowerTarget = PowerTarget / ActiveProfile.Efficiency;
-                PowerTarget = Math.Min(ActiveProfile.MaximumPower, PowerTarget);
+                PowerTarget = PowerTarget / ActivePowerProfile.Efficiency;
+                PowerTarget = Math.Min(ActivePowerProfile.MaximumPower, PowerTarget);
             }
             else
             {
@@ -190,15 +195,16 @@ namespace Hardwired.Objects.Electrical
                 // as if the sink were disconnected from the circuit if PowerTarget ~= 0.
                 var powerTarget = Math.Max(1e-5, PowerTarget);
 
-                // Set resistance such that the energy buffer would draw the full power target at nominal voltage
-                _energyBuffer.Resistance = ActiveProfile.VoltageNominal * ActiveProfile.VoltageNominal / powerTarget;
+                // Set resistance such that the energy buffer would draw the full power target at min voltage
+                _energyBuffer.Resistance = ActivePowerProfile.VoltageMinimum * ActivePowerProfile.VoltageMinimum / powerTarget;
 
-                _energyBuffer.VoltageMaximum = ActiveProfile.VoltageMax;
+                // Set max voltage
+                _energyBuffer.VoltageMaximum = ActivePowerProfile.VoltageMaximum;
 
                 // The maximum power delivered to the energy buffer (at V = VoltageMax, Charge = 0) should be
-                // (VoltageMax / VoltageNominal)^2 * PowerTarget.
+                // (VoltageMaximum / VoltageMinimum)^2 * PowerTarget.
                 // Ensure the buffer is at least large enough to hold one tick at that power rate.
-                var rVmaxVnom = ActiveProfile.VoltageMax / ActiveProfile.VoltageNominal;
+                var rVmaxVnom = ActivePowerProfile.VoltageMaximum / ActivePowerProfile.VoltageMinimum;
                 var pMax = rVmaxVnom * rVmaxVnom * powerTarget;
                 _energyBuffer.ChargeMaximum = Math.Max(pMax, _energyBuffer.ChargeMaximum);
 
@@ -231,7 +237,7 @@ namespace Hardwired.Objects.Electrical
 
             // Calculate how much power will actually go to the device (after active profile's efficiency loss),
             // and the minimum power draw required in order to enable the device
-            var powerDelivered = PowerDraw * ActiveProfile.Efficiency;
+            var powerDelivered = PowerDraw * ActivePowerProfile.Efficiency;
             var minPower = MinimumPowerDrawRatio * PowerTarget;
 
             _device?.ReceivePower(InputCableNetwork, (float)powerDelivered);
@@ -264,19 +270,29 @@ namespace Hardwired.Objects.Electrical
         /// While I don't *love* this workaround, I didn't want to spend too much time trying to figure out exactly what was happening, so it's
         /// possible there's some way to get Unity to recognize Hardwired types for serialization in a cleaner way...
         /// </summary>
-        [SerializeField, SerializeReference]
+        [SerializeField, SerializeReference, HideInInspector]
         private List<object> _serializedPowerProfileReferences = new();
 
         public void OnBeforeSerialize()
         {
+            if (PowerProfiles.Count == 0)
+            {
+                PowerProfiles.Add(ActivePowerProfile);
+            }
+
             _serializedPowerProfileReferences.Clear();
             _serializedPowerProfileReferences.AddRange(PowerProfiles);
         }
 
         public void OnAfterDeserialize()
         {
+            PowerProfiles.Clear();
             PowerProfiles.AddRange(_serializedPowerProfileReferences.OfType<PowerProfile>());
-            _serializedPowerProfileReferences.Clear();
+
+            if (PowerProfiles.Count > 0)
+            {
+                ActivePowerProfile = PowerProfiles[0];
+            }
         }
         #endregion
     }

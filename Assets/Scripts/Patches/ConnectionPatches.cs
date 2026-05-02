@@ -27,49 +27,49 @@ namespace Hardwired.Patches
         /// </summary>
         /// <param name="__instance"></param>
         /// <param name="__result"></param>
-        [HarmonyPostfix, HarmonyPatch(typeof(Connection), nameof(Connection.Populate))]
-        public static void Postfix_Populate_PowerSinkProfile(Connection __instance, ref PassiveTooltip __result)
-        {
-            // Only modify if the parent device has a power sink component, and this is the input connection
-            if (__instance.Parent?.TryGetComponent(out PowerSink powerSink) != true
-                || __instance != powerSink.PowerInput)
-            {
-                return;
-            }
+        // [HarmonyPostfix, HarmonyPatch(typeof(Connection), nameof(Connection.Populate))]
+        // public static void Postfix_Populate_PowerSinkProfile(Connection __instance, ref PassiveTooltip __result)
+        // {
+        //     // Only modify if the parent device has a power sink component, and this is the input connection
+        //     if (__instance.Parent?.TryGetComponent(out PowerSink powerSink) != true
+        //         || __instance != powerSink.PowerInput)
+        //     {
+        //         return;
+        //     }
 
-            StringBuilder stringBuilder = new();
-            stringBuilder.AppendLine(__result.Extended);
+        //     StringBuilder stringBuilder = new();
+        //     stringBuilder.AppendLine(__result.Extended);
 
-            bool hasScrewdriver = InventoryManager.ActiveHandSlot.Get()?.PrefabName == "ItemScrewdriver";
-            bool primaryButtonDown = KeyManager.GetButtonDown(KeyMap.PrimaryAction);
+        //     bool hasScrewdriver = InventoryManager.ActiveHandSlot.Get()?.PrefabName == "ItemScrewdriver";
+        //     bool primaryButtonDown = KeyManager.GetButtonDown(KeyMap.PrimaryAction);
 
-            // On click with screwdriver, cycle active profile index
-            if (hasScrewdriver && primaryButtonDown)
-            {
-                powerSink.ActiveProfileIndex = (powerSink.ActiveProfileIndex + 1) % powerSink.PowerProfiles.Count;
-            }
+        //     // On click with screwdriver, cycle active profile index
+        //     if (hasScrewdriver && primaryButtonDown)
+        //     {
+        //         powerSink.ActiveProfileIndex = (powerSink.ActiveProfileIndex + 1) % powerSink.PowerProfiles.Count;
+        //     }
 
-            stringBuilder.AppendLine($"[[ Power Input ]]");
+        //     stringBuilder.AppendLine($"[[ Power Input ]]");
 
-            // If player is holding a screwdriver, show a list of all available power profiles
-            if (hasScrewdriver)
-            {
-                for (int i = 0; i < powerSink.PowerProfiles.Count; i++)
-                {
-                    var powerProfile = powerSink.PowerProfiles[i];
-                    var isActive = i == powerSink.ActiveProfileIndex;
+        //     // If player is holding a screwdriver, show a list of all available power profiles
+        //     if (hasScrewdriver)
+        //     {
+        //         for (int i = 0; i < powerSink.PowerProfiles.Count; i++)
+        //         {
+        //             var powerProfile = powerSink.PowerProfiles[i];
+        //             var isActive = i == powerSink.ActiveProfileIndex;
 
-                    stringBuilder.AppendLine($"[{(isActive ? "*".AsColor("green") : " ")}] {powerProfile}");
-                }
-            }
-            // Otherwise, only show currently active profile
-            else
-            {
-                stringBuilder.AppendLine($"Use screwdriver + left click to change".AsColor("yellow"));
-                stringBuilder.AppendLine($"{powerSink.ActiveProfile}");
-            }
+        //             stringBuilder.AppendLine($"[{(isActive ? "*".AsColor("green") : " ")}] {powerProfile}");
+        //         }
+        //     }
+        //     // Otherwise, only show currently active profile
+        //     else
+        //     {
+        //         stringBuilder.AppendLine($"Use screwdriver + left click to change".AsColor("yellow"));
+        //         stringBuilder.AppendLine($"{powerSink.ActivePowerProfile}");
+        //     }
 
-            __result.Extended = stringBuilder.ToString();
-        }
+        //     __result.Extended = stringBuilder.ToString();
+        // }
     }
 }

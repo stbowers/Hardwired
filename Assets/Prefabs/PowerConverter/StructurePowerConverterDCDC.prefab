@@ -558,31 +558,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b6b4040c16ee83475b682b8dfe24cb74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ActiveProfileIndex: 0
-  MinimumPowerDrawRatio: 1
+  ActivePowerProfile:
+    rid: 758653192334475558
+  MinimumPowerDrawRatio: 0
   _serializedPowerProfileReferences:
-  - rid: 758653192334475342
-  - rid: 758653192334475340
+  - rid: 758653192334475558
   references:
     version: 2
     RefIds:
-    - rid: 758653192334475340
+    - rid: 758653192334475558
       type: {class: PowerProfile, ns: Hardwired.Objects.Electrical, asm: Hardwired}
       data:
         Efficiency: 1
-        Frequency: 60
-        VoltageMax: 250
-        VoltageNominal: 150
-        MaximumPower: 2000
-        Inductance: 0
-        Capacitance: 0
-    - rid: 758653192334475342
-      type: {class: PowerProfile, ns: Hardwired.Objects.Electrical, asm: Hardwired}
-      data:
-        Efficiency: 1
-        Frequency: 60
-        VoltageMax: 250
-        VoltageNominal: 150
+        Frequency: 0
+        VoltageMaximum: 250
+        VoltageNominal: 200
+        VoltageMinimum: 150
         MaximumPower: 2000
         Inductance: 0
         Capacitance: 0
@@ -608,8 +599,9 @@ MonoBehaviour:
       data:
         Efficiency: 1
         Frequency: 0
-        VoltageMax: 250
+        VoltageMaximum: 250
         VoltageNominal: 150
+        VoltageMinimum: 150
         MaximumPower: 2000
         Inductance: 0
         Capacitance: 0
