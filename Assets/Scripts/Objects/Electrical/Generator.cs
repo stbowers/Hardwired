@@ -33,7 +33,7 @@ namespace Hardwired.Objects.Electrical
 
         public double Charge { get; private set; }
 
-        public double ChargeMaximum { get; set; } = 2000;
+        public double ChargeMaximum { get; set; } = 4500;
 
         public double VoltageMaximum { get; set; } = 200;
 
@@ -96,10 +96,12 @@ namespace Hardwired.Objects.Electrical
                 // Get generated power
                 PowerGenerated = Device?.GetGeneratedPower(OutputCableNetwork) ?? 0;
 
-                // Ensure the maximum buffer charge is at least 4x the generated power.
-                // This is the minimum required to ensure a generator can sustain a situation where PowerDraw == PowerGenerated
-                // (otherwise the voltage will eventually droop below 0.5 * VoltageMaximum, which is where most power sinks will fail).
-                ChargeMaximum = Math.Max(4.5 * PowerGenerated, ChargeMaximum);
+                // Note - the following line was commented out because it was causing really weird behavior with
+                // the APC... Basically the APC returns the full charge of the attached battery for GetGeneratedPower(),
+                // which is way to large for this internal buffer...
+                // There might be a cleaner way to handle this, but for now I've just set ChargeMaximum to 4.5 kWt by default,
+                // which should be large enough for most generators...
+                // ChargeMaximum = Math.Max(4.5 * PowerGenerated, ChargeMaximum);
 
                 // Update internal charge
                 var powerUsed = Math.Clamp(PowerGenerated, 0, ChargeMaximum - Charge);
