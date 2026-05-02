@@ -17,12 +17,12 @@ namespace Hardwired.Objects.Electrical
         /// <summary>
         /// Default power profile for devices that directly connect to the "grid" (~200V AC, default for most consumers)
         /// </summary>
-        public static readonly PowerProfile DefaultGrid = new() { Frequency = 60, VoltageMaximum = 250, VoltageNominal = 200, VoltageMinimum = 150 };
+        public static readonly PowerProfile DefaultGrid = new() { Frequency = 60, VoltageMaximum = 250, VoltageNominalHigh = 200, VoltageNominalLow = 150 };
 
         /// <summary>
         /// Default profile for generators, and other power production/infrastructure related devices (~500V DC)
         /// </summary>
-        public static readonly PowerProfile DefaultGenerator = new() { Frequency = 0, VoltageMaximum = 550, VoltageNominal = 500, VoltageMinimum = 450 };
+        public static readonly PowerProfile DefaultGenerator = new() { Frequency = 0, VoltageMaximum = 550, VoltageNominalHigh = 500, VoltageNominalLow = 450 };
 
         /// <summary>
         /// The efficiency of this power profile.
@@ -45,18 +45,26 @@ namespace Hardwired.Objects.Electrical
         public double VoltageMaximum = 250.0;
 
         /// <summary>
-        /// The nominal design voltage.
+        /// The high end of the nominal design voltage.
         /// 
         /// Power sinks: This voltage is not generally used.
         /// Power sources: This will be the target output voltage (i.e. output voltage under no load)
         /// </summary>
-        public double VoltageNominal = 200.0;
+        public double VoltageNominalHigh = 200.0;
 
         /// <summary>
-        /// The minimum design voltage for this profile.
+        /// The low end of the nominal design voltage for this profile.
         /// 
         /// Power sinks: This will be the voltage at which the sink is designed to draw the power target (lower voltage = brownout, higher voltage = charge buffer)
         /// Power sources: This will be the voltage the source is designed to "droop" to when at maximum load
+        /// </summary>
+        public double VoltageNominalLow = 150.0;
+
+        /// <summary>
+        /// The minimum design voltage. Usually the same as VoltageNominalLow, except for devices that consume any available power (battery chargers, APC, etc).
+        /// 
+        /// Power sinks: This voltage will be the minimum voltage at which the device will still draw power.
+        /// Power sources: This voltage is not generally used.
         /// </summary>
         public double VoltageMinimum = 150.0;
 
@@ -89,8 +97,8 @@ namespace Hardwired.Objects.Electrical
             Efficiency = other.Efficiency;
             Frequency = other.Frequency;
             VoltageMaximum = other.VoltageMaximum;
-            VoltageNominal = other.VoltageNominal;
-            VoltageMinimum = other.VoltageMinimum;
+            VoltageNominalHigh = other.VoltageNominalHigh;
+            VoltageNominalLow = other.VoltageNominalLow;
             MaximumPower = other.MaximumPower;
             Inductance = other.Inductance;
             Capacitance = other.Capacitance;

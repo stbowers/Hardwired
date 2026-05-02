@@ -72,7 +72,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Generated: {PowerGenerated.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV_max: {PowerProfile.VoltageNominal.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV_max: {PowerProfile.VoltageNominalHigh.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Internal resistance: {_nortonEquivalent?.Resistance.ToStringPrefix("Ω", "yellow")}");
             stringBuilder.AppendLine($"Internal Buffer: {Charge.ToStringPrefix("Wt", "yellow")} / {ChargeMaximum.ToStringPrefix("Wt", "yellow")}");
         }
@@ -125,8 +125,8 @@ namespace Hardwired.Objects.Electrical
                 // - Set minimum charge to avoid dividing by zero
                 var charge = Math.Max(1e-5, OutputEnabled ? Charge : 0.0);
 
-                _nortonEquivalent.Resistance = PowerProfile.VoltageNominal * PowerProfile.VoltageNominal / charge;
-                _nortonEquivalent.CurrentShort = charge / PowerProfile.VoltageNominal;
+                _nortonEquivalent.Resistance = PowerProfile.VoltageNominalHigh * PowerProfile.VoltageNominalHigh / charge;
+                _nortonEquivalent.CurrentShort = charge / PowerProfile.VoltageNominalHigh;
 
                 _nortonEquivalent.UpdateState();
             }

@@ -39,16 +39,6 @@ namespace Hardwired.Objects.Electrical
         public PowerProfile ActivePowerProfile = new(PowerProfile.DefaultGrid);
 
         /// <summary>
-        /// The minimum power that this device can draw, as a ratio of `PowerTarget`, and still function.
-        /// 
-        /// By default this will be `1.0` for most devices, meaning the device must have the actual power required available in order to function at all.
-        /// Certain devices that have "brownout" behavior implemented may set this to less than 1.0 in order to draw less power as it's available.
-        /// Some devices that don't actually "use" the power, but instead just transfer it or store it in a battery (APC, battery cell charger, etc) set this
-        /// to `0.0`, so that they are able to use _any_ amount of power delivered.
-        /// </summary>
-        public double MinimumPowerDrawRatio = 1f;
-
-        /// <summary>
         /// True if the input circuit matches the constraints of the active power profile (and therefore the device can
         /// draw power), or false otherwise.
         /// </summary>
@@ -173,6 +163,7 @@ namespace Hardwired.Objects.Electrical
             IsInputValid = 
                 InputCircuit != null
                 && (InputCircuit.Frequency == ActivePowerProfile.Frequency)
+                && (_energyBuffer?.VoltageDelta.Magnitude >= ActivePowerProfile.VoltageMinimum)
                 && (_energyBuffer?.VoltageDelta.Magnitude <= ActivePowerProfile.VoltageMaximum);
 
             if (IsInputValid)
@@ -196,7 +187,7 @@ namespace Hardwired.Objects.Electrical
                 var powerTarget = Math.Max(1e-5, PowerTarget);
 
                 // Set resistance such that the energy buffer would draw the full power target at min voltage
-                _energyBuffer.Resistance = ActivePowerProfile.VoltageMinimum * ActivePowerProfile.VoltageMinimum / powerTarget;
+                _energyBuffer.Resistance = ActivePowerProfile.VoltageNominalLow * ActivePowerProfile.VoltageNominalLow / powerTarget;
 
                 // Set max voltage
                 _energyBuffer.VoltageMaximum = ActivePowerProfile.VoltageMaximum;
@@ -204,7 +195,7 @@ namespace Hardwired.Objects.Electrical
                 // The maximum power delivered to the energy buffer (at V = VoltageMax, Charge = 0) should be
                 // (VoltageMaximum / VoltageMinimum)^2 * PowerTarget.
                 // Ensure the buffer is at least large enough to hold one tick at that power rate.
-                var rVmaxVnom = ActivePowerProfile.VoltageMaximum / ActivePowerProfile.VoltageMinimum;
+                var rVmaxVnom = ActivePowerProfile.VoltageMaximum / ActivePowerProfile.VoltageNominalLow;
                 var pMax = rVmaxVnom * rVmaxVnom * powerTarget;
                 _energyBuffer.ChargeMaximum = Math.Max(pMax, _energyBuffer.ChargeMaximum);
 
@@ -238,10 +229,9 @@ namespace Hardwired.Objects.Electrical
             // Calculate how much power will actually go to the device (after active profile's efficiency loss),
             // and the minimum power draw required in order to enable the device
             var powerDelivered = PowerDraw * ActivePowerProfile.Efficiency;
-            var minPower = MinimumPowerDrawRatio * PowerTarget;
 
             _device?.ReceivePower(InputCableNetwork, (float)powerDelivered);
-            _device?.SetPowerFromThread(InputCableNetwork, PowerDraw >= minPower).Forget();
+            _device?.SetPowerFromThread(InputCableNetwork, PowerDraw > 0).Forget();
         }
 
         public override void RemoveFrom(Circuit circuit)

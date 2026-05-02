@@ -69,13 +69,14 @@ namespace Hardwired.Prefabs.CircuitBreaker
             if (PowerSink != null && PowerSink.PowerProfiles.Count >= 1)
             {
                 PowerSink.PowerProfiles[0].VoltageMaximum = 1.5 * OutputVoltage;
-                PowerSink.PowerProfiles[0].VoltageNominal = OutputVoltage;
-                PowerSink.PowerProfiles[0].VoltageMinimum = OutputVoltage;
+                PowerSink.PowerProfiles[0].VoltageNominalHigh = OutputVoltage;
+                PowerSink.PowerProfiles[0].VoltageNominalLow = OutputVoltage;
+                PowerSink.PowerProfiles[0].VoltageMinimum = 0;
             }
 
             if (Generator != null)
             {
-                Generator.PowerProfile.VoltageNominal = OutputVoltage;
+                Generator.PowerProfile.VoltageNominalHigh = OutputVoltage;
             }
 
             OnOff = true;

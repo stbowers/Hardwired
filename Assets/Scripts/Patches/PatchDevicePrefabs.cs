@@ -46,12 +46,10 @@ namespace Hardwired.Patches
                 // APC can receive power either from the grid, or directly from generators (at an efficiency penalty)
                 sink.PowerProfiles = new() {
                     // Grid supply (default, high efficiency)
-                    new(PowerProfile.DefaultGrid) { Efficiency = 0.98 },
+                    new(PowerProfile.DefaultGrid) { Efficiency = 0.98, VoltageMinimum = 0 },
                     // Direct connect to generators (lower efficiency)
-                    new(PowerProfile.DefaultGenerator) { Efficiency = 0.85 },
+                    new(PowerProfile.DefaultGenerator) { Efficiency = 0.85, VoltageMinimum = 0 },
                 };
-
-                sink.MinimumPowerDrawRatio = 0;
 
                 // APC outputs power using the default grid profile
                 source.PowerProfile = new(PowerProfile.DefaultGrid);

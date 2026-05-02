@@ -64,7 +64,7 @@ namespace Hardwired.Objects.Electrical
             }
 
             stringBuilder.AppendLine($"Charge: {Charge.ToStringPrefix("Wt", "yellow")} / {MaxCharge.ToStringPrefix("Wt", "yellow")}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | V_max: {PowerProfile.VoltageNominal.ToStringPrefix("V", "yellow")}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | V_max: {PowerProfile.VoltageNominalHigh.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")} | Power: {Power.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Internal Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
         }
@@ -80,7 +80,7 @@ namespace Hardwired.Objects.Electrical
                 _energyBuffer?.Dispose();
                 _energyBuffer = new(circuit, nodeA, null);
                 _energyBuffer.NortonEquivalent.Frequency = PowerProfile.Frequency;
-                _energyBuffer.VoltageMaximum = PowerProfile.VoltageNominal;
+                _energyBuffer.VoltageMaximum = PowerProfile.VoltageNominalHigh;
                 _energyBuffer.CurrentMaximum = 20f;
                 _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Tangent;
 
