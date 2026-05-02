@@ -17,9 +17,10 @@ namespace Hardwired.Objects.Electrical
 {
     public class Generator : ElectricalComponent
     {
-        private PowerSource? _powerSource;
+        private NortonEquivalent? _nortonEquivalent;
 
-        public double Frequency = 60;
+        [SerializeReference]
+        public PowerProfile PowerProfile = new ();
 
         public double PowerGenerated { get; private set; }
 
@@ -65,9 +66,8 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV_max: {VoltageMaximum.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"Internal resistance: {_powerSource?.NortonEquivalent.Resistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"Internal resistance: {_nortonEquivalent?.Resistance.ToStringPrefix("Ω", "yellow")}");
             stringBuilder.AppendLine($"Internal Buffer: {Charge.ToStringPrefix("Wt", "yellow")} / {ChargeMaximum.ToStringPrefix("Wt", "yellow")}");
-            stringBuilder.AppendLine($"output circuit: {OutputCircuit?.Id} ({_powerSource?.Circuit.Id} -- {_powerSource?.NodeA?.Value.Index})");
         }
 
         public override void AddTo(Circuit circuit)
@@ -76,14 +76,14 @@ namespace Hardwired.Objects.Electrical
 
             if (OutputCircuit == circuit)
             {
-                if (_powerSource != null)
+                if (_nortonEquivalent != null)
                 {
-                    RemoveFrom(_powerSource.Circuit);
+                    RemoveFrom(_nortonEquivalent.Circuit);
                 }
 
                 var nodeA = GetNode(circuit, PowerOutput, WireType.Line1);
 
-                _powerSource = new(circuit, nodeA, null) { Frequency = 60, VoltageNominal = VoltageMaximum };
+                _nortonEquivalent = new(circuit, nodeA, null);
             }
         }
 
@@ -109,12 +109,18 @@ namespace Hardwired.Objects.Electrical
 
             Device?.UsePower(OutputCableNetwork, (float)powerUsed);
 
-            if (_powerSource != null)
+            if (_nortonEquivalent != null)
             {
-                _powerSource.Frequency = Frequency;
-                _powerSource.VoltageNominal = VoltageMaximum;
-                _powerSource.PowerAvailable = Charge;
-                _powerSource.UpdateState();
+                _nortonEquivalent.Frequency = PowerProfile.Frequency;
+
+                // Set minimum charge to avoid dividing by zero
+                var charge = Math.Max(1e-5, Charge);
+
+                PowerProfile.VoltageMax = VoltageMaximum;
+                _nortonEquivalent.Resistance = PowerProfile.VoltageMax * PowerProfile.VoltageMax / charge;
+                _nortonEquivalent.CurrentShort = charge / PowerProfile.VoltageMax;
+
+                _nortonEquivalent.UpdateState();
             }
         }
 
@@ -124,12 +130,12 @@ namespace Hardwired.Objects.Electrical
 
             if (OutputCircuit != circuit) {return;}
 
-            _powerSource?.ApplyState();
+            _nortonEquivalent?.ApplyState();
 
-            PowerDraw = _powerSource?.Power.Real ?? 0;
-            PowerFactor = _powerSource?.PowerFactor ?? 0;
-            VoltageDelta = _powerSource?.VoltageDelta ?? 0;
-            CurrentDraw = _powerSource?.Current ?? 0;
+            PowerDraw = _nortonEquivalent?.Power.Real ?? 0;
+            PowerFactor = _nortonEquivalent?.PowerFactor ?? 0;
+            VoltageDelta = _nortonEquivalent?.VoltageDelta ?? 0;
+            CurrentDraw = _nortonEquivalent?.Current ?? 0;
 
             // Update internal charge
             Charge = Math.Clamp(Charge + PowerDraw, 0f, ChargeMaximum);
@@ -139,10 +145,10 @@ namespace Hardwired.Objects.Electrical
         {
             base.RemoveFrom(circuit);
 
-            if (circuit == _powerSource?.Circuit)
+            if (circuit == _nortonEquivalent?.Circuit)
             {
-                _powerSource?.Dispose();
-                _powerSource = null;
+                _nortonEquivalent?.Dispose();
+                _nortonEquivalent = null;
             }
         }
     }

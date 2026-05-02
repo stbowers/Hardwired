@@ -31,7 +31,6 @@ namespace Hardwired.Simulation.Electrical
         private static int _nextId = 0;
 
         private List<ICircuitElement> _elements = new();
-        private List<PowerSource> _powerSources = new();
         private List<INonlinearCircuitElement> _nonlinearElements = new();
         private List<IFrequencySource> _frequencySources = new();
         private bool _frequencyInitialized;
@@ -41,7 +40,6 @@ namespace Hardwired.Simulation.Electrical
         public MNASolver Solver { get; } = new();
 
         public IReadOnlyList<ICircuitElement> Elements => _elements.AsReadOnly();
-        public IReadOnlyList<PowerSource> PowerSources => _powerSources.AsReadOnly();
         public IReadOnlyList<INonlinearCircuitElement> NonlinearElements => _nonlinearElements.AsReadOnly();
         public IReadOnlyList<IFrequencySource> FrequencySources => _frequencySources.AsReadOnly();
 
