@@ -558,6 +558,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b6b4040c16ee83475b682b8dfe24cb74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  PowerProfiles: []
   VoltageMax: 200
   VoltageNominal: 100
   Frequency: 60

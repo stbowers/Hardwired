@@ -1,57 +1,52 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility.Extensions;
+using UnityEditor;
 using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
-    public class PowerSink : ElectricalComponent
+    public class PowerSink : ElectricalComponent, ISerializationCallbackReceiver
     {
         private Device? _device;
         private EnergyBuffer? _energyBuffer;
 
         /// <summary>
-        /// The maximum operational voltage a device can accept. If the input voltage is above this, the device will enter an overvoltage protection
-        /// state and stop drawing power.
+        /// Gets the list of "power profiles" that this power sink can use.
+        /// 
+        /// Each profile describes the required input conditions for the power (voltage, frequency, etc), as well
+        /// as the effects of using that profile (inductance/capacitance to add to the circuit, power draw efficiency, etc).
         /// </summary>
-        public double VoltageMax = 200f;
+        [NonSerialized]
+        public List<PowerProfile> PowerProfiles = new();
+
+        // public List<PowerProfileDTO> powerProfileDTO = new();
+
+        public int ActiveProfileIndex;
 
         /// <summary>
-        /// The nominal operational voltage for a device. If voltage is at this value or above (up to V_max), the device will draw the target power.
-        /// If voltage is below this value (down to V_min), the device enters a "brownout" state where it draws less power in proportion to voltage.
+        /// Gets the currently active "power profile" (change with ActiveProfileIndex)
         /// </summary>
-        public double VoltageNominal = 100f;
-
-        /// <summary>
-        /// The preferred AC frequency for the load.
-        /// Not currently used; but will likely cause a small efficiency loss if not matched.
-        /// </summary>
-        public double Frequency = 60f;
-
-        /// <summary>
-        /// The nominal inductance of the load in Henrys
-        /// </summary>
-        public double Inductance = 0f;
-
-        /// <summary>
-        /// The nominal capacitance of the load in Farads
-        /// </summary>
-        public double Capacitance = 0f;
+        public PowerProfile ActiveProfile => ActiveProfileIndex < PowerProfiles.Count ? PowerProfiles[ActiveProfileIndex] : new PowerProfile();
 
         /// <summary>
         /// The minimum power that this device can draw, as a ratio of `PowerTarget`, and still function.
         /// 
         /// By default this will be `1.0` for most devices, meaning the device must have the actual power required available in order to function at all.
         /// Certain devices that have "brownout" behavior implemented may set this to less than 1.0 in order to draw less power as it's available.
+        /// Some devices that don't actually "use" the power, but instead just transfer it or store it in a battery (APC, battery cell charger, etc) set this
+        /// to `0.0`, so that they are able to use _any_ amount of power delivered.
         /// </summary>
         public double MinimumPowerDrawRatio = 1f;
 
@@ -66,6 +61,8 @@ namespace Hardwired.Objects.Electrical
         public Complex CurrentDraw { get; private set; }
 
         public double BufferCharge { get; private set; }
+
+        public double MaxPowerTarget = 0;
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
@@ -90,10 +87,40 @@ namespace Hardwired.Objects.Electrical
                 stringBuilder.AppendLine($"Press [alt] for description");
             }
 
-            stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")} (max: {MaxPowerTarget.ToStringPrefix("W", "yellow")})");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
             stringBuilder.AppendLine($"Buffer charge: {BufferCharge.ToStringPrefix("Wt", "yellow")} / {(_energyBuffer?.ChargeMaximum ?? 0).ToStringPrefix("Wt", "yellow")}");
+
+            bool hasScrewdriver = InventoryManager.ActiveHandSlot.Get()?.PrefabName == "ItemScrewdriver";
+            bool primaryButtonDown = KeyManager.GetButtonDown(KeyMap.PrimaryAction);
+
+            // On click with screwdriver, cycle active profile index
+            if (hasScrewdriver && primaryButtonDown)
+            {
+                ActiveProfileIndex = (ActiveProfileIndex + 1) % PowerProfiles.Count;
+            }
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"[[ Power Input ]]");
+            stringBuilder.AppendLine($"Use screwdriver + left click to change".AsColor("yellow"));
+
+            // If player is holding a screwdriver, show a list of all available power profiles
+            if (hasScrewdriver)
+            {
+                for (int i = 0; i < PowerProfiles.Count; i++)
+                {
+                    var powerProfile = PowerProfiles[i];
+                    var isActive = i == ActiveProfileIndex;
+
+                    stringBuilder.AppendLine($"[{(isActive ? "*".AsColor("green") : " ")}] {powerProfile}");
+                }
+            }
+            // Otherwise, only show currently active profile
+            else
+            {
+                stringBuilder.AppendLine($"{ActiveProfile}");
+            }
         }
 
         public override void AddTo(Circuit circuit)
@@ -121,17 +148,33 @@ namespace Hardwired.Objects.Electrical
 
             if (_energyBuffer != null)
             {
+                // Set power target to the amount of power requested by the device
                 PowerTarget = _device?.GetUsedPower(InputCableNetwork) ?? 0f;
+                PowerTarget = PowerTarget / ActiveProfile.Efficiency;
+                PowerTarget = Math.Min(ActiveProfile.MaximumPower, PowerTarget);
+                MaxPowerTarget = Math.Max(MaxPowerTarget, PowerTarget);
 
-                // Use a minimum power target of 10 W, to avoid dividing by zero
-                var powerTarget = Math.Max(10, PowerTarget);
+                // Use a minimum power target of 1 W for the energy buffer, to avoid dividing by zero
+                // (note, if PowerTarget is 0 no power will actually be used, this minimum of 1 W is just for the
+                // static components, which will eventually balance)
+                var powerTarget = Math.Max(1, PowerTarget);
 
-                _energyBuffer.Resistance = VoltageNominal * VoltageNominal / powerTarget;
-                _energyBuffer.ChargeMaximum = Math.Max(4 * powerTarget, _energyBuffer.ChargeMaximum);
+                // Set resistance such that the energy buffer would draw the full power target at nominal voltage
+                _energyBuffer.Resistance = ActiveProfile.VoltageNominal * ActiveProfile.VoltageNominal / powerTarget;
 
-                _energyBuffer.VoltageMaximum = 2 * VoltageMax;
+                // Set maximum voltage of buffer to twice that of the power profile's max voltage
+                // (so that in theory if max voltage is supplied the buffer should stay at ~50% charge)
+                _energyBuffer.VoltageMaximum = 2 * ActiveProfile.VoltageMax;
+
+                // The maximum power delivered to the energy buffer (at V = VoltageMax) should be
+                // (VoltageMax / VoltageNominal)^2 * PowerTarget.
+                // Ensure the buffer is at least large enough to hold one tick at that power rate.
+                var rVmaxVnom = ActiveProfile.VoltageMax / ActiveProfile.VoltageNominal;
+                var pMax = rVmaxVnom * rVmaxVnom * powerTarget;
+                _energyBuffer.ChargeMaximum = Math.Max(pMax, _energyBuffer.ChargeMaximum);
+
+                // Set other (static) properties and update buffer state
                 _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
-
                 _energyBuffer.UpdateState();
             }
         }
@@ -156,8 +199,8 @@ namespace Hardwired.Objects.Electrical
 
             var minPower = MinimumPowerDrawRatio * PowerTarget;
 
-            _device?.ReceivePower(_device.PowerCableNetwork, (float)PowerDraw);
-            _device?.SetPowerFromThread(_device.PowerCableNetwork, PowerDraw >= minPower).Forget();
+            _device?.ReceivePower(InputCableNetwork, (float)PowerDraw);
+            _device?.SetPowerFromThread(InputCableNetwork, PowerDraw >= minPower).Forget();
         }
 
         public override void RemoveFrom(Circuit circuit)
@@ -167,5 +210,39 @@ namespace Hardwired.Objects.Electrical
             _energyBuffer?.Dispose();
             _energyBuffer = null;
         }
+
+        #region Unity Custom Serialization
+        /// <summary>
+        /// Custom serialized property to back the `PowerProfiles` list using unity's ISerializationCallbackReceiver interface.
+        /// 
+        /// Note - this is done because for some reason `PowerProfiles` is not correctly serialized by Unity. In fact, _no_ types from the
+        /// Hardwired assembly can be serialized inline, it appears everything must be serialized as a reference. However, [SerializeReference]
+        /// does not work directly on `PowerProfiles` either, so we serialize the power profiles by reference as a list of objects, which
+        /// _does_ appear to work.
+        /// 
+        /// I _think_ this might be because this is a BepInEx mod which is loaded at runtime, and so Unity's serialization infrastructure
+        /// doesn't "know about" our custom classes. While it can serialize our types individually, it can't serialize them as a graph (i.e.
+        /// it doesn't know what to do with any field types that use Hardwired types). The [SerializeReference] attribute _does_ appear to work,
+        /// probably because internally Unity serializes the references separately from the rest of the graph. However, [SerializeReference] doesn't
+        /// seem to work on strongly typed lists...
+        /// 
+        /// While I don't *love* this workaround, I didn't want to spend too much time trying to figure out exactly what was happening, so it's
+        /// possible there's some way to get Unity to recognize Hardwired types for serialization in a cleaner way...
+        /// </summary>
+        [SerializeField, SerializeReference]
+        private List<object> _serializedPowerProfileReferences = new();
+
+        public void OnBeforeSerialize()
+        {
+            _serializedPowerProfileReferences.Clear();
+            _serializedPowerProfileReferences.AddRange(PowerProfiles);
+        }
+
+        public void OnAfterDeserialize()
+        {
+            PowerProfiles.AddRange(_serializedPowerProfileReferences.OfType<PowerProfile>());
+            _serializedPowerProfileReferences.Clear();
+        }
+        #endregion
     }
 }

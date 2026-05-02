@@ -12,7 +12,7 @@ using Hardwired.Objects.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using HarmonyLib;
 using Objects.Pipes;
-
+using UnityEngine;
 using HardwiredBattery = Hardwired.Objects.Electrical.Battery;
 
 namespace Hardwired.Patches
@@ -27,7 +27,7 @@ namespace Hardwired.Patches
         {
             [typeof(VolumePump)] = d => {
                 var sink = d.GetOrAddComponent<PowerSink>();
-                sink.Inductance = 0.2;
+                sink.PowerProfiles = new() { new PowerProfile() { Inductance = 0.2f } };
             },
             [typeof(Transformer)] = d => {
                 d.GetOrAddComponent<FixedTransformer>();
@@ -42,6 +42,11 @@ namespace Hardwired.Patches
             [typeof(AreaPowerControl)] = d => {
                 var sink = d.GetOrAddComponent<PowerSink>();
                 d.GetOrAddComponent<Generator>();
+
+                sink.PowerProfiles = new() {
+                    new() { VoltageNominal = 100f },
+                    new() { Frequency = 0f, VoltageNominal = 250f, VoltageMax = 500f },
+                };
 
                 sink.MinimumPowerDrawRatio = 0;
             }

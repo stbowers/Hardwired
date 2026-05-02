@@ -68,8 +68,7 @@ namespace Hardwired.Prefabs.CircuitBreaker
 
             if (PowerSink != null)
             {
-                PowerSink.VoltageMax = OutputVoltage;
-                PowerSink.VoltageNominal = OutputVoltage;
+                PowerSink.PowerProfiles[0] = new() { VoltageMax = (float)OutputVoltage, VoltageNominal = (float)OutputVoltage };
             }
 
             if (Generator != null)

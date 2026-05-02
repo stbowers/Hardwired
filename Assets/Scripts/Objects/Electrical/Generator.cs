@@ -94,7 +94,7 @@ namespace Hardwired.Objects.Electrical
             if (_powerSource != null && OutputCircuit == circuit)
             {
                 // Get generated power
-                PowerGenerated = Device?.GetGeneratedPower(PowerOutput?.GetCable()?.CableNetwork) ?? 0;
+                PowerGenerated = Device?.GetGeneratedPower(OutputCableNetwork) ?? 0;
 
                 // Ensure the maximum buffer charge is at least 4x the generated power.
                 // This is the minimum required to ensure a generator can sustain a situation where PowerDraw == PowerGenerated
