@@ -44,8 +44,10 @@ namespace Hardwired.Patches
                 d.GetOrAddComponent<Generator>();
 
                 sink.PowerProfiles = new() {
-                    PowerProfile.Default,
-                    new() { Frequency = 0f, VoltageNominal = 250f, VoltageMax = 500f },
+                    // AC power input (default, high efficiency)
+                    new() { Efficiency = 0.98 },
+                    // DC power input (low efficiency, for initial power setup)
+                    new() { Frequency = 0f, VoltageNominal = 300f, VoltageMax = 500f, Efficiency = 0.85 },
                 };
 
                 sink.MinimumPowerDrawRatio = 0;

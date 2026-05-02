@@ -30,9 +30,7 @@ namespace Hardwired.Objects.Electrical
         /// as the effects of using that profile (inductance/capacitance to add to the circuit, power draw efficiency, etc).
         /// </summary>
         [NonSerialized]
-        public List<PowerProfile> PowerProfiles = new();
-
-        // public List<PowerProfileDTO> powerProfileDTO = new();
+        public List<PowerProfile> PowerProfiles = new() { PowerProfile.Default };
 
         public int ActiveProfileIndex;
 
@@ -163,6 +161,8 @@ namespace Hardwired.Objects.Electrical
         public override void UpdateState(Circuit circuit)
         {
             base.UpdateState(circuit );
+            
+            if (circuit != InputCircuit) { return; }
 
             // Check input conditions of circuit, to validate the current power profile
             IsInputValid = 
@@ -211,6 +211,8 @@ namespace Hardwired.Objects.Electrical
         public override void ApplyState(Circuit circuit)
         {
             base.ApplyState(circuit);
+
+            if (circuit != InputCircuit) { return; }
 
             _energyBuffer?.ApplyState();
 
