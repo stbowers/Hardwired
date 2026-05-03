@@ -106,7 +106,7 @@ namespace Hardwired.Patches
                 specificHeat = 0.025;
                 currentCapacity = 25;
                 temperatureCapacity = 90;
-                voltageRating = 500;
+                voltageRating = 550;
             }
 
             // I^2 * R = D * T_c

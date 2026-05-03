@@ -40,9 +40,9 @@ namespace Hardwired.Objects.Electrical
 
         public Complex CurrentDraw { get; private set; }
 
-        public double Charge { get; private set; }
+        public double BufferCharge { get; private set; }
 
-        public double ChargeMaximum { get; set; } = 4500;
+        public double MaxBufferCharge { get; set; } = 4500;
 
         public override Connection? PowerOutput => base.PowerOutput ?? base.PowerInput;
 
@@ -74,7 +74,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV_max: {PowerProfile.VoltageNominalHigh.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Internal resistance: {_nortonEquivalent?.Resistance.ToStringPrefix("Ω", "yellow")}");
-            stringBuilder.AppendLine($"Internal Buffer: {Charge.ToStringPrefix("Wt", "yellow")} / {ChargeMaximum.ToStringPrefix("Wt", "yellow")}");
+            stringBuilder.AppendLine($"Internal Buffer: {BufferCharge.ToStringPrefix("Wt", "yellow")} / {MaxBufferCharge.ToStringPrefix("Wt", "yellow")}");
         }
 
         public override void AddTo(Circuit circuit)
@@ -111,8 +111,8 @@ namespace Hardwired.Objects.Electrical
             // ChargeMaximum = Math.Max(4.5 * PowerGenerated, ChargeMaximum);
 
             // Update internal charge
-            var powerUsed = Math.Clamp(PowerGenerated, 0, ChargeMaximum - Charge);
-            Charge = Math.Clamp(Charge + powerUsed, 0f, ChargeMaximum);
+            var powerUsed = Math.Clamp(PowerGenerated, 0, MaxBufferCharge - BufferCharge);
+            BufferCharge = Math.Clamp(BufferCharge + powerUsed, 0f, MaxBufferCharge);
 
             Device?.UsePower(OutputCableNetwork, (float)powerUsed);
 
@@ -123,7 +123,7 @@ namespace Hardwired.Objects.Electrical
                 // Determine charge to use for actual calculations
                 // - No output if output is disabled (device is off)
                 // - Set minimum charge to avoid dividing by zero
-                var charge = Math.Max(1e-5, OutputEnabled ? Charge : 0.0);
+                var charge = Math.Max(1e-5, OutputEnabled ? BufferCharge : 0.0);
 
                 _nortonEquivalent.Resistance = PowerProfile.VoltageNominalHigh * PowerProfile.VoltageNominalHigh / charge;
                 _nortonEquivalent.CurrentShort = charge / PowerProfile.VoltageNominalHigh;
@@ -146,7 +146,7 @@ namespace Hardwired.Objects.Electrical
             CurrentDraw = _nortonEquivalent?.Current ?? 0;
 
             // Update internal charge
-            Charge = Math.Clamp(Charge + PowerDraw, 0f, ChargeMaximum);
+            BufferCharge = Math.Clamp(BufferCharge + PowerDraw, 0f, MaxBufferCharge);
         }
 
         public override void RemoveFrom(Circuit circuit)
@@ -159,5 +159,34 @@ namespace Hardwired.Objects.Electrical
                 _nortonEquivalent = null;
             }
         }
+
+        #region Save Data
+        private static readonly string CUSTOM_SAVE_DATA_PREFIX = "Hardwired.Objects.Electrical.PowerSource";
+        private static readonly string BUFFER_CHARGE_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:BufferCharge";
+        private static readonly string MAX_BUFFER_CHARGE_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:MaxBufferCharge";
+
+        public override void DeserializeSave(ThingSaveData saveData)
+        {
+            base.DeserializeSave(saveData);
+
+            if (saveData.TryGetCustomData(BUFFER_CHARGE_STATE_NAME, out float bufferCharge))
+            {
+                BufferCharge = bufferCharge;
+            }
+
+            if (saveData.TryGetCustomData(MAX_BUFFER_CHARGE_STATE_NAME, out float maxBufferCharge))
+            {
+                MaxBufferCharge = maxBufferCharge;
+            }
+        }
+
+        public override void SerializeSave(ThingSaveData saveData)
+        {
+            base.SerializeSave(saveData);
+
+            saveData.AddCustomData(BUFFER_CHARGE_STATE_NAME, (float)BufferCharge);
+            saveData.AddCustomData(MAX_BUFFER_CHARGE_STATE_NAME, (float)MaxBufferCharge);
+        }
+        #endregion
     }
 }
