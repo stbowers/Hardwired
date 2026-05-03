@@ -56,6 +56,8 @@ namespace Hardwired.Objects.Electrical
 
         public double BufferCharge { get; private set; }
 
+        public double MaxBufferCharge { get; private set; }
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -82,7 +84,7 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"Buffer charge: {BufferCharge.ToStringPrefix("Wt", "yellow")} / {(_energyBuffer?.ChargeMaximum ?? 0).ToStringPrefix("Wt", "yellow")}");
+            stringBuilder.AppendLine($"Buffer charge: {BufferCharge.ToStringPrefix("Wt", "yellow")} / {MaxBufferCharge.ToStringPrefix("Wt", "yellow")}");
 
             bool hasScrewdriver = InventoryManager.ActiveHandSlot.Get()?.PrefabName == "ItemScrewdriver";
             bool primaryButtonDown = KeyManager.GetButtonDown(KeyMap.PrimaryAction);
@@ -149,7 +151,11 @@ namespace Hardwired.Objects.Electrical
 
                 var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
 
-                _energyBuffer = new(circuit, nodeA, null);
+                _energyBuffer = new(circuit, nodeA, null)
+                {
+                    ChargeMaximum = MaxBufferCharge,
+                    Charge = BufferCharge,
+                };
             }
         }
 
@@ -213,7 +219,8 @@ namespace Hardwired.Objects.Electrical
 
             _energyBuffer?.ApplyState();
 
-            BufferCharge = _energyBuffer?.Charge ?? 0;
+            BufferCharge = _energyBuffer?.Charge ?? BufferCharge;
+            MaxBufferCharge = _energyBuffer?.ChargeMaximum ?? MaxBufferCharge;
             PowerFactor = _energyBuffer?.PowerFactor ?? 0;
             VoltageDelta = _energyBuffer?.VoltageDelta ?? 0;
             CurrentDraw = _energyBuffer?.Current ?? 0;
@@ -248,6 +255,8 @@ namespace Hardwired.Objects.Electrical
         #region Save Data
         private static readonly string CUSTOM_SAVE_DATA_PREFIX = "Hardwired.Objects.Electrical.PowerSink";
         private static readonly string ACTIVE_PROFILE_INDEX_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:ActivePowerProfileIndex";
+        private static readonly string BUFFER_CHARGE_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:BufferCharge";
+        private static readonly string MAX_BUFFER_CHARGE_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:MaxBufferCharge";
 
         public override void DeserializeSave(ThingSaveData saveData)
         {
@@ -259,6 +268,16 @@ namespace Hardwired.Objects.Electrical
             {
                 ActivePowerProfile = PowerProfiles[activePowerProfileIndex];
             }
+
+            if (saveData.TryGetCustomData(BUFFER_CHARGE_STATE_NAME, out float bufferCharge))
+            {
+                BufferCharge = bufferCharge;
+            }
+
+            if (saveData.TryGetCustomData(MAX_BUFFER_CHARGE_STATE_NAME, out float maxBufferCharge))
+            {
+                MaxBufferCharge = maxBufferCharge;
+            }
         }
 
         public override void SerializeSave(ThingSaveData saveData)
@@ -267,6 +286,9 @@ namespace Hardwired.Objects.Electrical
 
             int activePowerProfileIndex = PowerProfiles.IndexOf(ActivePowerProfile);
             saveData.AddCustomData(ACTIVE_PROFILE_INDEX_STATE_NAME, activePowerProfileIndex);
+
+            saveData.AddCustomData(BUFFER_CHARGE_STATE_NAME, (float)BufferCharge);
+            saveData.AddCustomData(MAX_BUFFER_CHARGE_STATE_NAME, (float)MaxBufferCharge);
         }
         #endregion
 
