@@ -439,7 +439,6 @@ MonoBehaviour:
   SuppressSound: 1
   Forward: {x: 0, y: 0, z: 0}
   HideInStationpedia: 0
-  CurrentPingMesh: {fileID: 0}
   IsEmergency: 0
   PrefabName: StructureCircuitBreakerOverCurrent
   PrefabHash: 470427723
@@ -481,13 +480,14 @@ MonoBehaviour:
     StringHash: 0
     Parent: {fileID: 7076581379351363869}
     Collider: {fileID: 329902467498763460}
+    ParentInteractableIndex: -1
     FakeCollider: {fileID: 0}
     Bounds:
       m_Center: {x: 0, y: 0.28, z: 0}
       m_Extent: {x: 0.1, y: 0.1, z: 0.125}
     Action: 36
     Animator: {fileID: 1326346193527564499}
-    JoinInProgressSync: 0
+    JoinInProgressSync: 1
     Layer: 0
     CanKeyInteract: 0
     KeyMap: 
@@ -498,6 +498,7 @@ MonoBehaviour:
     StringHash: 0
     Parent: {fileID: 7076581379351363869}
     Collider: {fileID: 2394212926783810559}
+    ParentInteractableIndex: -1
     FakeCollider: {fileID: 0}
     Bounds:
       m_Center: {x: 0, y: 0, z: 0}
@@ -515,6 +516,7 @@ MonoBehaviour:
     StringHash: 0
     Parent: {fileID: 7076581379351363869}
     Collider: {fileID: 2044400033649923310}
+    ParentInteractableIndex: -1
     FakeCollider: {fileID: 0}
     Bounds:
       m_Center: {x: 0, y: 0, z: 0}
@@ -556,6 +558,7 @@ MonoBehaviour:
   HasModeState: 0
   HasOpenState: 0
   HasImportState: 0
+  HasImport2State: 0
   HasExportState: 0
   HasExport2State: 0
   HasButton1State: 0
