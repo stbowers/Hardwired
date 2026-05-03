@@ -9,6 +9,7 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
+using Hardwired.Patches;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility.Extensions;
@@ -17,7 +18,7 @@ using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
-    public class PowerSink : ElectricalComponent, ISerializationCallbackReceiver
+    public class PowerSink : ElectricalComponent, ISerializationCallbackReceiver, IComponentSaveData
     {
         private Device? _device;
         private EnergyBuffer? _energyBuffer;
@@ -258,10 +259,8 @@ namespace Hardwired.Objects.Electrical
         private static readonly string BUFFER_CHARGE_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:BufferCharge";
         private static readonly string MAX_BUFFER_CHARGE_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:MaxBufferCharge";
 
-        public override void DeserializeSave(ThingSaveData saveData)
+        public void DeserializeSave(ThingSaveData saveData)
         {
-            base.DeserializeSave(saveData);
-
             if (saveData.TryGetCustomData(ACTIVE_PROFILE_INDEX_STATE_NAME, out int activePowerProfileIndex)
                 && activePowerProfileIndex >= 0
                 && activePowerProfileIndex < PowerProfiles.Count)
@@ -280,10 +279,8 @@ namespace Hardwired.Objects.Electrical
             }
         }
 
-        public override void SerializeSave(ThingSaveData saveData)
+        public void SerializeSave(ThingSaveData saveData)
         {
-            base.SerializeSave(saveData);
-
             int activePowerProfileIndex = PowerProfiles.IndexOf(ActivePowerProfile);
             saveData.AddCustomData(ACTIVE_PROFILE_INDEX_STATE_NAME, activePowerProfileIndex);
 

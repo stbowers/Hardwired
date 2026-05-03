@@ -8,6 +8,7 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
 using Hardwired.Networks;
+using Hardwired.Patches;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility.Extensions;
@@ -15,7 +16,7 @@ using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
-    public class PowerSource : ElectricalComponent
+    public class PowerSource : ElectricalComponent, IComponentSaveData
     {
         private NortonEquivalent? _nortonEquivalent;
 
@@ -165,10 +166,8 @@ namespace Hardwired.Objects.Electrical
         private static readonly string BUFFER_CHARGE_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:BufferCharge";
         private static readonly string MAX_BUFFER_CHARGE_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:MaxBufferCharge";
 
-        public override void DeserializeSave(ThingSaveData saveData)
+        public void DeserializeSave(ThingSaveData saveData)
         {
-            base.DeserializeSave(saveData);
-
             if (saveData.TryGetCustomData(BUFFER_CHARGE_STATE_NAME, out float bufferCharge))
             {
                 BufferCharge = bufferCharge;
@@ -180,10 +179,8 @@ namespace Hardwired.Objects.Electrical
             }
         }
 
-        public override void SerializeSave(ThingSaveData saveData)
+        public void SerializeSave(ThingSaveData saveData)
         {
-            base.SerializeSave(saveData);
-
             saveData.AddCustomData(BUFFER_CHARGE_STATE_NAME, (float)BufferCharge);
             saveData.AddCustomData(MAX_BUFFER_CHARGE_STATE_NAME, (float)MaxBufferCharge);
         }

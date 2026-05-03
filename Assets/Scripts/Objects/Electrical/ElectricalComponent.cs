@@ -133,39 +133,6 @@ namespace Hardwired.Objects.Electrical
         }
 
         /// <summary>
-        /// Called by a postfix patch on `Thing.DeserialiseSave()`, allowing any attached electrical components to load save data.
-        /// 
-        /// See `SerializeSave()` for more info on how hardwired components generally add data to `ThingSaveData`.
-        /// </summary>
-        /// <param name="saveData"></param>
-        public virtual void DeserializeSave(ThingSaveData saveData)
-        {
-        }
-
-        /// <summary>
-        /// Called by a postfix patch on `Thing.InitialiseSaveData()`, allowing any attached electrical components to write data to be saved.
-        /// 
-        /// Note, Sationeers' save system is fairly rigid, and doesn't provide many places to add custom data to the save file...
-        /// The best method I have found so far is to add custom "interactable states" to `ThingSaveData.States`.
-        /// Each state has a name and int value, meaning we can use `ThingSaveData.States` as a budget `Dictionary<string, int>` :')
-        /// 
-        /// When loading save data, `Thing.DeserialiseSave()` ignores any interactable states with an unknown name, so generally hardwired
-        /// components will add states with names like "Hardwired.Objects.Electrical.PowerSink:ActivePowerProfileIndex" to ensure there are
-        /// no conflicts.
-        /// 
-        /// Note that using this system, hardwired components are limited to only saving/loading integer values (or other values that can be
-        /// converted to a 4-byte representation).
-        /// In theory if more complex data was really needed, and it couldn't be converted into a series of integer/4-byte properties, more
-        /// complex data could be stored in the `StateName` string, serialized as JSON or some other format...
-        /// 
-        /// See extension methods in `ThingSaveDataExtensions.cs` for helper methods for storing values in the `ThingSaveData.States` list.
-        /// </summary>
-        /// <param name="saveData"></param>
-        public virtual void SerializeSave(ThingSaveData saveData)
-        {
-        }
-
-        /// <summary>
         /// Gets a list of cable networks that should be considered to be in the same circuit as the input network
         /// </summary>
         /// <param name="network"></param>
