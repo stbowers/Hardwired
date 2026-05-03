@@ -7,6 +7,7 @@ using Assets.Scripts.Networks;
 using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
+using Hardwired.Utility;
 using Hardwired.Utility.Extensions;
 using UnityEngine;
 
@@ -19,7 +20,9 @@ namespace Hardwired.Objects.Electrical
     /// </summary>
     public class FixedTransformer : ElectricalComponent
     {
-        MutualInductor? _mutualInductor;
+        private Switch? _switch;
+        private MutualInductor? _mutualInductor;
+        private RefCounted<MNASolver.Unknown>? _internalPin;
 
         public double Ratio => (Device as Assets.Scripts.Objects.Electrical.Transformer)?.Setting ?? 0.0;
 
@@ -81,12 +84,20 @@ namespace Hardwired.Objects.Electrical
         public override void AddTo(Circuit circuit)
         {
             base.AddTo(circuit);
+            
+            if (_mutualInductor != null)
+            {
+                RemoveFrom(_mutualInductor.Circuit);
+            }
 
             var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
             var nodeC = GetNode(circuit, PowerOutput, WireType.Line1);
+            _internalPin = new(circuit.Solver.AddUnknown());
+
+            _switch = new(circuit, nodeA, _internalPin);
 
             // Nodes B & D are shared ground
-            _mutualInductor = new(circuit, nodeA, null, nodeC, null);
+            _mutualInductor = new(circuit, _internalPin, null, nodeC, null);
             _mutualInductor.N = 2;
         }
 
@@ -94,6 +105,12 @@ namespace Hardwired.Objects.Electrical
         {
             base.UpdateState(circuit);
 
+            if (_switch != null)
+            {
+                _switch.Closed = Device?.OnOff == true;
+            }
+
+            _switch?.UpdateState();
             _mutualInductor?.UpdateState();
         }
 
@@ -101,6 +118,7 @@ namespace Hardwired.Objects.Electrical
         {
             base.ApplyState(circuit);
 
+            _switch?.ApplyState();
             _mutualInductor?.ApplyState();
 
             PrimaryVoltage = _mutualInductor?.PrimaryVoltageDelta ?? 0f;
@@ -109,6 +127,8 @@ namespace Hardwired.Objects.Electrical
             SecondaryCurrent = _mutualInductor?.SecondaryCurrent ?? 0f;
             PrimaryApparentPower = _mutualInductor?.PrimaryPower.Magnitude ?? 0f;
             SecondaryApparentPower = _mutualInductor?.SecondaryPower.Magnitude ?? 0f;
+
+            Device?.SetPowerFromThread(InputCableNetwork, Device?.OnOff == true);
         }
 
         public override void RemoveFrom(Circuit circuit)
@@ -117,6 +137,12 @@ namespace Hardwired.Objects.Electrical
 
             _mutualInductor?.Dispose();
             _mutualInductor = null;
+
+            _switch?.Dispose();
+            _switch = null;
+
+            _internalPin?.Dispose();
+            _internalPin = null;
         }
     }
 }
