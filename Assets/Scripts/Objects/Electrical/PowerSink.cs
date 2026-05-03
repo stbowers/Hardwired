@@ -245,6 +245,31 @@ namespace Hardwired.Objects.Electrical
             }
         }
 
+        #region Save Data
+        private static readonly string CUSTOM_SAVE_DATA_PREFIX = "Hardwired.Objects.Electrical.PowerSink";
+        private static readonly string ACTIVE_PROFILE_INDEX_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:ActivePowerProfileIndex";
+
+        public override void DeserializeSave(ThingSaveData saveData)
+        {
+            base.DeserializeSave(saveData);
+
+            if (saveData.TryGetCustomData(ACTIVE_PROFILE_INDEX_STATE_NAME, out int activePowerProfileIndex)
+                && activePowerProfileIndex >= 0
+                && activePowerProfileIndex < PowerProfiles.Count)
+            {
+                ActivePowerProfile = PowerProfiles[activePowerProfileIndex];
+            }
+        }
+
+        public override void SerializeSave(ThingSaveData saveData)
+        {
+            base.SerializeSave(saveData);
+
+            int activePowerProfileIndex = PowerProfiles.IndexOf(ActivePowerProfile);
+            saveData.AddCustomData(ACTIVE_PROFILE_INDEX_STATE_NAME, activePowerProfileIndex);
+        }
+        #endregion
+
         #region Unity Custom Serialization
         /// <summary>
         /// Custom serialized property to back the `PowerProfiles` list using unity's ISerializationCallbackReceiver interface.
