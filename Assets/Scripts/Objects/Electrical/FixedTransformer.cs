@@ -135,14 +135,23 @@ namespace Hardwired.Objects.Electrical
         {
             base.RemoveFrom(circuit);
 
-            _mutualInductor?.Dispose();
-            _mutualInductor = null;
+            if (circuit == _mutualInductor?.Circuit)
+            {
+                _mutualInductor?.Dispose();
+                _mutualInductor = null;
 
-            _switch?.Dispose();
-            _switch = null;
+                _internalPin?.Dispose();
+                _internalPin = null;
+            }
 
-            _internalPin?.Dispose();
-            _internalPin = null;
+            if (circuit == _switch?.Circuit)
+            {
+                _switch?.Dispose();
+                _switch = null;
+
+                _internalPin?.Dispose();
+                _internalPin = null;
+            }
         }
     }
 }

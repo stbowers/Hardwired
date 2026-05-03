@@ -238,8 +238,11 @@ namespace Hardwired.Objects.Electrical
         {
             base.RemoveFrom(circuit);
 
-            _energyBuffer?.Dispose();
-            _energyBuffer = null;
+            if (circuit == _energyBuffer?.Circuit)
+            {
+                _energyBuffer?.Dispose();
+                _energyBuffer = null;
+            }
         }
 
         #region Unity Custom Serialization
