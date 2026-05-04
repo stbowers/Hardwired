@@ -7,11 +7,13 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Util;
 using Hardwired.Objects.Electrical;
+using Hardwired.Patches;
+using Hardwired.Utility.Extensions;
 using Objects.Pipes;
 
-namespace Hardwired.Prefabs.CircuitBreaker
+namespace Hardwired.Prefabs
 {
-    public class PowerConverter : Assets.Scripts.Objects.Pipes.Device
+    public class PowerConverter : Assets.Scripts.Objects.Pipes.Device, IComponentSaveData
     {
         public PowerSink? PowerSink;
 
@@ -102,5 +104,23 @@ namespace Hardwired.Prefabs.CircuitBreaker
         {
             Charge = Math.Max(Charge - powerUsed, 0);
         }
+
+        #region Save Data
+        private static readonly string CUSTOM_SAVE_DATA_PREFIX = "Hardwired.Prefabs.PowerConverter";
+        private static readonly string OUTPUT_VOLTAGE_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:OutputVoltage";
+
+        void IComponentSaveData.DeserializeSave(ThingSaveData saveData)
+        {
+            if (saveData.TryGetCustomData(OUTPUT_VOLTAGE_STATE_NAME, out float outputVoltage))
+            {
+                OutputVoltage = outputVoltage;
+            }
+        }
+
+        void IComponentSaveData.SerializeSave(ThingSaveData saveData)
+        {
+            saveData.AddCustomData(OUTPUT_VOLTAGE_STATE_NAME, (float)OutputVoltage);
+        }
+        #endregion
     }
 }

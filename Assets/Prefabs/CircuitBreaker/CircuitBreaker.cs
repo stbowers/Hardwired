@@ -6,11 +6,13 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Util;
 using Hardwired.Objects.Electrical;
+using Hardwired.Patches;
+using Hardwired.Utility.Extensions;
 using Objects.Pipes;
 
-namespace Hardwired.Prefabs.CircuitBreaker
+namespace Hardwired.Prefabs
 {
-    public class CircuitBreaker : Assets.Scripts.Objects.Pipes.Device
+    public class CircuitBreaker : Assets.Scripts.Objects.Pipes.Device, IComponentSaveData
     {
         private static readonly string STATE_CLOSED = "closed".AsColor("green");
         private static readonly string STATE_OPEN = "open".AsColor("red");
@@ -98,5 +100,30 @@ namespace Hardwired.Prefabs.CircuitBreaker
             /// </summary>
             UnderVoltage
         }
+
+        #region Save Data
+        private static readonly string CUSTOM_SAVE_DATA_PREFIX = "Hardwired.Prefabs.CircuitBreaker";
+        private static readonly string MAX_CURRENT_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:MaxCurrent";
+        private static readonly string MIN_VOLTAGE_STATE_NAME = $"{CUSTOM_SAVE_DATA_PREFIX}:MinVoltage";
+
+        void IComponentSaveData.DeserializeSave(ThingSaveData saveData)
+        {
+            if (saveData.TryGetCustomData(MAX_CURRENT_STATE_NAME, out float maxCurrent))
+            {
+                MaxCurrent = maxCurrent;
+            }
+
+            if (saveData.TryGetCustomData(MIN_VOLTAGE_STATE_NAME, out float minVoltage))
+            {
+                MinVoltage = minVoltage;
+            }
+        }
+
+        void IComponentSaveData.SerializeSave(ThingSaveData saveData)
+        {
+            saveData.AddCustomData(MAX_CURRENT_STATE_NAME, (float)MaxCurrent);
+            saveData.AddCustomData(MIN_VOLTAGE_STATE_NAME, (float)MinVoltage);
+        }
+        #endregion
     }
 }
