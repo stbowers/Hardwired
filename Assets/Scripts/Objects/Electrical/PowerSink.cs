@@ -63,78 +63,9 @@ namespace Hardwired.Objects.Electrical
         {
             base.BuildPassiveToolTip(stringBuilder);
 
-            bool altKey = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
-
-            if (altKey)
-            {
-                stringBuilder.AppendLine($"Consumes electrical power from the circuit.");
-                stringBuilder.AppendLine($"Modeled as a constant impedance (resistive or resistive + reactive) in series with a controllable voltage source, and an internal energy buffer.");
-                stringBuilder.AppendLine($"As the energy buffer charges, the internal voltage source increases, pushing back on the circuit and reducing current draw on the next tick.");
-                stringBuilder.AppendLine($"The system settles into equilibrium when input power equals the device's power consumption.");
-                stringBuilder.AppendLine($"Each device has a nominal, minimum, and maximum design voltage; if voltage is above maximum or below minimum, it will not draw power.");
-                stringBuilder.AppendLine($"If input voltage is above nominal (but below maximum), excess power charges the buffer until equilibrium is reached.");
-                stringBuilder.AppendLine($"If input voltage is below nominal (but above minimum), the device enters a brownout state where available power is limited.");
-
-                stringBuilder.AppendLine($"\n");
-            }
-            else
-            {
-                stringBuilder.AppendLine($"Press [alt] for description");
-            }
-
-            stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
-            stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
-            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"Buffer charge: {BufferCharge.ToStringPrefix("Wt", "yellow")} / {MaxBufferCharge.ToStringPrefix("Wt", "yellow")}");
-
-            bool hasScrewdriver = InventoryManager.ActiveHandSlot.Get()?.PrefabName == "ItemScrewdriver";
-            bool primaryButtonDown = KeyManager.GetButtonDown(KeyMap.PrimaryAction);
-
-            // Set a cooldown on changing power profiles...
-            // This prevents one input causing multiple changes if the tooltip is rendered more than once per frame.
-            bool canChangePowerProfile = (DateTime.Now - _lastPowerProfileChanged).TotalSeconds > 0.2;
-
-            // On click with screwdriver, cycle active profile index
-            if (PowerProfiles.Count > 1
-                && canChangePowerProfile
-                && hasScrewdriver
-                && primaryButtonDown)
-            {
-                var activeProfileIndex = PowerProfiles.IndexOf(ActivePowerProfile);
-                activeProfileIndex = (activeProfileIndex + 1) % PowerProfiles.Count;
-                ActivePowerProfile = PowerProfiles[activeProfileIndex];
-
-                Hardwired.LogDebug($"Changing active profile to {activeProfileIndex} (nProfiles: {PowerProfiles.Count})");
-
-                _lastPowerProfileChanged = DateTime.Now;
-            }
-
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"[[ Power Input ]]");
-            stringBuilder.AppendLine($"Use screwdriver + left click to change".AsColor("yellow"));
-
-            // If player is holding a screwdriver, show a list of all available power profiles
-            if (hasScrewdriver)
-            {
-                for (int i = 0; i < PowerProfiles.Count; i++)
-                {
-                    var powerProfile = PowerProfiles[i];
-                    var isActive = powerProfile == ActivePowerProfile;
-
-                    stringBuilder.AppendLine($"[{(isActive ? "*".AsColor("green") : " ")}] {powerProfile}");
-                }
-            }
-            // Otherwise, only show currently active profile
-            else
-            {
-                stringBuilder.AppendLine($"{ActivePowerProfile}");
-            }
-
-            // Show power input warning
-            if (!IsInputValid)
-            {
-                stringBuilder.AppendLine($"WARNING! Attached power input does not match selected power input profile. No power will be drawn.".AsColor("red"));
-            }
+            BuildDescriptionTooltip(stringBuilder);
+            BuildPowerProfileTooltip(stringBuilder, true);
+            BuildDebugInfoTooltip(stringBuilder);
         }
 
         public override void AddTo(Circuit circuit)
@@ -250,6 +181,104 @@ namespace Hardwired.Objects.Electrical
             {
                 _energyBuffer?.Dispose();
                 _energyBuffer = null;
+            }
+        }
+
+        private void BuildDescriptionTooltip(StringBuilder stringBuilder)
+        {
+            bool altKey = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+
+            if (altKey)
+            {
+                stringBuilder.AppendLine($"Consumes electrical power from the circuit.");
+                stringBuilder.AppendLine($"Modeled as a constant impedance (resistive or resistive + reactive) in series with a controllable voltage source, and an internal energy buffer.");
+                stringBuilder.AppendLine($"As the energy buffer charges, the internal voltage source increases, pushing back on the circuit and reducing current draw on the next tick.");
+                stringBuilder.AppendLine($"The system settles into equilibrium when input power equals the device's power consumption.");
+                stringBuilder.AppendLine($"Each device has a nominal, minimum, and maximum design voltage; if voltage is above maximum or below minimum, it will not draw power.");
+                stringBuilder.AppendLine($"If input voltage is above nominal (but below maximum), excess power charges the buffer until equilibrium is reached.");
+                stringBuilder.AppendLine($"If input voltage is below nominal (but above minimum), the device enters a brownout state where available power is limited.");
+
+                stringBuilder.AppendLine($"\n");
+            }
+            else
+            {
+                stringBuilder.AppendLine($"Press [alt] for description");
+            }
+        }
+
+        private void BuildDebugInfoTooltip(StringBuilder stringBuilder)
+        {
+            stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
+            stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
+            stringBuilder.AppendLine($"Buffer charge: {BufferCharge.ToStringPrefix("Wt", "yellow")} / {MaxBufferCharge.ToStringPrefix("Wt", "yellow")}");
+        }
+
+        /// <summary>
+        /// Shows the active input power profile, or the list of available profiles if a screwdriver is being held.
+        /// 
+        /// If interactable == true, will also change the active power profile if a screwdriver is being held and
+        /// the primary action button (left click) is pressed.
+        /// 
+        /// Note - it's probably not *ideal* to process interaction in the tooltip builder; in theory it'd be better
+        /// to do this in something like InteractWith(); however InteractWith() is not called unless the user is
+        /// specifically looking at an interactable hitbox, which would be impractical to add to every device...
+        /// </summary>
+        /// <param name="stringBuilder"></param>
+        /// <param name="interactable"></param>
+        internal void BuildPowerProfileTooltip(StringBuilder stringBuilder, bool interactable)
+        {
+            bool hasScrewdriver = InventoryManager.ActiveHandSlot.Get()?.PrefabName == "ItemScrewdriver";
+            bool primaryButtonDown = KeyManager.GetButtonDown(KeyMap.PrimaryAction);
+
+            // Set a cooldown on changing power profiles...
+            // This prevents one input causing multiple changes if the tooltip is rendered more than once per frame.
+            bool canChangePowerProfile = (DateTime.Now - _lastPowerProfileChanged).TotalSeconds > 0.2;
+
+            // On click with screwdriver, cycle active profile index
+            if (interactable
+                && PowerProfiles.Count > 1
+                && canChangePowerProfile
+                && hasScrewdriver
+                && primaryButtonDown)
+            {
+                var activeProfileIndex = PowerProfiles.IndexOf(ActivePowerProfile);
+                activeProfileIndex = (activeProfileIndex + 1) % PowerProfiles.Count;
+                ActivePowerProfile = PowerProfiles[activeProfileIndex];
+
+                // Hardwired.LogDebug($"Changing active profile to {activeProfileIndex} (nProfiles: {PowerProfiles.Count})");
+
+                _lastPowerProfileChanged = DateTime.Now;
+            }
+
+            stringBuilder.AppendLine($"[[ Power Input ]]");
+
+            if (PowerProfiles.Count > 1)
+            {
+                stringBuilder.AppendLine($"Use screwdriver + left click to change".AsColor("yellow"));
+            }
+
+            // If player is holding a screwdriver, show a list of all available power profiles
+            if (hasScrewdriver)
+            {
+                for (int i = 0; i < PowerProfiles.Count; i++)
+                {
+                    var powerProfile = PowerProfiles[i];
+                    var isActive = powerProfile == ActivePowerProfile;
+
+                    stringBuilder.AppendLine($"[{(isActive ? "*".AsColor("green") : " ")}] {powerProfile}");
+                }
+            }
+            // Otherwise, only show currently active profile
+            else
+            {
+                stringBuilder.AppendLine($"{ActivePowerProfile}");
+            }
+
+            // Show power input warning
+            if (!IsInputValid)
+            {
+                stringBuilder.AppendLine($"WARNING! Attached power input does not match selected power input profile. No power will be drawn.".AsColor("red"));
             }
         }
 
