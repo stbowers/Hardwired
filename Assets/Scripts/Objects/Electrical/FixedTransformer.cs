@@ -98,7 +98,7 @@ namespace Hardwired.Objects.Electrical
 
             // Nodes B & D are shared ground
             _mutualInductor = new(circuit, _internalPin, null, nodeC, null);
-            _mutualInductor.N = 2;
+            _mutualInductor.N = Ratio;
         }
 
         public override void UpdateState(Circuit circuit)
@@ -108,10 +108,14 @@ namespace Hardwired.Objects.Electrical
             if (_switch != null)
             {
                 _switch.Closed = Device?.OnOff == true;
+                _switch?.UpdateState();
             }
 
-            _switch?.UpdateState();
-            _mutualInductor?.UpdateState();
+            if (_mutualInductor != null)
+            {
+                _mutualInductor.N = Ratio;
+                _mutualInductor?.UpdateState();
+            }
         }
 
         public override void ApplyState(Circuit circuit)
