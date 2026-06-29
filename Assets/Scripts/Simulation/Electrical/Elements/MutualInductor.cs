@@ -164,7 +164,12 @@ namespace Hardwired.Simulation.Electrical.Elements
             if (Circuit.Frequency != 0f)
             {
                 // TODO: Make input parameters
-                var l1 = 10;
+                // Note - l1 is the primary coil inductance, l2 is the secondary coil inductance, and m is the mutual inductance between the two coils.
+                // l1 should be set based on the expected current draw and voltage leak, and in the future may need to be calculated based on other properties (like max power draw, voltage leak, etc).
+                // In the past this value was 10 H, but that was too high and caused the simulation to be unstable (too much voltage leak due to high reactive impedance).
+                // 0.1 H seems to work well for now, but may need to be adjusted in the future.
+                // One side effect of a lower inductance value is that the transformer will have a higher reactive power draw, which still causes resistive losses in the circuit even when there is 0 real power draw, which is unexpected.
+                var l1 = 0.1;
                 var l2 = l1 * N * N;
                 var k = 0.999;
                 var m = k * l1 * N;

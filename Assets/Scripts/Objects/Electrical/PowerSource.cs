@@ -43,7 +43,28 @@ namespace Hardwired.Objects.Electrical
 
         public double BufferCharge { get; private set; }
 
-        public double MaxBufferCharge { get; set; } = 4500;
+        /// <summary>
+        /// The maximum amount of energy that can be stored in the internal buffer.
+        /// 
+        /// Note - the energy in the buffer essentially dictates the maximum power draw of the source (at V = 1/2 * V_max).
+        /// The default value of 30.0 kWt is based on a maximum power draw of 5 kW, with the following calculations:
+        /// 
+        /// - Target voltage droop: 40% (default device power profile is 150-250 V)
+        ///   - 40% droop instead of 50% (1/2 * V_max) = 1.25x buffer needed
+        /// - Buffer needed for max power draw P_max: Q = P_max * 4
+        ///   - Buffer needed for max power draw P_max with 1.25x droop: Q = 1.25 * P_max * 4
+        /// - Need an additional P_max Wt in buffer, since power used is subtracted from buffer at end of tick
+        /// - Q_total = (1.25 * P_max * 4) + P_max = 30 kWt
+        /// 
+        /// Even with this default size, power sources can still end up drooping quite a lot when the load approaches 5 kW, until buffers fill up and can recover...
+        /// It may be worth increasing the default buffer size to 50 kWt or more, which will make power sources "stiffer" and less prone to droop.
+        /// Even with a larger buffer, if the power draw is higher than power supplied, the internal buffer will eventually drain and the source will droop, but it will take longer to reach that point.
+        /// Ideally the buffer should be as small as we can get away with, to reduce the amount of energy that can be stored in the system, and increase responsiveness to load changes (so the player can diagnose issues).
+        /// 
+        /// Also note that this default buffer size is used for all power sources, even though most generators will generate less than 5 kW (and some power converters may need to supply more than 5 kW in the future).
+        /// At some point the default buffer size could be calculated per power source (i.e. with a "MaxPowerDraw" property).
+        /// </summary>
+        public double MaxBufferCharge { get; set; } = 30000;
 
         public override Connection? PowerOutput => base.PowerOutput ?? base.PowerInput;
 
@@ -173,16 +194,16 @@ namespace Hardwired.Objects.Electrical
                 BufferCharge = bufferCharge;
             }
 
-            if (saveData.TryGetCustomData(MAX_BUFFER_CHARGE_STATE_NAME, out float maxBufferCharge))
-            {
-                MaxBufferCharge = maxBufferCharge;
-            }
+            // if (saveData.TryGetCustomData(MAX_BUFFER_CHARGE_STATE_NAME, out float maxBufferCharge))
+            // {
+            //     MaxBufferCharge = maxBufferCharge;
+            // }
         }
 
         public void SerializeSave(ThingSaveData saveData)
         {
             saveData.AddCustomData(BUFFER_CHARGE_STATE_NAME, (float)BufferCharge);
-            saveData.AddCustomData(MAX_BUFFER_CHARGE_STATE_NAME, (float)MaxBufferCharge);
+            // saveData.AddCustomData(MAX_BUFFER_CHARGE_STATE_NAME, (float)MaxBufferCharge);
         }
         #endregion
     }

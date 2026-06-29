@@ -74,6 +74,7 @@ namespace Hardwired.Prefabs
                 PowerSink.PowerProfiles[0].VoltageNominalHigh = OutputVoltage;
                 PowerSink.PowerProfiles[0].VoltageNominalLow = OutputVoltage;
                 PowerSink.PowerProfiles[0].VoltageMinimum = 0;
+                PowerSink.PowerProfiles[0].MaximumPower = 5000;
             }
 
             if (Generator != null)
