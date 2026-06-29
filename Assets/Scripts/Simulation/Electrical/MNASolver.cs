@@ -323,6 +323,10 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         public bool SolveInitial()
         {
+            // Inputs -- Coerce small or NaN values to 0
+            A.CoerceZero(v => v.IsNaN() || v.Magnitude < 10 * double.Epsilon);
+            Z.CoerceZero(v => v.IsNaN() || v.Magnitude < 10 * double.Epsilon);
+
             // Try to factorize A, if not already set up
             _A_QR ??= A.QR();
 
@@ -341,6 +345,9 @@ namespace Hardwired.Simulation.Electrical
 
             // Solve for x
             _A_QR.Solve(Z, X);
+
+            // Output -- Coerce small or NaN values to 0
+            X.CoerceZero(v => v.IsNaN() || v.Magnitude < 10 * double.Epsilon);
 
             return true;
         }

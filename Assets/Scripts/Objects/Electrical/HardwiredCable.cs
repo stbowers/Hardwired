@@ -210,18 +210,25 @@ namespace Hardwired.Objects.Electrical
                 Hardwired.LogDebug($"Burning cable (too hot/too much current!) -- i: {Current} | T: {Temperature}");
             }
 
-            // Randomly break cables that are over voltage, with a higher chance the further away from their design voltage they are
-            // 100% of MaximumVoltageRating ~ 0%
-            // 150% of MaximumVoltageRating ~ 100%
-            var voltageCapacity = VoltageAverage.Magnitude / MaximumVoltageRating;
-            breakChance = (voltageCapacity - 1.0) / 0.5f;
-            breakChance = Math.Clamp(breakChance, 0f, 1f);
-
-            shouldBreak = breakChance >= UnityEngine.Random.Range(0f, 1f);
-            if (shouldBreak)
+            // If there is any current (above some floor value) in the cable, check if it's over voltage...
+            // Note - we don't check for over-voltage in cables with no (or very little) current, because sometimes
+            // when a circuit changes suddenly (such as a breaker opening/closing, a cable burning, etc), there may be
+            // a transient voltage spike but with 0 or very little current, due to the way the circuit solver works...
+            if (Current > 0.1)
             {
-                Cable?.Break();
-                Hardwired.LogDebug($"Burning cable (too much voltage!) -- V: {VoltageAverage} / {MaximumVoltageRating}");
+                // Randomly break cables that are over voltage, with a higher chance the further away from their design voltage they are
+                // 100% of MaximumVoltageRating ~ 0%
+                // 150% of MaximumVoltageRating ~ 100%
+                var voltageCapacity = VoltageAverage.Magnitude / MaximumVoltageRating;
+                breakChance = (voltageCapacity - 1.0) / 0.5f;
+                breakChance = Math.Clamp(breakChance, 0f, 1f);
+
+                shouldBreak = breakChance >= UnityEngine.Random.Range(0f, 1f);
+                if (shouldBreak)
+                {
+                    Cable?.Break();
+                    Hardwired.LogDebug($"Burning cable (too much voltage!) -- V: {VoltageAverage} / {MaximumVoltageRating} (I = {Current} A)");
+                }
             }
 
             // Check fuses
