@@ -180,9 +180,9 @@ namespace Hardwired.Objects.Electrical
             VoltageAverage /= _resistors.Count * 2;
 
             // Calculate temperature change due to resistive heating
-            // double dE = PowerDissipated * Circuit.TimeDelta;
+            // note - time delta is always 0.5s (constant tick time)
             double pRadiated = DissipationCapacity * (Temperature - 293.15f);
-            double dE = (PowerDissapated - pRadiated) * circuit.TimeDelta;
+            double dE = (PowerDissapated - pRadiated) * 0.5;
             double dT = dE / SpecificHeat;
 
             // Cap max change in temperature per tick

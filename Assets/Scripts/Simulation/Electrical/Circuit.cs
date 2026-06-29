@@ -48,11 +48,6 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         public double Frequency { get; private set; }
 
-        /// <summary>
-        /// The time delta (dt) to use between each tick.
-        /// </summary>
-        public double TimeDelta { get; private set; } = 0.5;
-
         public int TicksProcessed { get; private set; }
 
         public TickProcessingStatus LastTickStatus { get; private set; }
