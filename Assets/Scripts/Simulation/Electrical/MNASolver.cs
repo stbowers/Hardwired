@@ -201,6 +201,9 @@ namespace Hardwired.Simulation.Electrical
                 // Subtract the voltage source's current from the source node
                 A[b.Index, i.Index] = 1;
             }
+
+            // Since A was modified, invalidate factorization so it will be re-factored on the next solve
+            _A_QR = null;
         }
 
         /// <summary>
@@ -252,6 +255,9 @@ namespace Hardwired.Simulation.Electrical
             A[i1.Index, i2.Index] -= new Complex(0, wM);
             A[i2.Index, i1.Index] -= new Complex(0, wM);
             A[i2.Index, i2.Index] -= new Complex(0, wL2);
+
+            // Since A was modified, invalidate factorization so it will be re-factored on the next solve
+            _A_QR = null;
         }
 
         /// <summary>
@@ -386,12 +392,13 @@ namespace Hardwired.Simulation.Electrical
             bool hasConverged = true;
             for (int i = 0; i < dx.RowCount; i++)
             {
+                // Check for convergance
+                hasConverged &= dx[i, 0].Magnitude < REL_TOLERANCE * X[i, 0].Magnitude + MIN_TOLERANCE;
+
                 // Use a damping factor for the first 3 iterations, to avoid large changes that won't converge if the initial guess was too far off
                 // Note - there are other techniques to avoid convergance issues, but this is the easiest and should work well for most of our use cases.
-                var k = n < 3 ? 0.2 : 1;
+                var k = hasConverged ? 1.0 : n < 3 ? 0.2 : 0.9;
                 X[i, 0] += k * dx[i, 0];
-
-                hasConverged &= dx[i, 0].Magnitude < REL_TOLERANCE * X[i, 0].Magnitude + MIN_TOLERANCE;
             }
 
             return hasConverged;

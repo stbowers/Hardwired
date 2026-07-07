@@ -165,7 +165,7 @@ namespace Hardwired.Simulation.Electrical
                 hasConverged = Solver.SolveNRIteration(i);
             }
 
-            // Hardwired.LogDebug($"Circuit {Id} -- finished solving after {i} iterations -- converged: {hasConverged}");
+            Hardwired.LogDebug($"Circuit {Id} -- finished solving after {i} iterations -- converged: {hasConverged}");
         }
 
         // Determine the AC frequency to use

@@ -21,7 +21,7 @@ namespace Hardwired.Objects.Electrical
     public class PowerSink : ElectricalComponent, ISerializationCallbackReceiver, IComponentSaveData
     {
         private Device? _device;
-        private EnergyBuffer? _energyBuffer;
+        private _PowerSource? _powerSource;
         private DateTime _lastPowerProfileChanged = DateTime.Now;
 
         /// <summary>
@@ -55,10 +55,6 @@ namespace Hardwired.Objects.Electrical
 
         public Complex CurrentDraw { get; private set; }
 
-        public double BufferCharge { get; private set; }
-
-        public double MaxBufferCharge { get; private set; }
-
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -76,17 +72,16 @@ namespace Hardwired.Objects.Electrical
 
             if (InputCircuit == circuit)
             {
-                if (_energyBuffer != null)
+                if (_powerSource != null)
                 {
-                    RemoveFrom(_energyBuffer.Circuit);
+                    RemoveFrom(_powerSource.Circuit);
                 }
 
                 var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
 
-                _energyBuffer = new(circuit, nodeA, null)
+                _powerSource = new(circuit, nodeA, null)
                 {
-                    ChargeMaximum = MaxBufferCharge,
-                    Charge = BufferCharge,
+                    SourcePower = PowerTarget
                 };
             }
         }
@@ -98,11 +93,11 @@ namespace Hardwired.Objects.Electrical
             if (circuit != InputCircuit) { return; }
 
             // Check input conditions of circuit, to validate the current power profile
-            IsInputValid = 
-                InputCircuit != null
-                && (InputCircuit.Frequency == ActivePowerProfile.Frequency)
-                && (_energyBuffer?.VoltageDelta.Magnitude >= ActivePowerProfile.VoltageMinimum)
-                && (_energyBuffer?.VoltageDelta.Magnitude <= ActivePowerProfile.VoltageMaximum);
+            IsInputValid =
+                InputCircuit != null;
+                // && (InputCircuit.Frequency == ActivePowerProfile.Frequency)
+                // && (_powerSource?.VoltageDelta.Magnitude >= ActivePowerProfile.VoltageMinimum)
+                // && (_powerSource?.VoltageDelta.Magnitude <= ActivePowerProfile.VoltageMaximum);
 
             if (IsInputValid)
             {
@@ -117,29 +112,32 @@ namespace Hardwired.Objects.Electrical
                 PowerTarget = 0;
             }
 
-            if (_energyBuffer != null)
+            if (_powerSource != null)
             {
                 // Set a very low minimum power target to use for the actual calculations, to avoid dividing by zero.
                 // This low of a power target will cause the resistance to be very high, which will effectively act
                 // as if the sink were disconnected from the circuit if PowerTarget ~= 0.
-                var powerTarget = Math.Max(1e-5, PowerTarget);
+                // var powerTarget = Math.Max(1e-5, PowerTarget);
 
                 // Set resistance such that the energy buffer would draw the full power target at min voltage
-                _energyBuffer.Resistance = ActivePowerProfile.VoltageNominalLow * ActivePowerProfile.VoltageNominalLow / powerTarget;
+                // _energyBuffer.Resistance = ActivePowerProfile.VoltageNominalLow * ActivePowerProfile.VoltageNominalLow / powerTarget;
 
                 // Set max voltage
-                _energyBuffer.VoltageMaximum = ActivePowerProfile.VoltageMaximum;
+                // _energyBuffer.VoltageMaximum = ActivePowerProfile.VoltageMaximum;
 
                 // The maximum power delivered to the energy buffer (at V = VoltageMax, Charge = 0) should be
                 // (VoltageMaximum / VoltageMinimum)^2 * PowerTarget.
                 // Ensure the buffer is at least large enough to hold one tick at that power rate.
-                var rVmaxVnom = ActivePowerProfile.VoltageMaximum / ActivePowerProfile.VoltageNominalLow;
-                var pMax = rVmaxVnom * rVmaxVnom * powerTarget;
-                _energyBuffer.ChargeMaximum = Math.Max(pMax, _energyBuffer.ChargeMaximum);
+                // var rVmaxVnom = ActivePowerProfile.VoltageMaximum / ActivePowerProfile.VoltageNominalLow;
+                // var pMax = rVmaxVnom * rVmaxVnom * powerTarget;
+                // _energyBuffer.ChargeMaximum = Math.Max(pMax, _energyBuffer.ChargeMaximum);
 
                 // Set other (static) properties and update buffer state
-                _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
-                _energyBuffer.UpdateState();
+                // _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
+                // _energyBuffer.UpdateState();
+
+                _powerSource.SourcePower = -PowerTarget;
+                _powerSource.UpdateState();
             }
         }
 
@@ -149,21 +147,20 @@ namespace Hardwired.Objects.Electrical
 
             if (circuit != InputCircuit) { return; }
 
-            _energyBuffer?.ApplyState();
+            _powerSource?.ApplyState();
 
-            BufferCharge = _energyBuffer?.Charge ?? BufferCharge;
-            MaxBufferCharge = _energyBuffer?.ChargeMaximum ?? MaxBufferCharge;
-            PowerFactor = _energyBuffer?.PowerFactor ?? 0;
-            VoltageDelta = _energyBuffer?.VoltageDelta ?? 0;
-            CurrentDraw = _energyBuffer?.Current ?? 0;
+            PowerFactor = _powerSource?.PowerFactor ?? 0;
+            VoltageDelta = _powerSource?.VoltageDelta ?? 0;
+            CurrentDraw = _powerSource?.Current ?? 0;
 
             // Calculate how much power to actually remove from the buffer (based on PowerTarget)
-            PowerDraw = Math.Min(BufferCharge, PowerTarget);
+            // PowerDraw = Math.Min(BufferCharge, PowerTarget);
+            PowerDraw = _powerSource?.Power.Magnitude ?? 0;
 
-            if (_energyBuffer != null)
-            {
-                _energyBuffer.Charge -= PowerDraw;
-            }
+            // if (_powerSource != null)
+            // {
+            //     _powerSource.Charge -= PowerDraw;
+            // }
 
             // Calculate how much power will actually go to the device (after active profile's efficiency loss),
             // and the minimum power draw required in order to enable the device
@@ -177,10 +174,10 @@ namespace Hardwired.Objects.Electrical
         {
             base.RemoveFrom(circuit);
 
-            if (circuit == _energyBuffer?.Circuit)
+            if (circuit == _powerSource?.Circuit)
             {
-                _energyBuffer?.Dispose();
-                _energyBuffer = null;
+                _powerSource?.Dispose();
+                _powerSource = null;
             }
         }
 
@@ -211,7 +208,6 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Target: {PowerTarget.ToStringPrefix("W", "yellow")}");
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Current Draw: {CurrentDraw.ToStringPrefix(InputCircuit?.Frequency, "A", "yellow")}");
-            stringBuilder.AppendLine($"Buffer charge: {BufferCharge.ToStringPrefix("Wt", "yellow")} / {MaxBufferCharge.ToStringPrefix("Wt", "yellow")}");
         }
 
         /// <summary>
@@ -296,25 +292,12 @@ namespace Hardwired.Objects.Electrical
             {
                 ActivePowerProfile = PowerProfiles[activePowerProfileIndex];
             }
-
-            if (saveData.TryGetCustomData(BUFFER_CHARGE_STATE_NAME, out float bufferCharge))
-            {
-                BufferCharge = bufferCharge;
-            }
-
-            if (saveData.TryGetCustomData(MAX_BUFFER_CHARGE_STATE_NAME, out float maxBufferCharge))
-            {
-                MaxBufferCharge = maxBufferCharge;
-            }
         }
 
         public void SerializeSave(ThingSaveData saveData)
         {
             int activePowerProfileIndex = PowerProfiles.IndexOf(ActivePowerProfile);
             saveData.AddCustomData(ACTIVE_PROFILE_INDEX_STATE_NAME, activePowerProfileIndex);
-
-            saveData.AddCustomData(BUFFER_CHARGE_STATE_NAME, (float)BufferCharge);
-            saveData.AddCustomData(MAX_BUFFER_CHARGE_STATE_NAME, (float)MaxBufferCharge);
         }
         #endregion
 

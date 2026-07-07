@@ -22,7 +22,7 @@ namespace Hardwired.Objects.Electrical
         /// <summary>
         /// Default profile for generators, and other power production/infrastructure related devices (~500V DC)
         /// </summary>
-        public static readonly PowerProfile DefaultGenerator = new() { Frequency = 0, VoltageMaximum = 550, VoltageNominalHigh = 500, VoltageNominalLow = 450 };
+        public static readonly PowerProfile DefaultGenerator = DefaultGrid; //new() { Frequency = 0, VoltageMaximum = 550, VoltageNominalHigh = 500, VoltageNominalLow = 450 };
 
         /// <summary>
         /// The efficiency of this power profile.
