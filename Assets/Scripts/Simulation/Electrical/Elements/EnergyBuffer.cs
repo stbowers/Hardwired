@@ -32,6 +32,8 @@ namespace Hardwired.Simulation.Electrical.Elements
             /// </summary>
             public static readonly VoltageCurveFunction Tangent = new TangentCurve();
 
+            public static readonly VoltageCurveFunction Sin = new SinCurve();
+
             public abstract double U(double r);
 
             private class LinearCurve : VoltageCurveFunction
@@ -49,6 +51,11 @@ namespace Hardwired.Simulation.Electrical.Elements
                 private static readonly double TAN_B = Math.Tan(B);
 
                 public override double U(double r) => (Math.Tan(2 * B * (r - 0.5)) + TAN_B) / (2 * TAN_B);
+            }
+
+            private class SinCurve : VoltageCurveFunction
+            {
+                public override double U(double r) => 0.5 * Math.Sin(Math.PI * (r - 0.5)) + 0.5;
             }
         }
 

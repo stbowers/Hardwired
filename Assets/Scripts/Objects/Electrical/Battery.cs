@@ -82,7 +82,7 @@ namespace Hardwired.Objects.Electrical
                 _energyBuffer.NortonEquivalent.Frequency = PowerProfile.Frequency;
                 _energyBuffer.VoltageMaximum = PowerProfile.VoltageNominalHigh;
                 _energyBuffer.CurrentMaximum = 20f;
-                _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Tangent;
+                _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Sin;
 
                 if (Device is Assets.Scripts.Objects.Electrical.Battery battery)
                 {
