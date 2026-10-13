@@ -79,10 +79,7 @@ namespace Hardwired.Objects.Electrical
 
                 var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
 
-                _powerSource = new(circuit, nodeA, null)
-                {
-                    SourcePower = PowerTarget
-                };
+                _powerSource = new(circuit, nodeA, null);
             }
         }
 

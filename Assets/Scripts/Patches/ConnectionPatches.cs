@@ -36,6 +36,9 @@ namespace Hardwired.Patches
             StringBuilder stringBuilder = new();
             stringBuilder.AppendLine(__result.Extended);
 
+            stringBuilder.AppendLine($"Connection.ConnectionType: {__instance.ConnectionType}");
+            stringBuilder.AppendLine($"Connection.ConnectionRole: {__instance.ConnectionRole}");
+
             powerSink.BuildPowerProfileTooltip(stringBuilder, true);
 
             __result.Extended = stringBuilder.ToString();

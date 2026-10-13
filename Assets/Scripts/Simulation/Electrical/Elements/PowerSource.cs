@@ -12,10 +12,14 @@ namespace Hardwired.Simulation.Electrical.Elements
         private Complex? _appliedCurrent;
         private double? _frequency;
         private Complex _v0 = 200;
+        private Complex _i = Complex.Zero;
 
-        public override Complex Current => SourcePower / VoltageDelta;
+        public override Complex Current => _i;
 
         public Complex SourcePower { get; set; }
+
+        public double MinimumVoltage { get; set; } = 100;
+        public double MaximumVoltage { get; set; } = 250;
 
         public double? Frequency
         {
@@ -31,11 +35,14 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public _PowerSource(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
+            // Circuit.Solver.AddResistance(NodeA?.Value, NodeB?.Value, Resistor.R_SHORT);
         }
 
         public override void Dispose()
         {
             RemoveState();
+
+            // Circuit.Solver.AddResistance(NodeA?.Value, NodeB?.Value, -Resistor.R_SHORT);
 
             base.Dispose();
         }
@@ -49,15 +56,19 @@ namespace Hardwired.Simulation.Electrical.Elements
             // {
             //     _v0 = 1;
             // }
-            var i = SourcePower / _v0;
+            _i = SourcePower / _v0;
+            if (_i.Magnitude < 0.0001)
+            {
+                _i = 0.0001;
+            }
 
             // // If estimate is sufficiently far from our current estimate, reset it
             // if (_appliedCurrent == null || (_appliedCurrent.Value - i).Magnitude > 0.1)
             // {
                 RemoveState();
 
-                Circuit.Solver.AddCurrent(NodeB?.Value, NodeA?.Value, i);
-                _appliedCurrent = i;
+                Circuit.Solver.AddCurrent(NodeB?.Value, NodeA?.Value, _i);
+                _appliedCurrent = _i;
             // }
         }
 
@@ -76,28 +87,41 @@ namespace Hardwired.Simulation.Electrical.Elements
             {
                 vDelta = 1;
             }
-            //_v0 = vDelta;
+            _v0 = vDelta;
 
             var v2 = vDelta * vDelta;
 
-            Complex didva, didvb, i;
+            Complex didva, didvb;
 
             // UVL; I(V) = 0
-            if (vDelta < 100)
+            if (vDelta < MinimumVoltage)
             {
-                var m = SourcePower / 10000;
-                i = m * vDelta;
+                var m = SourcePower / (MinimumVoltage * MinimumVoltage);
+                _i = m * vDelta;
+                didva = -m;
+                didvb = m;
+            }
+            // High voltage
+            else if (vDelta > MaximumVoltage)
+            {
+                var m = -SourcePower / (MaximumVoltage * 10);
+                _i = (m * vDelta) - (m * MaximumVoltage) + (SourcePower / MaximumVoltage);
                 didva = -m;
                 didvb = m;
             }
             // Nominal voltage; I(V) = P/V
             else
             {
-                i = SourcePower / vDelta;
+                _i = SourcePower / vDelta;
                 didva = didvb = -SourcePower / v2;
             }
 
-            var di = i - (_appliedCurrent ?? Complex.Zero);
+            if (_i.Magnitude < 0.0001)
+            {
+                _i = 0.0001;
+            }
+
+            var di = _i - (_appliedCurrent ?? Complex.Zero);
             Circuit?.Solver.AddNonlinearCurrent(NodeB?.Value, NodeA?.Value, di, didva, didvb);
         }
 
