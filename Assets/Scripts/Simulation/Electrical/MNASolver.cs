@@ -4,10 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
 using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Factorization;
+using UnityEngine.Assertions;
 using Complex = System.Numerics.Complex;
 
 namespace Hardwired.Simulation.Electrical
@@ -110,6 +112,9 @@ namespace Hardwired.Simulation.Electrical
         /// <param name="a"></param>
         public void AddAdmittance(Unknown? a, Unknown? b, Complex value)
         {
+            Assert.IsTrue(a == null || a.Solver == this);
+            Assert.IsTrue(b == null || b.Solver == this);
+
             if (a != null)
             {
                 A[a.Index, a.Index] += value;
@@ -181,6 +186,10 @@ namespace Hardwired.Simulation.Electrical
         /// <param name="b"></param>
         public void AddVoltageSource(Unknown? a, Unknown? b, [NotNull] ref Unknown? i)
         {
+            Assert.IsTrue(a == null || a.Solver == this);
+            Assert.IsTrue(b == null || b.Solver == this);
+            Assert.IsTrue(i == null || i.Solver == this);
+
             // Add an unknown for the current
             i ??= AddUnknown(type: "VSourceCurrent");
 
@@ -223,6 +232,13 @@ namespace Hardwired.Simulation.Electrical
         /// <param name="i2"></param>
         public void AddTransformer(Unknown? a, Unknown? b, Unknown? c, Unknown? d, double wL1, double wL2, double wM, ref Unknown? i1, ref Unknown? i2)
         {
+            Assert.IsTrue(a == null || a.Solver == this);
+            Assert.IsTrue(b == null || b.Solver == this);
+            Assert.IsTrue(c == null || c.Solver == this);
+            Assert.IsTrue(d == null || d.Solver == this);
+            Assert.IsTrue(i1 == null || i1.Solver == this);
+            Assert.IsTrue(i2 == null || i2.Solver == this);
+
             // Add 2 new unknowns for the current through each inductor
             i1 ??= AddUnknown(type: "TransformerCurrent");
             i2 ??= AddUnknown(type: "TransformerCurrent");
@@ -269,6 +285,8 @@ namespace Hardwired.Simulation.Electrical
         /// <param name="value"></param>
         public void SetVoltage(Unknown? i, Complex value)
         {
+            Assert.IsTrue(i == null || i.Solver == this);
+
             if (i == null) { return; }
 
             // Set input voltage to the given value
@@ -285,6 +303,9 @@ namespace Hardwired.Simulation.Electrical
         /// <param name="i"></param>
         public void AddCurrent(Unknown? a, Unknown? b, Complex value)
         {
+            Assert.IsTrue(a == null || a.Solver == this);
+            Assert.IsTrue(b == null || b.Solver == this);
+
             if (a != null)
             {
                 Z[a.Index, 0] -= value;
@@ -298,6 +319,9 @@ namespace Hardwired.Simulation.Electrical
 
         public void AddNonlinearCurrent(Unknown? a, Unknown? b, Complex i, Complex didva, Complex didvb)
         {
+            Assert.IsTrue(a == null || a.Solver == this);
+            Assert.IsTrue(b == null || b.Solver == this);
+
             if (a != null)
             {
                 F[a.Index, 0] += i;
@@ -456,6 +480,8 @@ namespace Hardwired.Simulation.Electrical
         /// <returns></returns>
         public Complex? GetValue(Unknown? unknown)
         {
+            Assert.IsTrue(unknown == null || unknown.Solver == this);
+
             if (unknown == null) { return null; }
             if (unknown.Index < 0 || unknown.Index >= X.RowCount) { return null; }
 
@@ -494,7 +520,19 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         public class Unknown : IDisposable
         {
-            private MNASolver? _solver;
+            private WeakReference<MNASolver>? _solverRef;
+
+            public MNASolver? Solver {
+                get
+                {
+                    if (_solverRef?.TryGetTarget(out var value) == true)
+                    {
+                        return value;
+                    }
+
+                    return null;
+                }
+            }
 
             public int Index;
 
@@ -504,13 +542,16 @@ namespace Hardwired.Simulation.Electrical
 
             public Unknown(MNASolver solver)
             {
-                _solver = solver;
+                _solverRef = new(solver);
             }
 
             public void Dispose()
             {
-                _solver?.RemoveUnknown(this);
-                _solver = null;
+                var solverRef = Interlocked.Exchange(ref _solverRef!, null);
+                if (solverRef?.TryGetTarget(out var solver) == true)
+                {
+                    solver.RemoveUnknown(this);
+                }
             }
         }
     }

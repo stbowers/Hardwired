@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using Assets.Scripts.Atmospherics;
+using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
@@ -130,8 +131,8 @@ namespace Hardwired.Objects.Electrical
             {
                 for (int j = i + 1; j < Cable.OpenEnds.Count; j++)
                 {
-                    var nodeA = GetNode(circuit, Cable.OpenEnds[i], WireType.Line1);
-                    var nodeB = GetNode(circuit, Cable.OpenEnds[j], WireType.Line1);
+                    var nodeA = Cable.OpenEnds[i]?.GetNode(circuit, WireType.Line1);
+                    var nodeB = Cable.OpenEnds[j]?.GetNode(circuit, WireType.Line1);
                     Resistor resistor = new(circuit, nodeA, nodeB);
 
                     resistor.Resistance = Resistance;

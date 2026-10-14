@@ -90,14 +90,17 @@ namespace Hardwired.Objects.Electrical
                 RemoveFrom(_mutualInductor.Circuit);
             }
 
-            var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
-            var nodeC = GetNode(circuit, PowerOutput, WireType.Line1);
+            var nodeA = PowerInput?.GetNode(circuit, WireType.Line1);
+            var nodeB = PowerInput?.GetNode(circuit, WireType.Neutral);
+            var nodeC = PowerOutput?.GetNode(circuit, WireType.Line1);
+            var nodeD = PowerOutput?.GetNode(circuit, WireType.Neutral);
+
             _internalPin = new(circuit.Solver.AddUnknown());
 
             _switch = new(circuit, nodeA, _internalPin);
 
             // Nodes B & D are shared ground
-            _mutualInductor = new(circuit, _internalPin, null, nodeC, null);
+            _mutualInductor = new(circuit, _internalPin, nodeB, nodeC, nodeD);
             _mutualInductor.N = Ratio;
         }
 

@@ -78,8 +78,8 @@ namespace Hardwired.Objects.Electrical
         {
             base.AddTo(circuit);
 
-            var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
-            var nodeB = GetNode(circuit, PowerOutput, WireType.Line1);
+            var nodeA = PowerInput?.GetNode(circuit, WireType.Line1);
+            var nodeB = PowerOutput?.GetNode(circuit, WireType.Line1);
             
             if (_switch?.NodeA != nodeA || _switch?.NodeB != nodeB)
             {

@@ -77,9 +77,10 @@ namespace Hardwired.Objects.Electrical
                     RemoveFrom(_powerSource.Circuit);
                 }
 
-                var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
+                var nodeA = PowerInput?.GetNode(circuit, WireType.Line1);
+                var nodeB = PowerInput?.GetNode(circuit, WireType.Neutral);
 
-                _powerSource = new(circuit, nodeA, null);
+                _powerSource = new(circuit, nodeA, nodeB);
             }
         }
 

@@ -84,9 +84,10 @@ namespace Hardwired.Objects.Electrical
                     RemoveFrom(_nortonEquivalent.Circuit);
                 }
 
-                var nodeA = GetNode(circuit, PowerOutput, WireType.Line1);
+                var nodeA = PowerOutput?.GetNode(circuit, WireType.Line1);
+                var nodeB = PowerOutput?.GetNode(circuit, WireType.Neutral);
 
-                _nortonEquivalent = new(circuit, nodeA, null);
+                _nortonEquivalent = new(circuit, nodeA, nodeB);
             }
         }
 

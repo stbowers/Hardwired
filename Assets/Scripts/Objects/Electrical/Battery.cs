@@ -75,10 +75,11 @@ namespace Hardwired.Objects.Electrical
 
             if (InputCircuit == circuit)
             {
-                var nodeA = GetNode(circuit, PowerInput, WireType.Line1);
+                var nodeA = PowerInput?.GetNode(circuit, WireType.Line1);
+                var nodeB = PowerInput?.GetNode(circuit, WireType.Neutral);
 
                 _energyBuffer?.Dispose();
-                _energyBuffer = new(circuit, nodeA, null);
+                _energyBuffer = new(circuit, nodeA, nodeB);
                 _energyBuffer.NortonEquivalent.Frequency = PowerProfile.Frequency;
                 _energyBuffer.VoltageMaximum = PowerProfile.VoltageNominalHigh;
                 _energyBuffer.CurrentMaximum = 20f;

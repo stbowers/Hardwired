@@ -156,20 +156,6 @@ namespace Hardwired.Objects.Electrical
         /// <param name="circuit"></param>
         public virtual void RemoveFrom(Circuit circuit)
         {
-            if (this == null || !TryGetComponent<SmallGrid>(out var smallGrid))
-            {
-                return;
-            }
-
-            var nodes = smallGrid.GetNodes();
-
-            foreach (var port in nodes.ToList())
-            {
-                if (port.Key.circuit != circuit) { continue; }
-
-                port.Value.Dispose();
-                nodes.Remove(port.Key);
-            }
         }
 
         /// <summary>
@@ -192,44 +178,6 @@ namespace Hardwired.Objects.Electrical
         /// <param name="solver"></param>
         public virtual void ApplyState(Circuit circuit)
         {
-        }
-
-        protected RefCounted<MNASolver.Unknown>? GetNode(Circuit circuit, Connection? connection, WireType wireType)
-        {
-            var nodes = GetComponent<SmallGrid>().GetNodes();
-
-            RefCounted<MNASolver.Unknown>? node;
-
-            if (connection == null) { return null; }
-
-            if (nodes.TryGetValue((circuit, connection, wireType), out node)) { return node; }
-
-            if (TryGetPeerNode(circuit, connection, wireType, out node))
-            {
-                node = node.Clone();
-            }
-            else
-            {
-                node = RefCounted.Create(circuit.Solver.AddUnknown());
-            }
-
-            nodes.Add((circuit, connection, wireType), node);
-
-            return node;
-        }
-
-        protected bool TryGetPeerNode(Circuit circuit, Connection connection, WireType wireType, [NotNullWhen(true)] out RefCounted<MNASolver.Unknown>? node)
-        {
-            if (TryGetComponent<SmallGrid>(out var smallGrid)
-                && connection.GetPeer() is Connection peerConnection
-                && peerConnection.Parent.TryGetComponent<SmallGrid>(out var peerDevice)
-                && peerDevice.GetNodes().TryGetValue((circuit, peerConnection, wireType), out node))
-            {
-                return true;
-            }
-
-            node = null;
-            return false;
         }
     }
 }
