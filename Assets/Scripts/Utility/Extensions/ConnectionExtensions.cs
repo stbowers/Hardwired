@@ -22,46 +22,11 @@ namespace Hardwired.Objects
     public static class ConnectionExtensions
     {
         /// <summary>
-        /// Given a connection, get the peer connection if it exists and is connected
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <returns></returns>
-        public static Connection? GetPeer(this Connection connection)
-        {
-            // There may be more than one structure in the cell this connection represents (for example, a pipe and a pipe heater, etc).
-            // Therefore, we need to check for multiple kinds of structures to ensure we find the one with the actual peer connection.
-            return TryFindPeerConnection(connection.GetDevice(true))
-                ?? TryFindPeerConnection(connection.GetCable(true))
-                ?? TryFindPeerConnection(connection.GetOther(true));
-
-            Connection? TryFindPeerConnection(SmallGrid? structure)
-            {
-                return structure?.OpenEnds.FirstOrDefault(c => c.GetLocalGrid() == connection.FacingGrid);
-            }
-        }
-
-        /// <summary>
-        /// Given a connection, gets the index of the peer connection if it exists and is connected, or -1 otherwise
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <returns></returns>
-        public static int GetPeerIndex(this Connection? connection)
-        {
-            var peerStructure = connection?.GetOther(false);
-            var peerIndex = peerStructure?.OpenEnds.FindIndex(c => c.LocalGrid == connection?.FacingGrid);
-
-            return peerIndex ?? -1;
-        }
-
-        /// <summary>
         /// Helper class which stores references to "nodes" (solver unknowns) for a pair of connections.
         /// Both connections in a "pair" will reference the same instance of this class, since they logically share the same nodes.
         /// </summary>
         private class ConnectionNodes
         {
-            private static int _lastId = 0;
-            public int Id = Interlocked.Increment(ref _lastId);
-
             public Dictionary<ElectricalComponent.WireType, RefCounted<MNASolver.Unknown>> AttachedNodes = new();
 
             public RefCounted<MNASolver.Unknown>? GetNode(Circuit circuit, ElectricalComponent.WireType wireType)
@@ -139,16 +104,42 @@ namespace Hardwired.Objects
             return value;
         }
 
+        /// <summary>
+        /// Given a connection, get the peer connection if it exists and is connected
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <returns></returns>
+        public static Connection? GetPeer(this Connection connection)
+        {
+            // There may be more than one structure in the cell this connection represents (for example, a pipe and a pipe heater, etc).
+            // Therefore, we need to check for multiple kinds of structures to ensure we find the one with the actual peer connection.
+            return TryFindPeerConnection(connection.GetDevice(true))
+                ?? TryFindPeerConnection(connection.GetCable(true))
+                ?? TryFindPeerConnection(connection.GetOther(true));
+
+            Connection? TryFindPeerConnection(SmallGrid? structure)
+            {
+                return structure?.OpenEnds.FirstOrDefault(c => c.GetLocalGrid() == connection.FacingGrid);
+            }
+        }
+
+        /// <summary>
+        /// Given a connection, gets the index of the peer connection if it exists and is connected, or -1 otherwise
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <returns></returns>
+        public static int GetPeerIndex(this Connection? connection)
+        {
+            var peerStructure = connection?.GetOther(false);
+            var peerIndex = peerStructure?.OpenEnds.FindIndex(c => c.LocalGrid == connection?.FacingGrid);
+
+            return peerIndex ?? -1;
+        }
+
         public static RefCounted<MNASolver.Unknown>? GetNode(this Connection connection, Circuit circuit, ElectricalComponent.WireType wireType)
         {
             var nodes = connection.GetOrInitializeConnectionNodes();
             return nodes.GetNode(circuit, wireType);
-        }
-
-        public static int GetConnectionId(this Connection connection)
-        {
-            var nodes = connection.GetOrInitializeConnectionNodes();
-            return nodes.Id;
         }
     }
 }

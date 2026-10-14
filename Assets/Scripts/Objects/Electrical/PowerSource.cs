@@ -16,8 +16,20 @@ using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
+    /// <summary>
+    /// Component to be attached to devices in order to supply power to the circuit (generators, power converters, etc).
+    /// </summary>
     public class PowerSource : ElectricalComponent
     {
+        /// <summary>
+        /// Note - we use a `NortonEquivalent` as the actual circuit component here, instead of a `ConstantPowerSource`, because
+        /// `ConstantPowerSource` represents a non-linear power source/draw (i.e. constant power draw from devices).
+        /// 
+        /// In our case however, we don't want to actually supply a constant amount of power - we'll only supply as much power as is
+        /// "requested".
+        /// So instead of a constant power source, we basically want to model our generator/battery/whatever as a non-ideal voltage
+        /// or current source, which is what a "norton equivalent" is.
+        /// </summary>
         private NortonEquivalent? _nortonEquivalent;
 
         [SerializeReference]

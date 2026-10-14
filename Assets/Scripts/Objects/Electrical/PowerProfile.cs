@@ -22,7 +22,7 @@ namespace Hardwired.Objects.Electrical
         /// <summary>
         /// Default profile for generators, and other power production/infrastructure related devices (~500V DC)
         /// </summary>
-        public static readonly PowerProfile DefaultGenerator = DefaultGrid;//new() { Frequency = 0, VoltageMaximum = 550, VoltageNominalHigh = 500, VoltageNominalLow = 450 };
+        public static readonly PowerProfile DefaultGenerator = new() { Frequency = 0, VoltageMaximum = 550, VoltageNominalHigh = 500, VoltageNominalLow = 450 };
 
         /// <summary>
         /// The efficiency of this power profile.
@@ -79,6 +79,16 @@ namespace Hardwired.Objects.Electrical
         /// the high power draw of the APC or battery charger is kinda frustrating...
         /// </summary>
         public double MaximumPower = 2000;
+
+        /// <summary>
+        /// The minimum power delivered to a power sink (as a ratio of the PowerTarget) that should still be considered
+        /// "valid" for the purposes of enabling/disabling the device.
+        /// 
+        /// By default, all devices must receive full power (or slightly less, to account for rounding errors) or they
+        /// will shut off. In theory it should be possible to program custom "brownout" behavior however, such that if
+        /// a device receives less than its expected power it underperforms (lights dim, run slower, etc).
+        /// </summary>
+        public double MinimumPowerRatio = 0.98;
 
         /// <summary>
         /// The nominal inductance of the load in Henrys

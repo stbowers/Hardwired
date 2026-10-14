@@ -18,10 +18,13 @@ using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
 {
+    /// <summary>
+    /// Component to be attached to devices in order to draw power from the circuit.
+    /// </summary>
     public class PowerSink : ElectricalComponent, ISerializationCallbackReceiver, IComponentSaveData
     {
         private Device? _device;
-        private _PowerSource? _powerSource;
+        private ConstantPowerSource? _powerSource;
         private DateTime _lastPowerProfileChanged = DateTime.Now;
 
         /// <summary>
@@ -45,7 +48,17 @@ namespace Hardwired.Objects.Electrical
         /// </summary>
         public bool IsInputValid { get; private set; }
 
+        /// <summary>
+        /// The power (in Watts) that this device will attempt to draw from the circuit.
+        /// Determined from Device.GetUsedPower().
+        /// </summary>
         public double PowerTarget { get; private set; }
+
+        /// <summary>
+        /// The minimum power (in Watts) the device needs to receive from the circuit this tick in order to be powered.
+        /// Determined from PowerTarget and ActivePowerProfile.
+        /// </summary>
+        public double PowerThreshold { get; private set; }
 
         public double PowerDraw { get; private set; }
 
@@ -92,48 +105,31 @@ namespace Hardwired.Objects.Electrical
 
             // Check input conditions of circuit, to validate the current power profile
             IsInputValid =
-                InputCircuit != null;
-                // && (InputCircuit.Frequency == ActivePowerProfile.Frequency)
-                // && (_powerSource?.VoltageDelta.Magnitude >= ActivePowerProfile.VoltageMinimum)
-                // && (_powerSource?.VoltageDelta.Magnitude <= ActivePowerProfile.VoltageMaximum);
+                InputCircuit != null
+                && (InputCircuit.Frequency == ActivePowerProfile.Frequency);
 
             if (IsInputValid)
             {
                 // Set power target to the amount of power requested by the device (divided by efficiency of current profile)
+                // Note - in most cases, ActivePowerProfile.Efficiency < 1, therfore `PowerTarget` will be *greater* than the actual
+                // power used by the device. When the power is actually drawn from the circuit, it will be multiplied by the efficiency
+                // factor again before being sent to _device.ReceivePower() so therefore, under normal circumstances, the power received
+                // should equal the power requested.
                 PowerTarget = _device?.GetUsedPower(InputCableNetwork) ?? 0f;
                 PowerTarget = PowerTarget / ActivePowerProfile.Efficiency;
                 PowerTarget = Math.Min(ActivePowerProfile.MaximumPower, PowerTarget);
+                PowerThreshold = ActivePowerProfile.MinimumPowerRatio * PowerTarget;
             }
             else
             {
                 // Input circuit is not valid, don't draw any power.
                 PowerTarget = 0;
+                PowerThreshold = 0;
             }
 
             if (_powerSource != null)
             {
-                // Set a very low minimum power target to use for the actual calculations, to avoid dividing by zero.
-                // This low of a power target will cause the resistance to be very high, which will effectively act
-                // as if the sink were disconnected from the circuit if PowerTarget ~= 0.
-                // var powerTarget = Math.Max(1e-5, PowerTarget);
-
-                // Set resistance such that the energy buffer would draw the full power target at min voltage
-                // _energyBuffer.Resistance = ActivePowerProfile.VoltageNominalLow * ActivePowerProfile.VoltageNominalLow / powerTarget;
-
-                // Set max voltage
-                // _energyBuffer.VoltageMaximum = ActivePowerProfile.VoltageMaximum;
-
-                // The maximum power delivered to the energy buffer (at V = VoltageMax, Charge = 0) should be
-                // (VoltageMaximum / VoltageMinimum)^2 * PowerTarget.
-                // Ensure the buffer is at least large enough to hold one tick at that power rate.
-                // var rVmaxVnom = ActivePowerProfile.VoltageMaximum / ActivePowerProfile.VoltageNominalLow;
-                // var pMax = rVmaxVnom * rVmaxVnom * powerTarget;
-                // _energyBuffer.ChargeMaximum = Math.Max(pMax, _energyBuffer.ChargeMaximum);
-
-                // Set other (static) properties and update buffer state
-                // _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Linear;
-                // _energyBuffer.UpdateState();
-
+                // Update power "source" (set power to negative value so it acts like a sink instead of source).
                 _powerSource.SourcePower = -PowerTarget;
                 _powerSource.UpdateState();
             }
@@ -150,22 +146,14 @@ namespace Hardwired.Objects.Electrical
             PowerFactor = _powerSource?.PowerFactor ?? 0;
             VoltageDelta = _powerSource?.VoltageDelta ?? 0;
             CurrentDraw = _powerSource?.Current ?? 0;
-
-            // Calculate how much power to actually remove from the buffer (based on PowerTarget)
-            // PowerDraw = Math.Min(BufferCharge, PowerTarget);
             PowerDraw = _powerSource?.Power.Magnitude ?? 0;
 
-            // if (_powerSource != null)
-            // {
-            //     _powerSource.Charge -= PowerDraw;
-            // }
-
-            // Calculate how much power will actually go to the device (after active profile's efficiency loss),
-            // and the minimum power draw required in order to enable the device
+            // Calculate how much power will actually go to the device (after active profile's efficiency loss)
             var powerDelivered = PowerDraw * ActivePowerProfile.Efficiency;
-
             _device?.ReceivePower(InputCableNetwork, (float)powerDelivered);
-            _device?.SetPowerFromThread(InputCableNetwork, PowerDraw > 0).Forget();
+
+            // Set the device's power status based on if it received enough power this tick
+            _device?.SetPowerFromThread(InputCableNetwork, powerDelivered > PowerThreshold).Forget();
         }
 
         public override void RemoveFrom(Circuit circuit)

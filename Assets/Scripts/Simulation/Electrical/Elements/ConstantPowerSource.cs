@@ -7,7 +7,13 @@ using MathNet.Numerics;
 
 namespace Hardwired.Simulation.Electrical.Elements
 {
-    public class _PowerSource : DipoleCircuitElementBase, ICircuitElement, IFrequencySource, INonlinearCircuitElement
+    /// <summary>
+    /// Represents a constant power source/draw in the circuit, represented by a non-linear current dependent on voltage.
+    /// 
+    /// Not to be confused for `Objects.Electrical.PowerSource`, which is a component added to devices that produce power
+    /// (generators, batteries, etc).
+    /// </summary>
+    public class ConstantPowerSource : DipoleCircuitElementBase, ICircuitElement, IFrequencySource, INonlinearCircuitElement
     {
         private Complex? _appliedCurrent;
         private double? _frequency;
@@ -33,16 +39,13 @@ namespace Hardwired.Simulation.Electrical.Elements
             }
         }
 
-        public _PowerSource(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
+        public ConstantPowerSource(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
-            // Circuit.Solver.AddResistance(NodeA?.Value, NodeB?.Value, Resistor.R_SHORT);
         }
 
         public override void Dispose()
         {
             RemoveState();
-
-            // Circuit.Solver.AddResistance(NodeA?.Value, NodeB?.Value, -Resistor.R_SHORT);
 
             base.Dispose();
         }
@@ -52,10 +55,6 @@ namespace Hardwired.Simulation.Electrical.Elements
             base.UpdateState();
 
             // Estimate current draw given a guess at the voltage
-            // if (_v0.IsNaN() || _v0.Magnitude < 1)
-            // {
-            //     _v0 = 1;
-            // }
             _i = SourcePower / _v0;
             if (_i.Magnitude < 0.0001)
             {
@@ -63,13 +62,13 @@ namespace Hardwired.Simulation.Electrical.Elements
             }
 
             // // If estimate is sufficiently far from our current estimate, reset it
-            // if (_appliedCurrent == null || (_appliedCurrent.Value - i).Magnitude > 0.1)
-            // {
+            if (_appliedCurrent == null || (_appliedCurrent.Value - _i).Magnitude > 0.1)
+            {
                 RemoveState();
 
                 Circuit.Solver.AddCurrent(NodeB?.Value, NodeA?.Value, _i);
                 _appliedCurrent = _i;
-            // }
+            }
         }
 
         public override void ApplyState()
