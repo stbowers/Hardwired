@@ -129,8 +129,11 @@ namespace Hardwired.Objects.Electrical
 
             if (_powerSource != null)
             {
-                // Update power "source" (set power to negative value so it acts like a sink instead of source).
-                _powerSource.SourcePower = -PowerTarget;
+                // Update power "source"
+                _powerSource.SourcePower = PowerTarget;
+                _powerSource.MaximumVoltage = ActivePowerProfile.VoltageMaximum;
+                _powerSource.MinimumVoltage = ActivePowerProfile.VoltageNominalLow;
+                _powerSource.NominalVoltage = ActivePowerProfile.VoltageNominalLow;
                 _powerSource.UpdateState();
             }
         }
@@ -146,7 +149,7 @@ namespace Hardwired.Objects.Electrical
             PowerFactor = _powerSource?.PowerFactor ?? 0;
             VoltageDelta = _powerSource?.VoltageDelta ?? 0;
             CurrentDraw = _powerSource?.Current ?? 0;
-            PowerDraw = _powerSource?.Power.Magnitude ?? 0;
+            PowerDraw = _powerSource?.Power.Real ?? 0;
 
             // Calculate how much power will actually go to the device (after active profile's efficiency loss)
             var powerDelivered = PowerDraw * ActivePowerProfile.Efficiency;
@@ -162,6 +165,13 @@ namespace Hardwired.Objects.Electrical
 
             if (circuit == _powerSource?.Circuit)
             {
+                PowerTarget = 0;
+                PowerThreshold = 0;
+                PowerFactor = 0;
+                VoltageDelta = 0;
+                CurrentDraw = 0;
+                PowerDraw = 0;
+
                 _powerSource?.Dispose();
                 _powerSource = null;
             }

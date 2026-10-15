@@ -136,7 +136,7 @@ namespace Hardwired.Objects.Electrical
 
             _nortonEquivalent?.ApplyState();
 
-            PowerDraw = _nortonEquivalent?.Power.Real ?? 0;
+            PowerDraw = -_nortonEquivalent?.Power.Real ?? 0;
             PowerFactor = _nortonEquivalent?.PowerFactor ?? 0;
             VoltageDelta = _nortonEquivalent?.VoltageDelta ?? 0;
             CurrentDraw = _nortonEquivalent?.Current ?? 0;
@@ -151,6 +151,12 @@ namespace Hardwired.Objects.Electrical
 
             if (circuit == _nortonEquivalent?.Circuit)
             {
+                PowerGenerated = 0;
+                PowerFactor = 0;
+                VoltageDelta = 0;
+                CurrentDraw = 0;
+                PowerDraw = 0;
+
                 _nortonEquivalent?.Dispose();
                 _nortonEquivalent = null;
             }

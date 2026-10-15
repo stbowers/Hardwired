@@ -13,6 +13,6 @@ namespace Hardwired.Simulation.Electrical.Elements
         /// Components should calculate the derivative and "stamp" it into the Y matrix (jacobian) and F vector of the solver.
         /// </summary>
         /// <returns></returns>
-        public void UpdateDifferentialState();
+        public void UpdateDifferentialState(int n, out bool discontinuityHint);
     }
 }

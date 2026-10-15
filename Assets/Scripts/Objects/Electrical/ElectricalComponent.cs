@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -122,9 +123,6 @@ namespace Hardwired.Objects.Electrical
             }
 
             stringBuilder.AppendLine($"]");
-
-            // string nodesDebugText = string.Join(" | ", Nodes.Select(n => $"{n.Key.connection.ConnectionRole}<{n.Key.circuit.Id}|{n.Key.wireType}> = {n.Value.Value.Index}"));
-            // stringBuilder.AppendLine(nodesDebugText);
         }
 
         public virtual string DebugInfo()
