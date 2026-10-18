@@ -113,7 +113,7 @@ namespace Hardwired.Simulation.Electrical.Elements
                 var b = SourcePower.Magnitude / MinimumVoltage + Math.Pow(k * MinimumVoltage - a, 2);
 
                 _i = -Math.Pow(k * vDelta.Magnitude - a, 2) + b;
-                didva = -2 * (vDelta.Magnitude - a);
+                didva = -2 * k * (k * vDelta.Magnitude - a);
                 didvb = -didva;
             }
             // MinimumVoltage < V <= MaximumVoltage
