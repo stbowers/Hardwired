@@ -119,7 +119,7 @@ namespace Hardwired.Objects.Electrical
                 // Determine power to use for actual calculations
                 // - No output if output is disabled (device is off)
                 // - Set minimum charge to avoid dividing by zero
-                var powerAvailable = Math.Max(1e-5, OutputEnabled ? PowerGenerated : 0.0);
+                var powerAvailable = Math.Max(1e-10, OutputEnabled ? PowerGenerated : 0.0);
 
                 _nortonEquivalent.Resistance = PowerProfile.VoltageNominalHigh * PowerProfile.VoltageNominalHigh / (4 * powerAvailable);
                 _nortonEquivalent.VoltageOpen = PowerProfile.VoltageNominalHigh;

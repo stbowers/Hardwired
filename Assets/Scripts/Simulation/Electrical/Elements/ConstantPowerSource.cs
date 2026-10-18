@@ -148,10 +148,10 @@ namespace Hardwired.Simulation.Electrical.Elements
                 didvb = 0;
             }
 
-            // CHECK - May be needed to prevent division by zero
-            if (_i.Magnitude < 0.0001)
+            // Ensure current is always non-zero, to avoid NaN when solving...
+            if (_i.Magnitude < 1e-10)
             {
-                _i = 0.0001;
+                _i = 1e-10;
             }
 
             var di = _i - (_appliedCurrent ?? Complex.Zero);
