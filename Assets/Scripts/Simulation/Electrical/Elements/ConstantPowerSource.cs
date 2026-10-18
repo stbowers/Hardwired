@@ -25,11 +25,11 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public Complex SourcePower { get; set; }
 
-        public double MinimumVoltage { get; set; } = 100;
+        public double MinimumNominalVoltage { get; set; } = 100;
+
+        public double MaximumNominalVoltage { get; set; } = 200;
 
         public double MaximumVoltage { get; set; } = 250;
-
-        public double NominalVoltage { get; set; } = 200;
 
         public double? Frequency
         {
@@ -61,7 +61,7 @@ namespace Hardwired.Simulation.Electrical.Elements
             // Estimate current draw given a guess at the voltage
             // _v0 ??= NominalVoltage;
             // _v0 = _v0.Value.Magnitude.Clamp(MinimumVoltage, MaximumVoltage);
-            _v0 = NominalVoltage;
+            _v0 = (MinimumNominalVoltage + MaximumNominalVoltage) / 2;
             _i = SourcePower / _v0.Value;
             if (_i.Magnitude < 0.0001)
             {
@@ -99,57 +99,56 @@ namespace Hardwired.Simulation.Electrical.Elements
 
             Complex didva, didvb;
 
+            // Calculate I(V), and the partial derivatives for V_a and V_b for the current state.
+            // I(V) is a non-linear piecewise function, but must be "smooth" (i.e. both I(V) and its derivative must be
+            // continuous) in order for the NR iterative solver to be able to converge.
             // https://www.desmos.com/calculator/l0bdnvaaaw
 
             // V <= MinimumVoltage
-            // Low voltage dropoff; I(V) = ...
-            if (vDelta.Magnitude <= MinimumVoltage)
+            // Low voltage dropoff
+            if (vDelta.Magnitude <= MinimumNominalVoltage)
             {
-                var vMin2 = MinimumVoltage * MinimumVoltage;
-                var vMin3 = vMin2 * MinimumVoltage;
-                var k = Math.Sqrt((2 * SourcePower.Magnitude) / vMin3);
-                var k2 = k * k;
-                var a = (2 * k2 * vMin3 - SourcePower.Magnitude) / (2 * k * vMin2);
-                var b = SourcePower.Magnitude / MinimumVoltage + Math.Pow(k * MinimumVoltage - a, 2);
+                var normalizedUnderVoltage = vDelta.Magnitude / MinimumNominalVoltage;
 
-                _i = -Math.Pow(k * vDelta.Magnitude - a, 2) + b;
-                didva = -2 * k * (k * vDelta.Magnitude - a);
+                var taper = normalizedUnderVoltage * (3 - 2 * normalizedUnderVoltage);
+                var taperDerivative = 3 - 4 * normalizedUnderVoltage;
+
+                _i = (SourcePower / MinimumNominalVoltage) * taper;
+                didva = (SourcePower / (MinimumNominalVoltage * MinimumNominalVoltage)) * taperDerivative;
                 didvb = -didva;
             }
-            // MinimumVoltage < V <= MaximumVoltage
+            // MinimumVoltage < V <= MaximumNominalVoltage
             // Nominal voltage; I(V) = P/V
-            else if (vDelta.Magnitude <= MaximumVoltage)
+            else if (vDelta.Magnitude <= MaximumNominalVoltage)
             {
                 _i = SourcePower / vDelta;
                 didva = -SourcePower / v2;
                 didvb = -didva;
             }
+            // MaximumNominalVoltage < V < MaximumVoltage
+            // High voltage dropoff
+            else if (vDelta.Magnitude <= MaximumVoltage)
+            {
+                var normalizedOverVoltage = (vDelta.Magnitude - MaximumNominalVoltage) / (MaximumVoltage - MaximumNominalVoltage);
+                var oneMinusUSquared = 1 - normalizedOverVoltage * normalizedOverVoltage;
+
+                var taper = oneMinusUSquared * oneMinusUSquared;
+                var taperDerivative = -4 * normalizedOverVoltage * oneMinusUSquared / (MaximumVoltage - MaximumNominalVoltage);
+
+                _i = (SourcePower / vDelta) * taper;
+                didva = (-SourcePower / v2) * taper + (SourcePower / vDelta) * taperDerivative;
+                didvb = -didva;
+            }
             // MaximumVoltage < V
-            // Low voltage dropoff; I(V) = ...
+            // Above max voltage; 0 power draw
             else
             {
-                // TODO - for now, I've just left it hardcoded to draw 0 power past the max voltage, otherwise if t
-                // This produces a discontinuity that will definately cause issues with the NR solver near these voltages...
-                // But most devices shouldn't really be close to the max voltage normally...
-
-                // I a potentially good function to use here is x^3-x, with coefficients set such that
-                // 1) It is contiguous and smooth at V = V_max, and
-                // 2) The local minimum is at I(V)=0, so that we eventually get to 0 power draw
-
-                // var vMax2 = MaximumVoltage * MaximumVoltage;
-                // var vMax3 = vMax2 * MaximumVoltage;
-                // var c = (2 * vMax3 - SourcePower.Magnitude) / (2 * vMax2);
-                // var d = SourcePower.Magnitude / MaximumVoltage + Math.Pow(MaximumVoltage - c, 2);
-
-                // _i = -Math.Pow(vDelta.Magnitude - c, 2) + d;
-                // didva = -2 * (vDelta.Magnitude - c);
-                // didvb = -didva;
-
                 _i = 0;
                 didva = 0;
                 didvb = 0;
             }
 
+            // CHECK - May be needed to prevent division by zero
             if (_i.Magnitude < 0.0001)
             {
                 _i = 0.0001;
