@@ -407,7 +407,7 @@ namespace Hardwired.Simulation.Electrical
         /// 
         /// Returns `true` if convergance has been reached (i.e. dx was small enough), or `false` if convergance has not yet been reached.
         /// </summary>
-        public bool SolveNRIteration(int n, bool nearDiscontinuity)
+        public bool SolveNRIteration(int n)
         {
             // Solve for update vector
             var dx = J.Solve(-F);
@@ -422,10 +422,6 @@ namespace Hardwired.Simulation.Electrical
                 // Use a damping factor for the first 3 iterations, to avoid large changes that won't converge if the initial guess was too far off
                 // Note - there are other techniques to avoid convergance issues, but this is the easiest and should work well for most of our use cases.
                 var k = hasConverged ? 1.0 : n < 3 ? 0.3 : 0.9;
-                if (nearDiscontinuity)
-                {
-                    k = 0.2;
-                }
                 X[i, 0] += k * dx[i, 0];
             }
 

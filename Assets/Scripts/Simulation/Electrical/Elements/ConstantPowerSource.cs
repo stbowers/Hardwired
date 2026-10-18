@@ -83,7 +83,7 @@ namespace Hardwired.Simulation.Electrical.Elements
             base.ApplyState();
         }
 
-        public void UpdateDifferentialState(int n, out bool discontinuityHint)
+        public void UpdateDifferentialState()
         {
             var vA = VoltageA;
             var vB = VoltageB;
@@ -99,29 +99,22 @@ namespace Hardwired.Simulation.Electrical.Elements
 
             Complex didva, didvb;
 
-            double s = 1.0;
-
-            discontinuityHint = false;
-            // discontinuityHint = Math.Abs(vDelta.Magnitude - MinimumVoltage) < 40
-            //                  || Math.Abs(vDelta.Magnitude - MaximumVoltage) < 40;
-
-            if (n > 30)
-            {
-                // // Assume it won't converge...
-                // _i = 0;
-                // didva = 0;
-                // didvb = 0;
-
-                Hardwired.LogDebug($"NR iteration {n}: V = {vDelta.Magnitude} (near discontinuity: {discontinuityHint}) -- (v_min: {MinimumVoltage}, v_max: {MaximumVoltage})");
-            }
+            // https://www.desmos.com/calculator/l0bdnvaaaw
 
             // V <= MinimumVoltage
-            // Low voltage dropoff; I(V) = e^( s*(V-V_min) + ln(P_target/V_min))
+            // Low voltage dropoff; I(V) = ...
             if (vDelta.Magnitude <= MinimumVoltage)
             {
-                _i = Math.Exp(s * (vDelta.Magnitude - MinimumVoltage) + Math.Log(SourcePower.Magnitude / MinimumVoltage));
-                didva = _i;
-                didvb = -_i;
+                var vMin2 = MinimumVoltage * MinimumVoltage;
+                var vMin3 = vMin2 * MinimumVoltage;
+                var k = Math.Sqrt((2 * SourcePower.Magnitude) / vMin3);
+                var k2 = k * k;
+                var a = (2 * k2 * vMin3 - SourcePower.Magnitude) / (2 * k * vMin2);
+                var b = SourcePower.Magnitude / MinimumVoltage + Math.Pow(k * MinimumVoltage - a, 2);
+
+                _i = -Math.Pow(k * vDelta.Magnitude - a, 2) + b;
+                didva = -2 * (vDelta.Magnitude - a);
+                didvb = -didva;
             }
             // MinimumVoltage < V <= MaximumVoltage
             // Nominal voltage; I(V) = P/V
@@ -132,12 +125,29 @@ namespace Hardwired.Simulation.Electrical.Elements
                 didvb = -didva;
             }
             // MaximumVoltage < V
-            // Low voltage dropoff; I(V) = e^( s*(V_max-V) + ln(P_target/V_max))
+            // Low voltage dropoff; I(V) = ...
             else
             {
-                _i = Math.Exp(s * (MaximumVoltage - vDelta.Magnitude) + Math.Log(SourcePower.Magnitude / MaximumVoltage));
-                didva = -_i;
-                didvb = _i;
+                // TODO - for now, I've just left it hardcoded to draw 0 power past the max voltage, otherwise if t
+                // This produces a discontinuity that will definately cause issues with the NR solver near these voltages...
+                // But most devices shouldn't really be close to the max voltage normally...
+
+                // I a potentially good function to use here is x^3-x, with coefficients set such that
+                // 1) It is contiguous and smooth at V = V_max, and
+                // 2) The local minimum is at I(V)=0, so that we eventually get to 0 power draw
+
+                // var vMax2 = MaximumVoltage * MaximumVoltage;
+                // var vMax3 = vMax2 * MaximumVoltage;
+                // var c = (2 * vMax3 - SourcePower.Magnitude) / (2 * vMax2);
+                // var d = SourcePower.Magnitude / MaximumVoltage + Math.Pow(MaximumVoltage - c, 2);
+
+                // _i = -Math.Pow(vDelta.Magnitude - c, 2) + d;
+                // didva = -2 * (vDelta.Magnitude - c);
+                // didvb = -didva;
+
+                _i = 0;
+                didva = 0;
+                didvb = 0;
             }
 
             if (_i.Magnitude < 0.0001)

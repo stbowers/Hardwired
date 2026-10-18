@@ -152,20 +152,17 @@ namespace Hardwired.Simulation.Electrical
             int i = 0;
             for (; i < 50 && !hasConverged; i++)
             {
-                bool nearDiscontinuity = false;
-
                 // clear/reset values
                 Solver.BeginNRIteration();
 
                 // Update J matrix & F vector
                 foreach (var nonlinearComponent in NonlinearElements)
                 {
-                    nonlinearComponent.UpdateDifferentialState(i, out bool discontinuityHint);
-                    nearDiscontinuity |= discontinuityHint;
+                    nonlinearComponent.UpdateDifferentialState();
                 }
 
                 // Solve for x(i + 1)
-                hasConverged = Solver.SolveNRIteration(i, nearDiscontinuity);
+                hasConverged = Solver.SolveNRIteration(i);
             }
 
             Hardwired.LogDebug($"Circuit {Id} -- finished solving after {i} iterations -- converged: {hasConverged}");
