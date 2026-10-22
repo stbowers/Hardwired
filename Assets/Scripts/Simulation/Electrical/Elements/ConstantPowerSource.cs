@@ -61,7 +61,12 @@ namespace Hardwired.Simulation.Electrical.Elements
             // Estimate current draw given a guess at the voltage
             // _v0 ??= NominalVoltage;
             // _v0 = _v0.Value.Magnitude.Clamp(MinimumVoltage, MaximumVoltage);
-            _v0 = (MinimumNominalVoltage + MaximumNominalVoltage) / 2;
+            _v0 ??= (MinimumNominalVoltage + MaximumNominalVoltage) / 2;
+            if (_v0.Value.Magnitude < 0.0001)
+            {
+                _v0 = 0.0001;
+            }
+
             _i = SourcePower / _v0.Value;
             if (_i.Magnitude < 0.0001)
             {

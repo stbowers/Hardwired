@@ -9,6 +9,7 @@ using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Factorization;
+using MathNet.Numerics.LinearAlgebra.Storage;
 using UnityEngine.Assertions;
 using Complex = System.Numerics.Complex;
 
@@ -68,17 +69,15 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         public Matrix<Complex> A = Matrix<Complex>.Build.Dense(0, 0);
 
-        private QR<Complex>? _A_QR;
-
         /// <summary>
         /// The jacobian matrix (i.e. matrix of partial derivatives for non-linear components).
         /// </summary>
-        public Matrix<Complex> J = Matrix<Complex>.Build.Sparse(0, 0);
+        public Matrix<Complex> J = Matrix<Complex>.Build.Dense(0, 0);
 
         /// <summary>
         /// The values of any non-linear equations for the current solution `X`
         /// </summary>
-        public Matrix<Complex> F = Matrix<Complex>.Build.Sparse(0, 0);
+        public Matrix<Complex> F = Matrix<Complex>.Build.Dense(0, 0);
 
         /// <summary>
         /// Vector of unknown values to be solved for.
@@ -86,6 +85,8 @@ namespace Hardwired.Simulation.Electrical
         /// The next `_voltageSources` values will be the currents across each voltage source.
         /// </summary>
         public Matrix<Complex> X = Matrix<Complex>.Build.Dense(0, 1);
+
+        private Matrix<Complex>? _dx;
 
         /// <summary>
         /// Vector of known values to be used as inputs.
@@ -130,9 +131,6 @@ namespace Hardwired.Simulation.Electrical
                 A[a.Index, b.Index] -= value;
                 A[b.Index, a.Index] -= value;
             }
-
-            // Since A was modified, invalidate factorization so it will be re-factored on the next solve
-            _A_QR = null;
         }
 
         /// <summary>
@@ -210,9 +208,6 @@ namespace Hardwired.Simulation.Electrical
                 // Subtract the voltage source's current from the source node
                 A[b.Index, i.Index] = 1;
             }
-
-            // Since A was modified, invalidate factorization so it will be re-factored on the next solve
-            _A_QR = null;
         }
 
         /// <summary>
@@ -271,9 +266,6 @@ namespace Hardwired.Simulation.Electrical
             A[i1.Index, i2.Index] -= new Complex(0, wM);
             A[i2.Index, i1.Index] -= new Complex(0, wM);
             A[i2.Index, i2.Index] -= new Complex(0, wL2);
-
-            // Since A was modified, invalidate factorization so it will be re-factored on the next solve
-            _A_QR = null;
         }
 
         /// <summary>
@@ -357,24 +349,14 @@ namespace Hardwired.Simulation.Electrical
             A.CoerceZero(v => v.IsNaN() || v.Magnitude < 10 * double.Epsilon);
             Z.CoerceZero(v => v.IsNaN() || v.Magnitude < 10 * double.Epsilon);
 
-            // Try to factorize A, if not already set up
-            _A_QR ??= A.QR();
-
             // (re)initialize X if needed
             if (X.RowCount != A.RowCount)
             {
                 X = X.Resize(A.RowCount, 1);
             }
 
-            if (_A_QR.Determinant == 0)
-            {
-                X.Clear();
-                return false;
-                // debug -- throw new InvalidOperationException($"Circuit cannot be solved (singular matrix)!");
-            }
-
             // Solve for x
-            _A_QR.Solve(Z, X);
+            A.Solve(Z, X);
 
             // Output -- Coerce small or NaN values to 0
             X.CoerceZero(v => v.IsNaN() || v.Magnitude < 10 * double.Epsilon);
@@ -390,14 +372,17 @@ namespace Hardwired.Simulation.Electrical
         public void BeginNRIteration()
         {
             // Initialize the jacobian with the partial derivatives of all the linear components (which is just the A matrix, since d/dx Ax = A)
-            J = A.Clone();
+            J.Clear();
+            A.CopyTo(J);
 
             // Calculate F_0 for linear components
             // Ax + Yx = Z (where "Y" is a matrix of non-linear functions of x)
             // :. F(x) = Ax + Yx - Z = 0
             // The values of Yx (i.e. values of non-linear functions at x) will be added by each non-linear component when updating
-            F = A * X - Z;
+            A.Multiply(X, F);
+            F.Subtract(Z, F);
         }
+
 
         /// <summary>
         /// Updates the `x` vector with a "better guess" for any non-linear terms using the Newton-Raphson method.
@@ -409,20 +394,32 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         public bool SolveNRIteration(int n)
         {
+            // Check if F is near 0 - no iterations needed
+            if (F.ForAll(f => f.Magnitude < MIN_TOLERANCE))
+            {
+                return true;
+            }
+
             // Solve for update vector
-            var dx = J.Solve(-F);
+            if (_dx == null || _dx.RowCount != J.RowCount)
+            {
+                _dx = Matrix<Complex>.Build.Dense(J.RowCount, 1);
+            }
+            // var dx = J.Solve(-F);
+            F.Negate(_dx);
+            J.Solve(_dx, _dx);
 
             // Update X, and check if convergance has been reached
             bool hasConverged = true;
-            for (int i = 0; i < dx.RowCount; i++)
+            for (int i = 0; i < _dx.RowCount; i++)
             {
                 // Check for convergance
-                hasConverged &= dx[i, 0].Magnitude < REL_TOLERANCE * X[i, 0].Magnitude + MIN_TOLERANCE;
+                hasConverged &= _dx[i, 0].Magnitude < REL_TOLERANCE * X[i, 0].Magnitude + MIN_TOLERANCE;
 
                 // Use a damping factor for the first 3 iterations, to avoid large changes that won't converge if the initial guess was too far off
                 // Note - there are other techniques to avoid convergance issues, but this is the easiest and should work well for most of our use cases.
                 var k = hasConverged ? 1.0 : n < 3 ? 0.3 : 0.9;
-                X[i, 0] += k * dx[i, 0];
+                X[i, 0] += k * _dx[i, 0];
             }
 
             return hasConverged;
@@ -443,9 +440,10 @@ namespace Hardwired.Simulation.Electrical
 
             var newSize = _unknownValues.Count;
             A = A.Resize(newSize, newSize);
+            J = J.Resize(newSize, newSize);
+            F = F.Resize(newSize, 1);
+            X = X.Resize(newSize, 1);
             Z = Z.Resize(newSize, 1);
-
-            _A_QR = null;
 
             return newUnknowns;
         }
@@ -462,8 +460,6 @@ namespace Hardwired.Simulation.Electrical
 
             A = A.RemoveRowColumn(unknown.Index, unknown.Index);
             Z = Z.RemoveRow(unknown.Index);
-
-            _A_QR = null;
 
             for (int i = unknown.Index; i < _unknownValues.Count; i++)
             {
