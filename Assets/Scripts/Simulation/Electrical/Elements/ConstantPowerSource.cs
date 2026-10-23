@@ -17,14 +17,17 @@ namespace Hardwired.Simulation.Electrical.Elements
     /// </summary>
     public class ConstantPowerSource : DipoleCircuitElementBase, ICircuitElement, IFrequencySource, INonlinearCircuitElement
     {
-        private Complex? _appliedCurrent;
+        /// <summary>
+        /// The initial value of i currently stamped into the A matix
+        /// </summary>
+        private Complex? _appliedInitialCurrent;
         private double? _frequency;
         private Complex? _v0;
         private Complex _i = Complex.Zero;
 
         public override Complex Current => _i;
 
-        public Complex SourcePower { get; set; }
+        public Complex TargetPower { get; set; }
 
         public double MinimumNominalVoltage { get; set; } = 100;
 
@@ -68,20 +71,20 @@ namespace Hardwired.Simulation.Electrical.Elements
                 _v0 = 0.0001;
             }
 
-            _i = (SourcePower / _v0.Value).Conjugate();
+            _i = (TargetPower / _v0.Value).Conjugate();
             if (_i.Magnitude < 0.0001)
             {
                 _i = 0.0001;
             }
 
-            // // If estimate is sufficiently far from our current estimate, reset it
-            // if (_appliedCurrent == null || (_appliedCurrent.Value - _i).Magnitude > 0.1)
-            // {
+            // If estimate is sufficiently far from our current estimate, reset it
+            if (_appliedInitialCurrent == null || (_appliedInitialCurrent.Value - _i).Magnitude > 0.1)
+            {
                 RemoveState();
 
                 Circuit.Solver.AddCurrent(NodeA?.Value, NodeB?.Value, _i);
-                _appliedCurrent = _i;
-            // }
+                _appliedInitialCurrent = _i;
+            }
         }
 
         public override void ApplyState()
@@ -101,9 +104,9 @@ namespace Hardwired.Simulation.Electrical.Elements
             }
             _v0 = vDelta;
 
-            var v2 = vDelta * vDelta;
+            var vDeltaSquared = vDelta * vDelta;
 
-            Complex didva, dIdConjugateVa;
+            Complex dIdV, dIdVConjugate;
 
             // Calculate I(V), and the partial derivatives for V_a and V_b for the current state.
             // I(V) is a non-linear piecewise function, but must be "smooth" (i.e. both I(V) and its derivative must be
@@ -122,21 +125,21 @@ namespace Hardwired.Simulation.Electrical.Elements
                 // partial derivative of g_min(v) w.r.t. l(v)
                 var taperDerivative = 6 * normalizedUnderVoltage * (1 - normalizedUnderVoltage);
 
-                // partial derivatives of l(v) w.r.t v and v*
+                // partial derivatives of l(v) w.r.t v and v* (to be used to apply chain rule to taperDerivative)
                 var dldv = vDelta.Conjugate() / (2 * vDelta.Magnitude * MinimumNominalVoltage);
                 var dldvConjugate = vDelta / (2 * vDelta.Magnitude * MinimumNominalVoltage);
 
-                _i = (SourcePower / vDelta).Conjugate() * taper;
-                didva = (SourcePower / vDelta).Conjugate() * taperDerivative * dldv;
-                dIdConjugateVa = (-SourcePower / v2).Conjugate() * taper + (SourcePower / vDelta).Conjugate() * taperDerivative * dldvConjugate;
+                _i = (TargetPower / vDelta).Conjugate() * taper;
+                dIdV = (TargetPower / vDelta).Conjugate() * taperDerivative * dldv;
+                dIdVConjugate = (-TargetPower / vDeltaSquared).Conjugate() * taper + (TargetPower / vDelta).Conjugate() * taperDerivative * dldvConjugate;
             }
             // MinimumVoltage < V <= MaximumNominalVoltage
             // Nominal voltage; I(V) = P/V
             else if (vDelta.Magnitude <= MaximumNominalVoltage)
             {
-                _i = (SourcePower / vDelta).Conjugate();
-                didva = 0;
-                dIdConjugateVa = (-SourcePower / v2).Conjugate();
+                _i = (TargetPower / vDelta).Conjugate();
+                dIdV = 0;
+                dIdVConjugate = (-TargetPower / vDeltaSquared).Conjugate();
             }
             // MaximumNominalVoltage < V < MaximumVoltage
             // High voltage dropoff
@@ -154,21 +157,21 @@ namespace Hardwired.Simulation.Electrical.Elements
                 // partial derivative of g_max(v) w.r.t. u(v)
                 var taperDerivative = -4 * normalizedOverVoltage * oneMinusUSquared;
 
-                // partial derivatives of u(v) w.r.t v and v*
+                // partial derivatives of u(v) w.r.t v and v* (to be used to apply chain rule to taperDerivative)
                 var dudv = vDelta.Conjugate() / (2 * vDelta.Magnitude * vBuffer);
                 var dudvConjugate = vDelta / (2 * vDelta.Magnitude * vBuffer);
 
-                _i = (SourcePower / vDelta).Conjugate() * taper;
-                didva = (SourcePower / vDelta).Conjugate() * taperDerivative * dudv;
-                dIdConjugateVa = (-SourcePower / v2).Conjugate() * taper + (SourcePower / vDelta).Conjugate() * taperDerivative * dudvConjugate;
+                _i = (TargetPower / vDelta).Conjugate() * taper;
+                dIdV = (TargetPower / vDelta).Conjugate() * taperDerivative * dudv;
+                dIdVConjugate = (-TargetPower / vDeltaSquared).Conjugate() * taper + (TargetPower / vDelta).Conjugate() * taperDerivative * dudvConjugate;
             }
             // MaximumVoltage < V
             // Above max voltage; 0 power draw
             else
             {
                 _i = 0;
-                didva = 0;
-                dIdConjugateVa = 0;
+                dIdV = 0;
+                dIdVConjugate = 0;
             }
 
             // Ensure current is always non-zero, to avoid NaN when solving...
@@ -177,16 +180,16 @@ namespace Hardwired.Simulation.Electrical.Elements
                 _i = 1e-10;
             }
 
-            var di = _i - (_appliedCurrent ?? Complex.Zero);
-            Circuit?.Solver.AddNonlinearCurrent(NodeA?.Value, NodeB?.Value, di, didva, dIdConjugateVa);
+            var di = _i - (_appliedInitialCurrent ?? Complex.Zero);
+            Circuit?.Solver.AddNonlinearCurrent(NodeA?.Value, NodeB?.Value, di, dIdV, dIdVConjugate);
         }
 
         private void RemoveState()
         {
-            if (_appliedCurrent != null)
+            if (_appliedInitialCurrent != null)
             {
-                Circuit.Solver.AddCurrent(NodeA?.Value, NodeB?.Value, -_appliedCurrent.Value);
-                _appliedCurrent = null;
+                Circuit.Solver.AddCurrent(NodeA?.Value, NodeB?.Value, -_appliedInitialCurrent.Value);
+                _appliedInitialCurrent = null;
             }
         }
     }

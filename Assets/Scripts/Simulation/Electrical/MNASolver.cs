@@ -71,6 +71,11 @@ namespace Hardwired.Simulation.Electrical
 
         /// <summary>
         /// The jacobian matrix (i.e. matrix of partial derivatives for non-linear components).
+        /// 
+        /// Stored in "realified" form, as a 2N*2N matrix that stores the real and imaginary parts separately,
+        /// since we need to be able to represent partial derivatives with respect to both V and conjugate(V).
+        /// 
+        /// See `RealifyMatrix()` for more info.
         /// </summary>
         public Matrix<double> Jr = Matrix<double>.Build.Dense(0, 0);
 
@@ -79,21 +84,28 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         public Matrix<Complex> F = Matrix<Complex>.Build.Dense(0, 0);
 
+        /// <summary>
+        /// The "realified" form of `F` (see `RealifyVector()`)
+        /// </summary>
         private Matrix<double> _fr = Matrix<double>.Build.Dense(0, 0);
 
         /// <summary>
         /// Vector of unknown values to be solved for.
-        /// The first `_nodes` values will be the voltages at each node.
-        /// The next `_voltageSources` values will be the currents across each voltage source.
         /// </summary>
         public Matrix<Complex> X = Matrix<Complex>.Build.Dense(0, 1);
 
+        /// <summary>
+        /// Pre-allocated space for the update vector, dx, to apply to X at each Newton-Raphson iteration.
+        /// </summary>
+        private Matrix<Complex> _dx = Matrix<Complex>.Build.Dense(0, 1);
+
+        /// <summary>
+        /// "realified" form of `_dx`, see `RealifyVector()` for more info.
+        /// </summary>
         private Matrix<double> _dxr = Matrix<double>.Build.Dense(0, 1);
 
         /// <summary>
         /// Vector of known values to be used as inputs.
-        /// The first `_nodes` values will be the current flowing through each node from current sources (positive values indicate current flowing out of the node).
-        /// The next `_voltageSources` values will be the voltage of each voltage source.
         /// </summary>
         public Matrix<Complex> Z = Matrix<Complex>.Build.Dense(0, 1);
 
@@ -311,7 +323,25 @@ namespace Hardwired.Simulation.Electrical
             }
         }
 
-        public void AddNonlinearCurrent(Unknown? a, Unknown? b, Complex i, Complex p, Complex q)
+        /// <summary>
+        /// For the current value of `X`, add the evaluation of a non-linear current (`i`) to the `F` vector, and
+        /// the evaluation of the partial derivative of I(v) with respect to v (`dIdV`) and conjugate(v) (`dIdVConjugate`)
+        /// to the "realified" jacobian, `Jr`.
+        /// 
+        /// Note that positive branch current flows "from" node a "to" node b.
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <param name="i">
+        /// The evaluation of the non-lienar equation I(v) - I_0 for the current value of v (from the `X` vector).
+        /// </param>
+        /// <param name="dIdV">
+        /// The evaluation of the partial derivative of I(v) with respect to v for the current value of v.
+        /// </param>
+        /// <param name="dIdVConjugate">
+        /// The evaluation of the partial derivative of I(v) with respect to conjugate(v) for the current value of v.
+        /// </param>
+        public void AddNonlinearCurrent(Unknown? a, Unknown? b, Complex i, Complex dIdV, Complex dIdVConjugate)
         {
             Assert.IsTrue(a == null || a.Solver == this);
             Assert.IsTrue(b == null || b.Solver == this);
@@ -321,10 +351,10 @@ namespace Hardwired.Simulation.Electrical
                 F[a.Index, 0] += i;
 
                 // J[a, a] += C
-                Jr[a.Index, a.Index] += (p + q).Real;
-                Jr[a.Index + A.RowCount, a.Index] += (p + q).Imaginary;
-                Jr[a.Index, a.Index + A.RowCount] += -(p - q).Imaginary;
-                Jr[a.Index + A.RowCount, a.Index + A.RowCount] += (p - q).Real;
+                Jr[a.Index, a.Index] += (dIdV + dIdVConjugate).Real;
+                Jr[a.Index + A.RowCount, a.Index] += (dIdV + dIdVConjugate).Imaginary;
+                Jr[a.Index, a.Index + A.RowCount] += -(dIdV - dIdVConjugate).Imaginary;
+                Jr[a.Index + A.RowCount, a.Index + A.RowCount] += (dIdV - dIdVConjugate).Real;
             }
 
             if (b != null)
@@ -332,25 +362,25 @@ namespace Hardwired.Simulation.Electrical
                 F[b.Index, 0] -= i;
 
                 // J[b, b] += C
-                Jr[b.Index, b.Index] += (p + q).Real;
-                Jr[b.Index + A.RowCount, b.Index] += (p + q).Imaginary;
-                Jr[b.Index, b.Index + A.RowCount] += -(p - q).Imaginary;
-                Jr[b.Index + A.RowCount, b.Index + A.RowCount] += (p - q).Real;
+                Jr[b.Index, b.Index] += (dIdV + dIdVConjugate).Real;
+                Jr[b.Index + A.RowCount, b.Index] += (dIdV + dIdVConjugate).Imaginary;
+                Jr[b.Index, b.Index + A.RowCount] += -(dIdV - dIdVConjugate).Imaginary;
+                Jr[b.Index + A.RowCount, b.Index + A.RowCount] += (dIdV - dIdVConjugate).Real;
             }
 
             if (a != null && b != null)
             {
                 // J[a, b] -= C
-                Jr[a.Index, b.Index] -= (p + q).Real;
-                Jr[a.Index + A.RowCount, b.Index] -= (p + q).Imaginary;
-                Jr[a.Index, b.Index + A.RowCount] -= -(p - q).Imaginary;
-                Jr[a.Index + A.RowCount, b.Index + A.RowCount] -= (p - q).Real;
+                Jr[a.Index, b.Index] -= (dIdV + dIdVConjugate).Real;
+                Jr[a.Index + A.RowCount, b.Index] -= (dIdV + dIdVConjugate).Imaginary;
+                Jr[a.Index, b.Index + A.RowCount] -= -(dIdV - dIdVConjugate).Imaginary;
+                Jr[a.Index + A.RowCount, b.Index + A.RowCount] -= (dIdV - dIdVConjugate).Real;
 
                 // J[b, a] -= C
-                Jr[b.Index, a.Index] -= (p + q).Real;
-                Jr[b.Index + A.RowCount, a.Index] -= (p + q).Imaginary;
-                Jr[b.Index, a.Index + A.RowCount] -= -(p - q).Imaginary;
-                Jr[b.Index + A.RowCount, a.Index + A.RowCount] -= (p - q).Real;
+                Jr[b.Index, a.Index] -= (dIdV + dIdVConjugate).Real;
+                Jr[b.Index + A.RowCount, a.Index] -= (dIdV + dIdVConjugate).Imaginary;
+                Jr[b.Index, a.Index + A.RowCount] -= -(dIdV - dIdVConjugate).Imaginary;
+                Jr[b.Index + A.RowCount, a.Index + A.RowCount] -= (dIdV - dIdVConjugate).Real;
             }
         }
 
@@ -383,36 +413,6 @@ namespace Hardwired.Simulation.Electrical
             return true;
         }
 
-        private void PackMatrix(Matrix<Complex> z, Matrix<double> r)
-        {
-            Assert.AreEqual(2*z.RowCount, r.RowCount);
-            Assert.AreEqual(2*z.ColumnCount, r.ColumnCount);
-
-            for (int j = 0; j < z.ColumnCount; j++)
-            {
-                for (int i = 0; i < z.RowCount; i++)
-                {
-                    r[i, j] = z[i, j].Real;
-                    r[i + z.RowCount, j] = z[i, j].Imaginary;
-                    r[i, j + z.ColumnCount] = -z[i, j].Imaginary;
-                    r[i + z.RowCount, j + z.ColumnCount] = z[i, j].Real;
-                }
-            }
-        }
-
-        private void PackVector(Matrix<Complex> z, Matrix<double> r)
-        {
-            Assert.AreEqual(2*z.RowCount, r.RowCount);
-            Assert.AreEqual(1, z.ColumnCount);
-            Assert.AreEqual(1, r.ColumnCount);
-
-            for (int i = 0; i < z.RowCount; i++)
-            {
-                r[i, 0] = z[i, 0].Real;
-                r[i + z.RowCount, 0] = z[i, 0].Imaginary;
-            }
-        }
-
         /// <summary>
         /// Begins a Newton-Raphson iteration by initializing/resetting the J and F matricies with the values corresponding to the linear components
         /// of the circuit. After calling this method, each non-linear component should evaluate its function(s) for the current values of X, and add
@@ -423,7 +423,7 @@ namespace Hardwired.Simulation.Electrical
             // Initialize the jacobian with the partial derivatives of all the linear components (which is just the A matrix, since d/dx Ax = A)
             // Jr = [ R(A) -I(A) ]
             //      [ I(A)  R(A) ]
-            PackMatrix(A, Jr);
+            RealifyMatrix(A, Jr);
 
             // Calculate F_0 for linear components
             // Ax + Yx = Z (where "Y" is a matrix of non-linear functions of x)
@@ -450,30 +450,28 @@ namespace Hardwired.Simulation.Electrical
             }
             
             // _fr = [R(F) I(F)]
-            PackVector(F, _fr);
+            RealifyVector(F, _fr);
 
             // Solve for update vector
             // _dxr = Jr.Solve(-_fr);
             _fr.Negate(_fr);
             Jr.Solve(_fr, _dxr);
+            ComplexifyVector(_dxr, _dx);
 
             // Check for convergence
             bool hasConverged = true;
             for (int i = 0; i < X.RowCount; i++)
             {
-                var dx = new Complex(_dxr[i, 0], _dxr[i + X.RowCount, 0]);
-                hasConverged &= dx.Magnitude < REL_TOLERANCE * X[i, 0].Magnitude + MIN_TOLERANCE;
+                hasConverged &= _dx[i, 0].Magnitude < REL_TOLERANCE * X[i, 0].Magnitude + MIN_TOLERANCE;
             }
 
             // Update X
             for (int i = 0; i < X.RowCount; i++)
             {
-                var dx = new Complex(_dxr[i, 0], _dxr[i + X.RowCount, 0]);
-
                 // Use a damping factor for the first 3 iterations, to avoid large changes that won't converge if the initial guess was too far off
                 // Note - there are other techniques to avoid convergance issues, but this is the easiest and should work well for most of our use cases.
                 var k = hasConverged ? 1.0 : n < 3 ? 0.3 : 0.9;
-                X[i, 0] += k * dx;
+                X[i, 0] += k * _dx[i, 0];
             }
 
             return hasConverged;
@@ -492,10 +490,12 @@ namespace Hardwired.Simulation.Electrical
                 _unknownValues.Add(newUnknowns[i]);
             }
 
+            // Resize matricies
             var newSize = _unknownValues.Count;
             A = A.Resize(newSize, newSize);
             Jr = Jr.Resize(2*newSize, 2*newSize);
             _fr = _fr.Resize(2*newSize, 1);
+            _dx = _dx.Resize(newSize, 1);
             _dxr = _dxr.Resize(2*newSize, 1);
             F = F.Resize(newSize, 1);
             X = X.Resize(newSize, 1);
@@ -514,22 +514,21 @@ namespace Hardwired.Simulation.Electrical
                 return;
             }
 
-            var oldN = A.RowCount;
+            var n = _unknownValues.Count;
 
+            // Remove row/column, but keep rest of matrix intact
             A = A.RemoveRowColumn(unknown.Index, unknown.Index);
-            F = F.RemoveRow(unknown.Index);
             X = X.RemoveRow(unknown.Index);
             Z = Z.RemoveRow(unknown.Index);
 
-            Jr = Jr.RemoveRowColumn(unknown.Index + oldN, unknown.Index + oldN);
-            Jr = Jr.RemoveRowColumn(unknown.Index, unknown.Index);
+            // Just resize (will be fully re-calculated at each step, no need to keep values)
+            Jr = Jr.Resize(n, n);
+            F = F.Resize(n, 1);
+            _fr = _fr.Resize(2*n, 1);
+            _dx = _dx.Resize(n, 1);
+            _dxr = _dxr.Resize(2*n, 1);
 
-            _fr = _fr.RemoveRow(unknown.Index + oldN);
-            _fr = _fr.RemoveRow(unknown.Index);
-
-            _dxr = _dxr.RemoveRow(unknown.Index + oldN);
-            _dxr = _dxr.RemoveRow(unknown.Index);
-
+            // re-index remaining unknowns
             for (int i = unknown.Index; i < _unknownValues.Count; i++)
             {
                 _unknownValues[i].Index = i;
@@ -572,6 +571,106 @@ namespace Hardwired.Simulation.Electrical
             }
             
             return value.Value;
+        }
+
+        /// <summary>
+        /// "realificates" the complex-valued N*M matrix, z, into a real-valued 2N*2M matrix, r, by copying the real
+        /// and imaginary parts into blocks in the form:
+        /// 
+        /// [ R(z) -I(z) ]
+        /// [ I(z)  R(z) ]
+        /// 
+        /// This "realified" matrix can then be used with similarly "realified" vectors to calculate complex systems
+        /// of equations, as normal:
+        /// 
+        /// c = A*b
+        /// 
+        /// [ R(c) ] = [ R(A) -I(A) ] * [ R(b) ]
+        /// [ I(c) ]   [ I(A)  R(A) ]   [ I(b) ]
+        /// 
+        /// However, the advantage to using a "realified" matrix over just an ordinary complex matrix is that the
+        /// real and imaginary parts can be treated as independent variables.
+        /// This is especially important for solving non-holomorphic systems of complex non-linear equations, where
+        /// in order to correclty evaluate the jacobian/gradient we must take partial derivatives with respect to
+        /// both the complex variable and its conjugate.
+        /// </summary>
+        /// <param name="z">
+        /// The complex-valued matrix to realify.
+        /// </param>
+        /// <param name="r">
+        /// The real-valued matrix to store the result in.
+        /// </param>
+        private static void RealifyMatrix(Matrix<Complex> z, Matrix<double> r)
+        {
+            Assert.AreEqual(2*z.RowCount, r.RowCount);
+            Assert.AreEqual(2*z.ColumnCount, r.ColumnCount);
+
+            for (int j = 0; j < z.ColumnCount; j++)
+            {
+                for (int i = 0; i < z.RowCount; i++)
+                {
+                    r[i, j] = z[i, j].Real;
+                    r[i + z.RowCount, j] = z[i, j].Imaginary;
+                    r[i, j + z.ColumnCount] = -z[i, j].Imaginary;
+                    r[i + z.RowCount, j + z.ColumnCount] = z[i, j].Real;
+                }
+            }
+        }
+
+        /// <summary>
+        /// "realifies" the complex-valued N*1 matrix (vector), z, into a real-valued 2N*1 vector, r, by copying the real
+        /// and imaginary parts into blocks in the form:
+        /// 
+        /// [ R(z) ]
+        /// [ I(z) ]
+        /// 
+        /// </summary>
+        /// <param name="z">
+        /// The complex-valued matrix to realify.
+        /// </param>
+        /// <param name="r">
+        /// The real-valued matrix to store the result in.
+        /// </param>
+        private static void RealifyVector(Matrix<Complex> z, Matrix<double> r)
+        {
+            Assert.AreEqual(2*z.RowCount, r.RowCount);
+            Assert.AreEqual(1, z.ColumnCount);
+            Assert.AreEqual(1, r.ColumnCount);
+
+            for (int i = 0; i < z.RowCount; i++)
+            {
+                r[i, 0] = z[i, 0].Real;
+                r[i + z.RowCount, 0] = z[i, 0].Imaginary;
+            }
+        }
+
+        /// <summary>
+        /// "complexifies" the real-valued 2Nx1 vector, r, into a complex-valued Nx1 matrix, z, by taking the real
+        /// and imaginary part from each block in the form:
+        /// 
+        /// r = [ R(z) ]
+        ///     [ I(z) ]
+        /// 
+        /// Inverse of `RealifyVector()`.
+        /// </summary>
+        /// <param name="r">
+        /// The real-valued matrix to complexify.
+        /// </param>
+        /// <param name="z">
+        /// The complex-valued matrix to store the result in.
+        /// </param>
+        private static void ComplexifyVector(Matrix<double> r, Matrix<Complex> z)
+        {
+            Assert.AreEqual(2*z.RowCount, r.RowCount);
+            Assert.AreEqual(1, z.ColumnCount);
+            Assert.AreEqual(1, r.ColumnCount);
+
+            for (int i = 0; i < z.RowCount; i++)
+            {
+                var x = r[i, 0];
+                var y = r[i + z.RowCount, 0];
+                z[i, 0] = new Complex(x, y);
+            }
         }
 
         /// <summary>
