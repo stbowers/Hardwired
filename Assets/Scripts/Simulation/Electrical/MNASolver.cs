@@ -50,6 +50,12 @@ namespace Hardwired.Simulation.Electrical
         private List<Unknown> _unknownValues = new();
 
         /// <summary>
+        /// Flag to indicate that the next solve needs to fully re-calculate the initial state, rather than
+        /// iterating on the previous solve.
+        /// </summary>
+        private bool _needsFullSolve = true;
+
+        /// <summary>
         /// Matrix of coefficients for the system of equations.
         /// 
         /// A * x = z
@@ -145,6 +151,8 @@ namespace Hardwired.Simulation.Electrical
                 A[a.Index, b.Index] -= value;
                 A[b.Index, a.Index] -= value;
             }
+
+            InvalidateTopology();
         }
 
         /// <summary>
@@ -222,6 +230,8 @@ namespace Hardwired.Simulation.Electrical
                 // Subtract the voltage source's current from the source node
                 A[b.Index, i.Index] = 1;
             }
+
+            InvalidateTopology();
         }
 
         /// <summary>
@@ -280,6 +290,8 @@ namespace Hardwired.Simulation.Electrical
             A[i1.Index, i2.Index] -= new Complex(0, wM);
             A[i2.Index, i1.Index] -= new Complex(0, wM);
             A[i2.Index, i2.Index] -= new Complex(0, wL2);
+
+            InvalidateTopology();
         }
 
         /// <summary>
@@ -296,7 +308,14 @@ namespace Hardwired.Simulation.Electrical
             if (i == null) { return; }
 
             // Set input voltage to the given value
+            var oldValue = Z[i.Index, 0];
             Z[i.Index, 0] = value;
+
+            // If voltage has changed significantly, invalidate the circuit topology and force a full solve
+            if ((oldValue - value).Magnitude > 0.1)
+            {
+                InvalidateTopology();
+            }
         }
 
         /// <summary>
@@ -321,6 +340,8 @@ namespace Hardwired.Simulation.Electrical
             {
                 Z[b.Index, 0] += value;
             }
+
+            InvalidateTopology();
         }
 
         /// <summary>
@@ -392,7 +413,7 @@ namespace Hardwired.Simulation.Electrical
         /// 
         /// Returns `true` if a solution was found, or `false` if the circuit cannot be solved
         /// </summary>
-        public bool SolveInitial()
+        private bool SolveInitial()
         {
             // Inputs -- Coerce small or NaN values to 0
             A.CoerceZero(v => v.IsNaN() || v.Magnitude < 10 * double.Epsilon);
@@ -401,7 +422,7 @@ namespace Hardwired.Simulation.Electrical
             // (re)initialize X if needed
             if (X.RowCount != A.RowCount)
             {
-                X = X.Resize(A.RowCount, 1);
+                X = Matrix<Complex>.Build.Dense(A.RowCount, 1);
             }
 
             // Solve for x
@@ -420,6 +441,13 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         public void BeginNRIteration()
         {
+            if (_needsFullSolve)
+            {
+                Console.WriteLine($"topology changed!");
+                SolveInitial();
+                _needsFullSolve = false;
+            }
+            
             // Initialize the jacobian with the partial derivatives of all the linear components (which is just the A matrix, since d/dx Ax = A)
             // Jr = [ R(A) -I(A) ]
             //      [ I(A)  R(A) ]
@@ -495,11 +523,13 @@ namespace Hardwired.Simulation.Electrical
             A = A.Resize(newSize, newSize);
             Jr = Jr.Resize(2*newSize, 2*newSize);
             _fr = _fr.Resize(2*newSize, 1);
+            X = X.Resize(newSize, 1);
             _dx = _dx.Resize(newSize, 1);
             _dxr = _dxr.Resize(2*newSize, 1);
             F = F.Resize(newSize, 1);
-            X = X.Resize(newSize, 1);
             Z = Z.Resize(newSize, 1);
+
+            InvalidateTopology();
 
             return newUnknowns;
         }
@@ -522,7 +552,7 @@ namespace Hardwired.Simulation.Electrical
             Z = Z.RemoveRow(unknown.Index);
 
             // Just resize (will be fully re-calculated at each step, no need to keep values)
-            Jr = Jr.Resize(n, n);
+            Jr = Jr.Resize(2*n, 2*n);
             F = F.Resize(n, 1);
             _fr = _fr.Resize(2*n, 1);
             _dx = _dx.Resize(n, 1);
@@ -535,6 +565,19 @@ namespace Hardwired.Simulation.Electrical
             }
 
             unknown.Index = -1;
+
+            InvalidateTopology();
+        }
+
+        /// <summary>
+        /// Called whenever the circuit topology has changed in such a way that the next solve needs to be a full solve rather than
+        /// iterating on the previous solution.
+        /// 
+        /// Should be called whenever 'A' or 'Z' are updated.
+        /// </summary>
+        private void InvalidateTopology()
+        {
+            _needsFullSolve = true;
         }
 
         /// <summary>

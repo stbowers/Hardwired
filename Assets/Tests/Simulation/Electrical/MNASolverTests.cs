@@ -160,7 +160,8 @@ namespace Hardwired.Tests.Simulation.Electrical
                 _vsources[vi] = i!;
             }
 
-            solver.SolveInitial();
+            solver.BeginNRIteration();
+            solver.SolveNRIteration(0);
 
             // Check outputs
             for (int n = 0; n < expectedOutputs.NodeVoltages.Count; n++)

@@ -22,7 +22,7 @@ namespace Hardwired.Objects.Electrical
         /// <summary>
         /// Default profile for generators, and other power production/infrastructure related devices (~500V DC)
         /// </summary>
-        public static readonly PowerProfile DefaultGenerator = DefaultGrid;//new() { Frequency = 0, VoltageMaximum = 550, VoltageNominalHigh = 500, VoltageNominalLow = 450 };
+        public static readonly PowerProfile DefaultGenerator = new() { Frequency = 0, VoltageMaximum = 550, VoltageNominalHigh = 500, VoltageNominalLow = 450 };
 
         /// <summary>
         /// The efficiency of this power profile.
@@ -88,7 +88,7 @@ namespace Hardwired.Objects.Electrical
         /// will shut off. In theory it should be possible to program custom "brownout" behavior however, such that if
         /// a device receives less than its expected power it underperforms (lights dim, run slower, etc).
         /// </summary>
-        public double MinimumPowerRatio = 0.10;
+        public double MinimumPowerRatio = 0.95;
 
         /// <summary>
         /// The nominal inductance of the load in Henrys

@@ -104,17 +104,10 @@ namespace Hardwired.Simulation.Electrical
 
             try
             {
-                if (SolveInitial())
-                {
-                    // If initial solve had a solution, iterate non-linear components until convergance
-                    SolveIterative();
+                InitializeFrequency();
 
-                    LastTickStatus = TickProcessingStatus.Success;
-                }
-                else
-                {
-                    LastTickStatus = TickProcessingStatus.NoSolution;
-                }
+                // Iteratively solve until converged on a solution
+                SolveIterative();
             }
             catch (Exception e)
             {
@@ -134,20 +127,8 @@ namespace Hardwired.Simulation.Electrical
             _frequencyInitialized = false;
         }
 
-        private bool SolveInitial()
-        {
-            // Initialize
-            InitializeFrequency();
-
-            // Solve initial state (x_0)
-            return Solver.SolveInitial();
-        }
-
         private void SolveIterative()
         {
-            // Skip NR iteration if there are no non-linear components (otherwise it will always try to iterate at least once)
-            if (NonlinearElements.Count == 0) { return; }
-
             bool hasConverged = false;
             int i = 0;
             for (; i < 50 && !hasConverged; i++)
@@ -155,7 +136,7 @@ namespace Hardwired.Simulation.Electrical
                 // clear/reset values
                 Solver.BeginNRIteration();
 
-                // Update J matrix & F vector
+                // Update J matrix & F vector with any non-linear currents
                 foreach (var nonlinearComponent in NonlinearElements)
                 {
                     nonlinearComponent.UpdateDifferentialState();
@@ -163,6 +144,15 @@ namespace Hardwired.Simulation.Electrical
 
                 // Solve for x(i + 1)
                 hasConverged = Solver.SolveNRIteration(i);
+            }
+
+            if (!hasConverged)
+            {
+                LastTickStatus = TickProcessingStatus.NoSolution;
+            }
+            else
+            {
+                LastTickStatus = TickProcessingStatus.Success;
             }
 
             Hardwired.LogDebug($"Circuit {Id} -- finished solving after {i} iterations -- converged: {hasConverged}");
