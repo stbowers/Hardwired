@@ -72,12 +72,14 @@ namespace Hardwired.Simulation.Electrical
         /// <summary>
         /// The jacobian matrix (i.e. matrix of partial derivatives for non-linear components).
         /// </summary>
-        public Matrix<Complex> J = Matrix<Complex>.Build.Dense(0, 0);
+        public Matrix<double> Jr = Matrix<double>.Build.Dense(0, 0);
 
         /// <summary>
         /// The values of any non-linear equations for the current solution `X`
         /// </summary>
         public Matrix<Complex> F = Matrix<Complex>.Build.Dense(0, 0);
+
+        private Matrix<double> _fr = Matrix<double>.Build.Dense(0, 0);
 
         /// <summary>
         /// Vector of unknown values to be solved for.
@@ -86,7 +88,7 @@ namespace Hardwired.Simulation.Electrical
         /// </summary>
         public Matrix<Complex> X = Matrix<Complex>.Build.Dense(0, 1);
 
-        private Matrix<Complex>? _dx;
+        private Matrix<double> _dxr = Matrix<double>.Build.Dense(0, 1);
 
         /// <summary>
         /// Vector of known values to be used as inputs.
@@ -309,7 +311,7 @@ namespace Hardwired.Simulation.Electrical
             }
         }
 
-        public void AddNonlinearCurrent(Unknown? a, Unknown? b, Complex i, Complex didva, Complex didvb)
+        public void AddNonlinearCurrent(Unknown? a, Unknown? b, Complex i, Complex p, Complex q)
         {
             Assert.IsTrue(a == null || a.Solver == this);
             Assert.IsTrue(b == null || b.Solver == this);
@@ -318,20 +320,37 @@ namespace Hardwired.Simulation.Electrical
             {
                 F[a.Index, 0] += i;
 
-                J[a.Index, a.Index] += didva;
+                // J[a, a] += C
+                Jr[a.Index, a.Index] += (p + q).Real;
+                Jr[a.Index + A.RowCount, a.Index] += (p + q).Imaginary;
+                Jr[a.Index, a.Index + A.RowCount] += -(p - q).Imaginary;
+                Jr[a.Index + A.RowCount, a.Index + A.RowCount] += (p - q).Real;
             }
 
             if (b != null)
             {
                 F[b.Index, 0] -= i;
 
-                J[b.Index, b.Index] -= didvb;
+                // J[b, b] += C
+                Jr[b.Index, b.Index] += (p + q).Real;
+                Jr[b.Index + A.RowCount, b.Index] += (p + q).Imaginary;
+                Jr[b.Index, b.Index + A.RowCount] += -(p - q).Imaginary;
+                Jr[b.Index + A.RowCount, b.Index + A.RowCount] += (p - q).Real;
             }
 
             if (a != null && b != null)
             {
-                J[a.Index, b.Index] += didvb;
-                J[b.Index, a.Index] -= didva;
+                // J[a, b] -= C
+                Jr[a.Index, b.Index] -= (p + q).Real;
+                Jr[a.Index + A.RowCount, b.Index] -= (p + q).Imaginary;
+                Jr[a.Index, b.Index + A.RowCount] -= -(p - q).Imaginary;
+                Jr[a.Index + A.RowCount, b.Index + A.RowCount] -= (p - q).Real;
+
+                // J[b, a] -= C
+                Jr[b.Index, a.Index] -= (p + q).Real;
+                Jr[b.Index + A.RowCount, a.Index] -= (p + q).Imaginary;
+                Jr[b.Index, a.Index + A.RowCount] -= -(p - q).Imaginary;
+                Jr[b.Index + A.RowCount, a.Index + A.RowCount] -= (p - q).Real;
             }
         }
 
@@ -364,6 +383,36 @@ namespace Hardwired.Simulation.Electrical
             return true;
         }
 
+        private void PackMatrix(Matrix<Complex> z, Matrix<double> r)
+        {
+            Assert.AreEqual(2*z.RowCount, r.RowCount);
+            Assert.AreEqual(2*z.ColumnCount, r.ColumnCount);
+
+            for (int j = 0; j < z.ColumnCount; j++)
+            {
+                for (int i = 0; i < z.RowCount; i++)
+                {
+                    r[i, j] = z[i, j].Real;
+                    r[i + z.RowCount, j] = z[i, j].Imaginary;
+                    r[i, j + z.ColumnCount] = -z[i, j].Imaginary;
+                    r[i + z.RowCount, j + z.ColumnCount] = z[i, j].Real;
+                }
+            }
+        }
+
+        private void PackVector(Matrix<Complex> z, Matrix<double> r)
+        {
+            Assert.AreEqual(2*z.RowCount, r.RowCount);
+            Assert.AreEqual(1, z.ColumnCount);
+            Assert.AreEqual(1, r.ColumnCount);
+
+            for (int i = 0; i < z.RowCount; i++)
+            {
+                r[i, 0] = z[i, 0].Real;
+                r[i + z.RowCount, 0] = z[i, 0].Imaginary;
+            }
+        }
+
         /// <summary>
         /// Begins a Newton-Raphson iteration by initializing/resetting the J and F matricies with the values corresponding to the linear components
         /// of the circuit. After calling this method, each non-linear component should evaluate its function(s) for the current values of X, and add
@@ -372,8 +421,9 @@ namespace Hardwired.Simulation.Electrical
         public void BeginNRIteration()
         {
             // Initialize the jacobian with the partial derivatives of all the linear components (which is just the A matrix, since d/dx Ax = A)
-            J.Clear();
-            A.CopyTo(J);
+            // Jr = [ R(A) -I(A) ]
+            //      [ I(A)  R(A) ]
+            PackMatrix(A, Jr);
 
             // Calculate F_0 for linear components
             // Ax + Yx = Z (where "Y" is a matrix of non-linear functions of x)
@@ -382,7 +432,6 @@ namespace Hardwired.Simulation.Electrical
             A.Multiply(X, F);
             F.Subtract(Z, F);
         }
-
 
         /// <summary>
         /// Updates the `x` vector with a "better guess" for any non-linear terms using the Newton-Raphson method.
@@ -399,27 +448,32 @@ namespace Hardwired.Simulation.Electrical
             {
                 return true;
             }
+            
+            // _fr = [R(F) I(F)]
+            PackVector(F, _fr);
 
             // Solve for update vector
-            if (_dx == null || _dx.RowCount != J.RowCount)
-            {
-                _dx = Matrix<Complex>.Build.Dense(J.RowCount, 1);
-            }
-            // var dx = J.Solve(-F);
-            F.Negate(_dx);
-            J.Solve(_dx, _dx);
+            // _dxr = Jr.Solve(-_fr);
+            _fr.Negate(_fr);
+            Jr.Solve(_fr, _dxr);
 
-            // Update X, and check if convergance has been reached
+            // Check for convergence
             bool hasConverged = true;
-            for (int i = 0; i < _dx.RowCount; i++)
+            for (int i = 0; i < X.RowCount; i++)
             {
-                // Check for convergance
-                hasConverged &= _dx[i, 0].Magnitude < REL_TOLERANCE * X[i, 0].Magnitude + MIN_TOLERANCE;
+                var dx = new Complex(_dxr[i, 0], _dxr[i + X.RowCount, 0]);
+                hasConverged &= dx.Magnitude < REL_TOLERANCE * X[i, 0].Magnitude + MIN_TOLERANCE;
+            }
+
+            // Update X
+            for (int i = 0; i < X.RowCount; i++)
+            {
+                var dx = new Complex(_dxr[i, 0], _dxr[i + X.RowCount, 0]);
 
                 // Use a damping factor for the first 3 iterations, to avoid large changes that won't converge if the initial guess was too far off
                 // Note - there are other techniques to avoid convergance issues, but this is the easiest and should work well for most of our use cases.
                 var k = hasConverged ? 1.0 : n < 3 ? 0.3 : 0.9;
-                X[i, 0] += k * _dx[i, 0];
+                X[i, 0] += k * dx;
             }
 
             return hasConverged;
@@ -440,7 +494,9 @@ namespace Hardwired.Simulation.Electrical
 
             var newSize = _unknownValues.Count;
             A = A.Resize(newSize, newSize);
-            J = J.Resize(newSize, newSize);
+            Jr = Jr.Resize(2*newSize, 2*newSize);
+            _fr = _fr.Resize(2*newSize, 1);
+            _dxr = _dxr.Resize(2*newSize, 1);
             F = F.Resize(newSize, 1);
             X = X.Resize(newSize, 1);
             Z = Z.Resize(newSize, 1);
@@ -458,8 +514,21 @@ namespace Hardwired.Simulation.Electrical
                 return;
             }
 
+            var oldN = A.RowCount;
+
             A = A.RemoveRowColumn(unknown.Index, unknown.Index);
+            F = F.RemoveRow(unknown.Index);
+            X = X.RemoveRow(unknown.Index);
             Z = Z.RemoveRow(unknown.Index);
+
+            Jr = Jr.RemoveRowColumn(unknown.Index + oldN, unknown.Index + oldN);
+            Jr = Jr.RemoveRowColumn(unknown.Index, unknown.Index);
+
+            _fr = _fr.RemoveRow(unknown.Index + oldN);
+            _fr = _fr.RemoveRow(unknown.Index);
+
+            _dxr = _dxr.RemoveRow(unknown.Index + oldN);
+            _dxr = _dxr.RemoveRow(unknown.Index);
 
             for (int i = unknown.Index; i < _unknownValues.Count; i++)
             {
