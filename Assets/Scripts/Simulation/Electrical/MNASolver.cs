@@ -16,9 +16,7 @@ using Complex = System.Numerics.Complex;
 namespace Hardwired.Simulation.Electrical
 {
     /// <summary>
-    /// A Modified Node Analysis solver which can solve most linear circuits, both AC and DC, by using a system of equations built up using Kirchoff's laws.
-    /// 
-    /// Non-linear components can be approximated using various strategies, though I don't think we'll actually end up needing any non-linear components...
+    /// A Modified Nodal Analysis solver which can solve most linear and non-linear circuits, both AC and DC, by using a system of equations built up using Kirchoff's laws.
     /// 
     /// References:
     /// - https://en.wikipedia.org/wiki/Nodal_analysis
