@@ -26,6 +26,11 @@ namespace Hardwired.Simulation.Electrical
             NoSolution,
         }
 
+        /// <summary>
+        /// The maximum number of Newton-Raphson iterations to run without converging before declaring the circuit to have no solution.
+        /// </summary>
+        private static readonly int MAX_NR_ITERATIONS = 50;
+
         internal static List<WeakReference<Circuit>> _allCircuits = new();
 
         private static int _nextId = 0;
@@ -51,6 +56,20 @@ namespace Hardwired.Simulation.Electrical
         public int TicksProcessed { get; private set; }
 
         public TickProcessingStatus LastTickStatus { get; private set; }
+
+        /// <summary>
+        /// Tracks the total number of Newton-Raphson iterations this circuit has solved since it was created.
+        /// (for debugging/performance tracking)
+        /// </summary>
+        public int TotalIterations { get; private set; }
+
+        /// <summary>
+        /// Tracks the total number of ticks for which the Newton-Raphson solver converged.
+        /// (for debugging/performance tracking)
+        /// </summary>
+        public int TimesConverged { get; private set; }
+
+
 
         public Circuit()
         {
@@ -131,7 +150,7 @@ namespace Hardwired.Simulation.Electrical
         {
             bool hasConverged = false;
             int i = 0;
-            for (; i < 50 && !hasConverged; i++)
+            for (; i < MAX_NR_ITERATIONS && !hasConverged; i++)
             {
                 // clear/reset values
                 Solver.BeginNRIteration();
@@ -144,6 +163,7 @@ namespace Hardwired.Simulation.Electrical
 
                 // Solve for x(i + 1)
                 hasConverged = Solver.SolveNRIteration(i);
+                TotalIterations += 1;
             }
 
             if (!hasConverged)
@@ -152,10 +172,9 @@ namespace Hardwired.Simulation.Electrical
             }
             else
             {
+                TimesConverged += 1;
                 LastTickStatus = TickProcessingStatus.Success;
             }
-
-            Hardwired.LogDebug($"Circuit {Id} -- finished solving after {i} iterations -- converged: {hasConverged}");
         }
 
         // Determine the AC frequency to use

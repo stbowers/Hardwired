@@ -45,6 +45,10 @@ namespace Hardwired.Networks
 
         public int CurrentTick = 0;
 
+        public int LastUpdateSolverIterations = 0;
+
+        public int LastUpdateTimesSolverConverged = 0;
+
         /// <summary>
         /// Processes a tick, given a "root" cable network.
         /// 
@@ -193,11 +197,22 @@ namespace Hardwired.Networks
             TimeSpan averageTimeApplying = TimeApplying.Elapsed / 120;
             TimeSpan averageTickProcessingTime = TimeProcessingTick.Elapsed / 120;
 
-            Hardwired.LogDebug($"Circuit {Circuit.Id} performance (average per tick) -- components: {Circuit.Elements.Count}");
-            Hardwired.LogDebug($"  Initialize(): {averageTimeInitializing.TotalMilliseconds} ms");
-            Hardwired.LogDebug($"  Circuit.ProcessTick(): {averageTimeSolving.TotalMilliseconds} ms");
-            Hardwired.LogDebug($"  ApplyState(): {averageTimeApplying.TotalMilliseconds} ms");
-            Hardwired.LogDebug($"  Total: {averageTickProcessingTime.TotalMilliseconds} ms");
+            int iterations = Circuit.TotalIterations - LastUpdateSolverIterations;
+            float iterationsPerTick = iterations / 120;
+            LastUpdateSolverIterations = Circuit.TotalIterations;
+
+            int timesConverged = Circuit.TimesConverged - LastUpdateTimesSolverConverged;
+            float convergedPerTick = timesConverged / 120;
+            LastUpdateTimesSolverConverged = Circuit.TimesConverged;
+
+            Hardwired.LogDebug($"Circuit {Circuit.Id} statistics (ticks {CurrentTick-120}-{CurrentTick}):");
+            Hardwired.LogDebug($"  Components: {Circuit.Elements.Count}");
+            Hardwired.LogDebug($"  Average NR Iterations (per tick): {iterationsPerTick:F3}");
+            Hardwired.LogDebug($"  NR Convergance: {100 * convergedPerTick:F3}%");
+            Hardwired.LogDebug($"  Processing Time (per tick): {averageTickProcessingTime.TotalMilliseconds} ms");
+            Hardwired.LogDebug($"    Initialize(): {averageTimeInitializing.TotalMilliseconds} ms");
+            Hardwired.LogDebug($"    Circuit.ProcessTick(): {averageTimeSolving.TotalMilliseconds} ms");
+            Hardwired.LogDebug($"    ApplyState(): {averageTimeApplying.TotalMilliseconds} ms");
 
             TimeInitializing.Reset();
             TimeSolving.Reset();

@@ -441,7 +441,6 @@ namespace Hardwired.Simulation.Electrical
         {
             if (_needsFullSolve)
             {
-                Console.WriteLine($"topology changed!");
                 SolveInitial();
                 _needsFullSolve = false;
             }
