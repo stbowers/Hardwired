@@ -6,22 +6,34 @@ The overall goal is to make the electrical system in Stationeers have a similar 
 
 ⚠️ This mod is still a work-in-progress. Most features have not yet been added, or are incomplete. ⚠️
 
-## Features
+## Current Features
 
-The following features are planned or are in progress:
+- Voltage, resistance, and current
+- Resistive heating for cables (max power throughput is determined by the cable's temperature, not a magical limit!)
+- AC and DC circuits
+- Reactive power and impedance
+- Transformers
+- AC/DC converters (inverter, rectifier, etc)
 
-- [ ] Add a realistic electrical physics simulation
-  - [ ] Voltage, Current, Resistance (Ohm's Law)
-  - [ ] Non-linear effects (Inductance, Capacitance, etc)
-- [ ] Add resistive heating to cables (cables will heat up based on resistance and current flow)
-  - [ ] Burn-out cables based on temperature rather than instantaneous power draw
-- [ ] Add AC to physics simulation
-  - [ ] AC Voltage & Current, Phase
-  - [ ] Impedence, Reactance
-- [ ] Add new components
-  - [ ] Transformers
-  - [ ] AC/DC converters (inverter, rectifier, etc)
-    - Still TBD if I will keep DC circuits once AC is simulated properly, or if all devices will be AC for simplicity
-  - [ ] Synchroscope
-- [ ] Add more complex power generation mechanics
-  - Different generators might generate electricity at different voltages, or at different AC frequencies, etc
+## Planned Features
+
+- 3-phase AC power
+- AC grid forming mechanics (frequency droop, synchroscope, etc)
+- More accurate resistive heating
+- Expanded power generation
+  - Sterling engine and gas fuel generator could generate different AC frequencies depending on RPM, and different voltages that require matching before joining the grid
+
+## AI Disclosure
+
+All of Hardwired's code is fully human written.
+AI *has not*, and *will not* be used to directly generate the core code for Hardwired.
+While I recognize AI is a useful tool for some developers, for me personally Hardwired is a passion project, so I want to fully understand the code I'm writing.
+
+AI *may* be used to generate some unit tests, or help search for and diagnose bugs.
+
+AI *was* consulted for research during various phases of development (e.g. to validate my understanding of the physics or math, help track down bugs or performance issues, to suggest alternative algorithms, etc).
+
+AI *was* used to "clean up" some of the text discriptions and documentation for various components.
+The original text was fully human written, with AI only being used to make the text more concise or flow better.
+
+All AI output is reviewed by me before being used (I am the owner of this mod, and I take full responsibility for its contents).
