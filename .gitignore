@@ -101,3 +101,6 @@ InitTestScene*.unity*
 # C# builds
 */bin
 */obj
+
+# NuGet packages
+/Assets/Packages/*
