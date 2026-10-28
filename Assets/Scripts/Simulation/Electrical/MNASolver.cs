@@ -84,6 +84,11 @@ namespace Hardwired.Simulation.Electrical
         public Matrix<double> Jr = Matrix<double>.Build.Dense(0, 0);
 
         /// <summary>
+        /// Stores the LU factorization of `Jr` to be re-used in future iterations.
+        /// </summary>
+        private LU<double>? _realifiedJacobianFactorization;
+
+        /// <summary>
         /// The values of any non-linear equations for the current solution `X`
         /// </summary>
         public Matrix<Complex> F = Matrix<Complex>.Build.Dense(0, 0);
@@ -477,10 +482,29 @@ namespace Hardwired.Simulation.Electrical
             // _fr = [R(F) I(F)]
             RealifyVector(F, _fr);
 
+            // If `Jr` has not yet been factored, or every 5 iterations, (re)factor it
+            //
+            // We do this because factoring `Jr` is expensive, especially as the circuit size grows. So instead of computing the full
+            // jacobian inverse every iteration, we'll use the existing one as an approximation for multiple ticks. This is a kind of
+            // Quasi-Newton method, and trades needing more iterations to converge (due to being less accurate) for performance.
+            // https://en.wikipedia.org/wiki/Quasi-Newton_method#Search_for_zeros:_root_finding
+            //
+            // This heuristic (just resetting every 5 iterations) is a little rough... A better one might be to reuse the factorization
+            // until/unless the residual (|F|) "stalls" (stops approaching 0) or starts to grow. This would help by both allowing the
+            // jacobian factorization to be reused for more iterations if it's still making progress, but also not "wasting" any
+            // iterations making little to zero progress towards convergance.
+            // 
+            // However, in initial testing just this very basic heuristic dramatically increased performance (down from ~350ms/tick in
+            // a test circuit to ~150ms/tick).
+            if (_realifiedJacobianFactorization is null || (n % 5) == 0)
+            {
+                _realifiedJacobianFactorization = Jr.LU();
+            }
+
             // Solve for update vector
             // _dxr = Jr.Solve(-_fr);
             _fr.Negate(_fr);
-            Jr.Solve(_fr, _dxr);
+            _realifiedJacobianFactorization.Solve(_fr, _dxr);
             ComplexifyVector(_dxr, _dx);
 
             // Check for convergence
