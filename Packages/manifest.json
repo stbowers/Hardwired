@@ -1,13 +1,16 @@
 {
   "dependencies": {
     "com.github-glitchenzo.nugetforunity": "https://github.com/GlitchEnzo/NuGetForUnity.git?path=/src/NuGetForUnity",
+    "com.unity.collections": "2.6.8",
     "com.unity.feature.development": "1.0.1",
+    "com.unity.mathematics": "1.3.3",
     "com.unity.textmeshpro": "3.0.7",
     "com.unity.timeline": "1.7.7",
     "com.unity.toolchain.linux-x86_64": "2.0.11",
     "com.unity.ugui": "1.0.0",
     "stationeers.modding.assemblies": "https://github.com/ilodev/stationeers.modding.assemblies.git",
     "stationeers.modding.exporter": "https://github.com/ilodev/stationeers.modding.exporter.git",
+    "stationeers.modding.tools": "https://github.com/StationeersModding/StationeersModdingTools.git",
     "com.unity.modules.ai": "1.0.0",
     "com.unity.modules.androidjni": "1.0.0",
     "com.unity.modules.animation": "1.0.0",
