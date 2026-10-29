@@ -13,6 +13,7 @@ using Hardwired.Simulation.Electrical.Elements;
 using HarmonyLib;
 using Objects.Pipes;
 using UnityEngine;
+using UnityEngine.UIElements;
 using HardwiredBattery = Hardwired.Objects.Electrical.Battery;
 
 namespace Hardwired.Patches
@@ -98,6 +99,14 @@ namespace Hardwired.Patches
                 temperatureCapacity = 90;
                 voltageRating = 10_000.0;
             }
+            else if (cable.CableType == Cable.Type.superHeavy)
+            {
+                resistance = 0.0003;
+                specificHeat = 0.4;
+                currentCapacity = 500;
+                temperatureCapacity = 90;
+                voltageRating = 500_000.0;
+            }
             // Normal cable == base game power limit: 5kW => 25A @ 200V ~= 5 kW
             else
             {
@@ -109,18 +118,21 @@ namespace Hardwired.Patches
                 voltageRating = 550;
             }
 
+            double lengthMultiplier = cable.IsStraight
+                ? Math.Max(1, cable.StraightUnitLength)
+                : 1;
+
             // I^2 * R = D * T_c
             // note - PowerSink starts dissipating heat at 20 C, so subtract 20 from temperatureCapacity
             dissipationCapacity = currentCapacity * currentCapacity * resistance / (temperatureCapacity - 20f);
 
-            cableComponent.Resistance = resistance;
-            cableComponent.SpecificHeat = specificHeat;
-            cableComponent.DissipationCapacity = dissipationCapacity;
-            cableComponent.Resistance = resistance;
+            cableComponent.Resistance = lengthMultiplier * resistance;
+            cableComponent.SpecificHeat = lengthMultiplier * specificHeat;
+            cableComponent.DissipationCapacity = lengthMultiplier * dissipationCapacity;
             cableComponent.MaximumVoltageRating = voltageRating;
             cableComponent.MaximumCurrentRating = currentCapacity;
 
-            Hardwired.LogDebug($"patched cable {cable.PrefabName} ({cable.CableType}) -- resistance: {resistance} Ohm, max current: {currentCapacity} A, max voltage: {voltageRating}");
+            Hardwired.LogDebug($"patched cable {cable.PrefabName} ({cable.CableType}) -- resistance: {resistance} Ohm, max current: {currentCapacity} A, max voltage: {voltageRating}, length: {lengthMultiplier}");
         }
 
         private static void PatchCableFuse(CableFuse cableFuse)
