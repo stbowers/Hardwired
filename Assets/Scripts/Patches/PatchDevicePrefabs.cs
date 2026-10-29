@@ -125,10 +125,11 @@ namespace Hardwired.Patches
 
         private static void PatchCableFuse(CableFuse cableFuse)
         {
-            var vNominal = 1000f;
-            var iLimit = cableFuse.PowerBreak / vNominal;
+            var fuseComponent = cableFuse.GetOrAddComponent<Fuse>();
+            var vNominal = PowerProfile.DefaultGrid.VoltageNominalHigh;
+            fuseComponent.CurrentLimit = cableFuse.PowerBreak / vNominal;
 
-            cableFuse.CustomName = $"Cable Fuse ({iLimit} A)";
+            cableFuse.CustomName = $"Cable Fuse ({fuseComponent.CurrentLimit} A)";
         }
 
         private static void PatchDevice(Device device)

@@ -14,6 +14,8 @@ using Hardwired.Simulation.Electrical;
 using Hardwired.Utility.Extensions;
 using Objects.Pipes;
 
+using Foo = Hardwired.Utility.Extensions.CollectionExtensions;
+
 namespace Hardwired.Networks
 {
     /// <summary>
@@ -139,10 +141,14 @@ namespace Hardwired.Networks
         /// <param name="orphanedComponents"></param>
         private void InitializeNetwork(CableNetwork cableNetwork, HashSet<ElectricalComponent> orphanedComponents, Queue<CableNetwork> toInitialize)
         {
-            var deviceComponents = cableNetwork.DeviceList.SelectMany(d => d.GetComponents<ElectricalComponent>());
-            var cableComponents = cableNetwork.CableList.SelectMany(d => d.GetComponents<ElectricalComponent>());
+            HashSet<ElectricalComponent> components = new();
 
-            foreach (var component in deviceComponents.Concat(cableComponents))
+            components.AddRange(cableNetwork.DeviceList.SelectMany(d => d.GetComponents<ElectricalComponent>()));
+            components.AddRange(cableNetwork.CableList.SelectMany(d => d.GetComponents<ElectricalComponent>()));
+            components.AddRange(cableNetwork.FuseList.SelectMany(d => d.GetComponents<ElectricalComponent>()));
+            components.AddRange(cableNetwork.BatteryList.SelectMany(d => d.GetComponents<ElectricalComponent>()));
+
+            foreach (var component in components)
             {
                 orphanedComponents.Remove(component);
 
