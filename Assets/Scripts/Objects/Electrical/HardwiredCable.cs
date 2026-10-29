@@ -11,6 +11,7 @@ using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Util;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
+using Hardwired.Utility;
 using Hardwired.Utility.Extensions;
 using MathNet.Numerics;
 using UnityEngine;
@@ -56,7 +57,7 @@ namespace Hardwired.Objects.Electrical
         /// <summary>
         /// The maximum rated current this cable can sustain before it burns up.
         /// </summary>
-        public double MaximumCurrentRating { get; set; }
+        public double MaximumCurrentRating;
 
         /// <summary>
         /// The current temperature (K) of this segment of cable.
@@ -167,15 +168,29 @@ namespace Hardwired.Objects.Electrical
             VoltageDeltaAverage = 0;
             VoltageAverage = 0;
 
+            // Determine net current going through each node
+            Dictionary<RefCounted<MNASolver.Unknown>, Complex> nodeCurrents = new();
+
             foreach (var resistor in _resistors)
             {
-                VoltageDeltaAverage += resistor?.VoltageDelta ?? 0;
-                VoltageAverage += resistor?.VoltageA ?? 0;
-                VoltageAverage += resistor?.VoltageB ?? 0;
+                VoltageDeltaAverage += resistor.VoltageDelta;
+                VoltageAverage += resistor.VoltageA;
+                VoltageAverage += resistor.VoltageB;
 
-                PowerDissapated += resistor?.Power.Real ?? 0;
-                Current += resistor?.Current.Magnitude ?? 0;
+                PowerDissapated += resistor.Power.Real;
+
+                if (resistor.NodeA != null)
+                {
+                    nodeCurrents[resistor.NodeA] = nodeCurrents.GetValueOrDefault(resistor.NodeA) + resistor.Current;
+                }
+                if (resistor.NodeB != null)
+                {
+                    nodeCurrents[resistor.NodeB] = nodeCurrents.GetValueOrDefault(resistor.NodeB) - resistor.Current;
+                }
             }
+
+            // Current throughput
+            Current = 0.5 * nodeCurrents.Values.Sum(c => c.Magnitude);
 
             VoltageDeltaAverage /= _resistors.Count;
             VoltageAverage /= _resistors.Count * 2;
