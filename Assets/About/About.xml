@@ -1,11 +1,14 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="utf-8"?>
 <ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Name>Hardwired</Name>
-  <Author>Defaultcompany</Author>
-  <Version>1.0</Version>
-  <Description></Description>
+  <Author>cat_criminal</Author>
+  <Version>0.1.0</Version>
+  <Description>Hardwired is a complete overhaul mod for the electrical system in Stationeers, replacing it with a more realistic system with voltage, current, inductance, capacitance, resistance, etc, that follow real-world physics and equations.</Description>
   <WorkshopHandle>0</WorkshopHandle>
   <Tags>
     <Tag>LaunchPad</Tag>
   </Tags>
+  <ChangeLog></ChangeLog>
+  <InGameDescription><![CDATA[Hardwired is a complete overhaul mod for the electrical system in Stationeers, replacing it with a more realistic system with voltage, current, inductance, capacitance, resistance, etc, that follow real-world physics and equations.]]></InGameDescription>
+  <ModSide>Both</ModSide>
 </ModMetadata>
