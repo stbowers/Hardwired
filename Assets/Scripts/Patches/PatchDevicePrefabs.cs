@@ -54,6 +54,10 @@ namespace Hardwired.Patches
 
                 // APC outputs power using the default grid profile
                 source.PowerProfile = new(PowerProfile.DefaultGrid);
+            },
+            [typeof(CableAnalyser)] = d =>
+            {
+                var hardwiredCableAnalyzer = d.GetOrAddComponent<HardwiredCableAnalyzer>();
             }
         };
 

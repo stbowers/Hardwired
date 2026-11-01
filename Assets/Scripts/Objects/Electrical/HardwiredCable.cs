@@ -109,7 +109,6 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Vg(avg): {VoltageAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Vg_max: {MaximumVoltageRating.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"ΔV(avg): {VoltageDeltaAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")} | Dissapated: {PowerDissapated.ToStringPrefix("W", "yellow")}");
-            stringBuilder.AppendLine($"dbg: {_resistors.FirstOrDefault()?.NodeA?.Value.Index} | {_resistors.FirstOrDefault()?.NodeB?.Value.Index}");
         }
 
         public override void AddTo(Circuit circuit)
@@ -169,7 +168,7 @@ namespace Hardwired.Objects.Electrical
             VoltageAverage = 0;
 
             // Determine net current going through each node
-            Dictionary<RefCounted<MNASolver.Unknown>, Complex> nodeCurrents = new();
+            Dictionary<int, Complex> nodeCurrents = new();
 
             foreach (var resistor in _resistors)
             {
@@ -179,19 +178,20 @@ namespace Hardwired.Objects.Electrical
 
                 PowerDissapated += resistor.Power.Real;
 
-                if (resistor.NodeA != null)
+                if (resistor.NodeA?.Value.Index is int nodeAIndex)
                 {
-                    nodeCurrents[resistor.NodeA] = nodeCurrents.GetValueOrDefault(resistor.NodeA) + resistor.Current;
+                    nodeCurrents[nodeAIndex] = nodeCurrents.GetValueOrDefault(nodeAIndex) + resistor.Current;
                 }
-                if (resistor.NodeB != null)
+                if (resistor.NodeB?.Value.Index is int nodeBIndex)
                 {
-                    nodeCurrents[resistor.NodeB] = nodeCurrents.GetValueOrDefault(resistor.NodeB) - resistor.Current;
+                    nodeCurrents[nodeBIndex] = nodeCurrents.GetValueOrDefault(nodeBIndex) - resistor.Current;
                 }
             }
 
-            // Current throughput
+            // Get current throughput
             Current = 0.5 * nodeCurrents.Values.Sum(c => c.Magnitude);
 
+            // Get average voltages
             VoltageDeltaAverage /= _resistors.Count;
             VoltageAverage /= _resistors.Count * 2;
 
