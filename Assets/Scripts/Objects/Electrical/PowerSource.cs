@@ -1,14 +1,11 @@
 #nullable enable
 
 using System;
-using System.Linq;
 using System.Numerics;
 using System.Text;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
-using Hardwired.Networks;
-using Hardwired.Patches;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility.Extensions;
@@ -116,13 +113,18 @@ namespace Hardwired.Objects.Electrical
             {
                 _nortonEquivalent.Frequency = PowerProfile.Frequency;
 
-                // Determine power to use for actual calculations
-                // - No output if output is disabled (device is off)
-                // - Set minimum charge to avoid dividing by zero
-                var powerAvailable = Math.Max(1e-10, OutputEnabled ? PowerGenerated : 0.0);
-
-                _nortonEquivalent.Resistance = PowerProfile.VoltageNominalHigh * PowerProfile.VoltageNominalHigh / (4 * powerAvailable);
-                _nortonEquivalent.VoltageOpen = PowerProfile.VoltageNominalHigh;
+                // Set up current source if output is enabled (device is on) and non-zero power is being generated
+                if (OutputEnabled && PowerGenerated > 0.1)
+                {
+                    _nortonEquivalent.Resistance = PowerProfile.VoltageNominalHigh * PowerProfile.VoltageNominalHigh / (4 * PowerGenerated);
+                    _nortonEquivalent.VoltageOpen = PowerProfile.VoltageNominalHigh;
+                }
+                // Otherwise, if device is off or not generating power, set voltage to 0 and resistance to "open"
+                else
+                {
+                    _nortonEquivalent.Resistance = Resistor.R_OPEN;
+                    _nortonEquivalent.VoltageOpen = 0;
+                }
 
                 _nortonEquivalent.UpdateState();
             }

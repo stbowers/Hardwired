@@ -132,7 +132,6 @@ namespace Hardwired.Objects.Electrical
                 // Update power "source"
                 _powerSource.TargetPower = PowerTarget;
                 _powerSource.MinimumNominalVoltage = ActivePowerProfile.VoltageNominalLow;
-                _powerSource.MaximumNominalVoltage = ActivePowerProfile.VoltageNominalHigh;
                 _powerSource.MaximumVoltage = ActivePowerProfile.VoltageMaximum;
                 _powerSource.UpdateState();
             }

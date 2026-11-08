@@ -12,26 +12,55 @@ namespace Hardwired.Simulation.Electrical.Elements
     /// <summary>
     /// Represents a constant power source/draw in the circuit, represented by a non-linear current dependent on voltage.
     /// 
+    /// Acts like a resistor during the "initial solve", where I(v) = V/R, with R set such that I(V_min)*V_min = P_target
+    /// (i.e. to draw the target power at minimum nominal voltage).
+    /// The voltage across the resistor after the "initial solve" then determines the `OperatingState`.
+    /// If V < V_min, there is not enough power in the circuit to meet the power target, so the element will continue to
+    /// act as a purely resistive load (no non-linear current component), drawing less than P_target.
+    /// If V_min < V < V_max, the circuit has enough power to supply the device, so it will try to draw a constant power
+    /// by adding a non-linear current component to the circut such that I = P/V (solved via Newton method).
+    /// If V_max < V, the source voltage is too high for this device, so it will draw 0 current.
+    /// 
     /// Not to be confused for `Objects.Electrical.PowerSource`, which is a component added to devices that produce power
     /// (generators, batteries, etc).
     /// </summary>
     public class ConstantPowerSource : DipoleCircuitElementBase, ICircuitElement, IFrequencySource, INonlinearCircuitElement
     {
-        /// <summary>
-        /// The initial value of i currently stamped into the A matix
-        /// </summary>
-        private Complex? _appliedInitialCurrent;
+        public enum State
+        {
+            // Unknown state (not yet calculated)
+            Unknown,
+
+            /// <summary>
+            /// V < MinimumNominalVoltage
+            /// Device will draw less than TargetPower (will act like a resistive load)
+            /// </summary>
+            LowVoltage,
+
+            /// <summary>
+            /// Nominal voltage; device will draw constant power, depending on voltage (non-linear current draw)
+            /// </summary>
+            Nominal,
+
+            /// <summary>
+            /// V > MaximumVoltage
+            /// Device will draw 0 power
+            /// </summary>
+            HighVoltage,
+        }
+
+        private Resistor _resistor;
         private double? _frequency;
         private Complex? _v0;
         private Complex _i = Complex.Zero;
+
+        public State OperatingState { get; private set;}
 
         public override Complex Current => _i;
 
         public Complex TargetPower { get; set; }
 
         public double MinimumNominalVoltage { get; set; } = 100;
-
-        public double MaximumNominalVoltage { get; set; } = 200;
 
         public double MaximumVoltage { get; set; } = 250;
 
@@ -49,11 +78,12 @@ namespace Hardwired.Simulation.Electrical.Elements
 
         public ConstantPowerSource(Circuit circuit, RefCounted<MNASolver.Unknown>? nodeA, RefCounted<MNASolver.Unknown>? nodeB) : base(circuit, nodeA, nodeB)
         {
+            _resistor = new(circuit, nodeA, nodeB);
         }
 
         public override void Dispose()
         {
-            RemoveState();
+            _resistor.Dispose();
 
             base.Dispose();
         }
@@ -62,109 +92,59 @@ namespace Hardwired.Simulation.Electrical.Elements
         {
             base.UpdateState();
 
-            // Estimate current draw given a guess at the voltage
-            _v0 ??= (MinimumNominalVoltage + MaximumNominalVoltage) / 2;
-            if (_v0.Value.Magnitude < 0.0001)
-            {
-                _v0 = 0.0001;
-            }
+            // Update resistor
+            _resistor.Resistance = (MinimumNominalVoltage * MinimumNominalVoltage) / TargetPower.Magnitude;
+            _resistor.UpdateState();
 
-            _i = (TargetPower / _v0.Value).Conjugate();
-            if (_i.Magnitude < 0.0001)
-            {
-                _i = 0.0001;
-            }
-
-            // If estimate is sufficiently far from our current estimate, reset it
-            if (_appliedInitialCurrent == null || (_appliedInitialCurrent.Value - _i).Magnitude > 0.1)
-            {
-                RemoveState();
-
-                Circuit.Solver.AddCurrent(NodeA?.Value, NodeB?.Value, _i);
-                _appliedInitialCurrent = _i;
-            }
-        }
-
-        public override void ApplyState()
-        {
-            base.ApplyState();
+            // Reset state
+            OperatingState = State.Unknown;
         }
 
         public void UpdateDifferentialState()
         {
+            // Update state based on initial solve with just resistor
+            if (OperatingState == State.Unknown)
+            {
+                // Update resistor voltage readings
+                _resistor.ApplyState();
+
+                // Determine state for this tick
+                OperatingState = _resistor.VoltageDelta.Magnitude switch {
+                    var x when x <= MinimumNominalVoltage => State.LowVoltage,
+                    var x when x <= MaximumVoltage => State.Nominal,
+                    _ => State.HighVoltage,
+                };
+            }
+
             var vA = VoltageA;
             var vB = VoltageB;
             var vDelta = vA - vB;
-            
-            if (double.IsNaN(vDelta.Magnitude) || vDelta.Magnitude < 0.001)
-            {
-                vDelta = 0.001 * (vDelta / vDelta.Magnitude);
-            }
             _v0 = vDelta;
 
             var vDeltaSquared = vDelta * vDelta;
 
             Complex dIdV, dIdVConjugate;
 
-            // Calculate I(V), and the partial derivatives for V_a and V_b for the current state.
-            // I(V) is a non-linear piecewise function, but must be "smooth" (i.e. both I(V) and its derivative must be
-            // continuous) in order for the NR iterative solver to be able to converge.
-            // https://www.desmos.com/calculator/l0bdnvaaaw
+            // Determine non-linear behavior based on `OperatingState` (which will be constant throught any given
+            // tick, and can only change between ticks, so we don't have to worry about discontinuities in how we
+            // calculate the current).
 
-            // V <= MinimumVoltage
-            // Low voltage dropoff
-            if (vDelta.Magnitude <= MinimumNominalVoltage)
+            // Low voltage; no non-linear current (just resistor current)
+            if (OperatingState == State.LowVoltage)
             {
-                // l(v)
-                var normalizedUnderVoltage = vDelta.Magnitude / MinimumNominalVoltage;
-
-                // g_min(v)
-                var taper = normalizedUnderVoltage * normalizedUnderVoltage * (3 - 2 * normalizedUnderVoltage);
-                // partial derivative of g_min(v) w.r.t. l(v)
-                var taperDerivative = 6 * normalizedUnderVoltage * (1 - normalizedUnderVoltage);
-
-                // partial derivatives of l(v) w.r.t v and v* (to be used to apply chain rule to taperDerivative)
-                var dldv = vDelta.Conjugate() / (2 * vDelta.Magnitude * MinimumNominalVoltage);
-                var dldvConjugate = vDelta / (2 * vDelta.Magnitude * MinimumNominalVoltage);
-
-                _i = (TargetPower / vDelta).Conjugate() * taper;
-                dIdV = (TargetPower / vDelta).Conjugate() * taperDerivative * dldv;
-                dIdVConjugate = (-TargetPower / vDeltaSquared).Conjugate() * taper + (TargetPower / vDelta).Conjugate() * taperDerivative * dldvConjugate;
+                _i = _resistor.Current;
+                return;
             }
-            // MinimumVoltage < V <= MaximumNominalVoltage
-            // Nominal voltage; I(V) = P/V
-            else if (vDelta.Magnitude <= MaximumNominalVoltage)
+            // Nominal voltage; I(V) = P/V (non-linear)
+            else if (OperatingState == State.Nominal)
             {
                 _i = (TargetPower / vDelta).Conjugate();
                 dIdV = 0;
                 dIdVConjugate = (-TargetPower / vDeltaSquared).Conjugate();
             }
-            // MaximumNominalVoltage < V < MaximumVoltage
-            // High voltage dropoff
-            else if (vDelta.Magnitude <= MaximumVoltage)
-            {
-                // V_max - V_nmax
-                var vBuffer = MaximumVoltage - MaximumNominalVoltage;
-
-                // u(v)
-                var normalizedOverVoltage = (vDelta.Magnitude - MaximumNominalVoltage) / vBuffer;
-                var oneMinusUSquared = 1 - normalizedOverVoltage * normalizedOverVoltage;
-
-                // g_max(v)
-                var taper = oneMinusUSquared * oneMinusUSquared;
-                // partial derivative of g_max(v) w.r.t. u(v)
-                var taperDerivative = -4 * normalizedOverVoltage * oneMinusUSquared;
-
-                // partial derivatives of u(v) w.r.t v and v* (to be used to apply chain rule to taperDerivative)
-                var dudv = vDelta.Conjugate() / (2 * vDelta.Magnitude * vBuffer);
-                var dudvConjugate = vDelta / (2 * vDelta.Magnitude * vBuffer);
-
-                _i = (TargetPower / vDelta).Conjugate() * taper;
-                dIdV = (TargetPower / vDelta).Conjugate() * taperDerivative * dudv;
-                dIdVConjugate = (-TargetPower / vDeltaSquared).Conjugate() * taper + (TargetPower / vDelta).Conjugate() * taperDerivative * dudvConjugate;
-            }
-            // MaximumVoltage < V
-            // Above max voltage; 0 power draw
+            // High voltage; I = 0
+            // note - this branch is "linear", but differs from the initial conditions set up by the resistor, so
+            // we "counteract" the resistor by adding a "non-linear" current that is equal but opposite.
             else
             {
                 _i = 0;
@@ -172,23 +152,9 @@ namespace Hardwired.Simulation.Electrical.Elements
                 dIdVConjugate = 0;
             }
 
-            // Ensure current is always non-zero, to avoid NaN when solving...
-            if (_i.Magnitude < 1e-10)
-            {
-                _i = 1e-10;
-            }
-
-            var di = _i - (_appliedInitialCurrent ?? Complex.Zero);
+            // Calculate current to "add" to the resistor to get the target non-linear current
+            var di = _i - _resistor.Current;
             Circuit?.Solver.AddNonlinearCurrent(NodeA?.Value, NodeB?.Value, di, dIdV, dIdVConjugate);
-        }
-
-        private void RemoveState()
-        {
-            if (_appliedInitialCurrent != null)
-            {
-                Circuit.Solver.AddCurrent(NodeA?.Value, NodeB?.Value, -_appliedInitialCurrent.Value);
-                _appliedInitialCurrent = null;
-            }
         }
     }
 }
