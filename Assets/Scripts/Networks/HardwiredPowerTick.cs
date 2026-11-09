@@ -55,9 +55,15 @@ namespace Hardwired.Networks
         {
             CurrentTick = CircuitTick?.CurrentTick ?? 0;
 
+            // Note - some methods (notably Device.AssessPower()) use the potential/consumed
+            // power to manage their state (for example, turning off if there isn't enough power
+            // in the network).
+            // We want to manage that with our own logic, so we'll just say there's always
+            // enough power here...
+            // It may be worth in the future investigating setting these to actual values though...
             Required = 0;
             Consumed = 0;
-            Potential = 0;
+            Potential = float.MaxValue;
         }
     }
 }

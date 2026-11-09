@@ -155,7 +155,14 @@ namespace Hardwired.Objects.Electrical
             _device?.ReceivePower(InputCableNetwork, (float)powerDelivered);
 
             // Set the device's power status based on if it received enough power this tick
-            _device?.SetPowerFromThread(InputCableNetwork, powerDelivered > PowerThreshold).Forget();
+            bool powered = powerDelivered >= PowerThreshold;
+            if (_device?.AllowSetPower(InputCableNetwork) == true)
+            {
+                if (_device.Powered != powered)
+                {
+                    _device.SetPowerFromThread(InputCableNetwork, powered).Forget();
+                }
+            }
         }
 
         public override void RemoveFrom(Circuit circuit)
