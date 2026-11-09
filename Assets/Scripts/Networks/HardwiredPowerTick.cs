@@ -60,10 +60,22 @@ namespace Hardwired.Networks
             // in the network).
             // We want to manage that with our own logic, so we'll just say there's always
             // enough power here...
-            // It may be worth in the future investigating setting these to actual values though...
+            //
+            // If, however, we set `Potential = float.MaxValue`, then some devices like the APC
+            // will take that to mean there is infinite power available, and will report `float.MaxValue`
+            // from `GetGeneratedPower()` (or, potentially, overflow to a negative value).
+            // 
+            // Therefore we set `Potential = 0`, so devices don't assume there's extra power available,
+            // but `Consumed = float.MinValue` so that devices never assume all the power was
+            // taken (i.e. `Potential - Consumed` should always be greater than whatever power they want
+            // to draw)...
+            //
+            // This is really gross, and I wish there was a better way to do this... It may be worth in
+            // the future investigating setting these to actual values, and seeing if we can "play nice"
+            // with the built-in electrical system.
             Required = 0;
-            Consumed = 0;
-            Potential = float.MaxValue;
+            Consumed = float.MinValue;
+            Potential = 0;
         }
     }
 }
