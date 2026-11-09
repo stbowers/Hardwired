@@ -155,7 +155,7 @@ namespace Hardwired.Objects.Electrical
             _device?.ReceivePower(InputCableNetwork, (float)powerDelivered);
 
             // Set the device's power status based on if it received enough power this tick
-            bool powered = powerDelivered >= PowerThreshold;
+            bool powered = _device?.OnOff == true && powerDelivered > 0.1 && powerDelivered >= PowerThreshold;
             if (_device?.AllowSetPower(InputCableNetwork) == true)
             {
                 if (_device.Powered != powered)
