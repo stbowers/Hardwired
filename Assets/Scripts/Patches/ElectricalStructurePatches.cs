@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.UI;
@@ -18,26 +19,22 @@ namespace Hardwired.Objects
         [HarmonyPostfix, HarmonyPatch(typeof(Structure), nameof(Structure.GetPassiveTooltip))]
         public static void Postfix_GetPassiveTooltip(Structure __instance, Collider? hitCollider, ref PassiveTooltip __result)
         {
+            // Check if there are any electrical components to show debug info for (otherwise don't override tooltip)
             ElectricalComponent[] electricalComponents = __instance.GetComponents<ElectricalComponent>();
             if (electricalComponents.Length == 0) { return; }
 
-            Tooltip.ToolTipStringBuilder.Clear();
-
-            if (Tooltip.ToolTipStringBuilder.Length > 0)
-            {
-                Tooltip.ToolTipStringBuilder.AppendLine();
-            }
+            // Create string builder, and append current tooltip's contents
+            StringBuilder tooltipBuilder = Tooltip.ToolTipStringBuilder;
+            tooltipBuilder.Clear();
+            tooltipBuilder.AppendLine(__result.Extended);
 
             foreach (var component in __instance.GetComponents<ElectricalComponent>())
             {
                 component.BuildPassiveToolTip(Tooltip.ToolTipStringBuilder);
             }
 
-            __result = new PassiveTooltip()
-            {
-                Title = __instance.PrefabName,
-                Extended = Tooltip.ToolTipStringBuilder.ToString(),
-            };
+            __result.Title = __instance.DisplayName;
+            __result.Extended = tooltipBuilder.ToString();
         }
 
         /// <summary>
