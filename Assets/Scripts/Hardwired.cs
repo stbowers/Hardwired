@@ -24,6 +24,9 @@ namespace Hardwired
             PatchBuildStateTools.ApplyPatch();
 
             MOD.AddPrefabs(prefabs);
+            MOD.SetupPrefabs()
+                .RunFunc(thing => (thing as IPatchOnLoad)?.PatchOnLoad())
+                .SetBlueprintMaterials();
             HARMONY.PatchAll();
 
             LogDebug("Registering commands");
