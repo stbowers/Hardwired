@@ -404,9 +404,6 @@ PrefabInstance:
       addedObject: {fileID: 8896635040325944122}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: dea41d817f5a735f18e683beb976321e, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 8353711774321850121}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: dea41d817f5a735f18e683beb976321e, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 1326346193527564499}
   m_SourcePrefab: {fileID: 100100000, guid: dea41d817f5a735f18e683beb976321e, type: 3}
 --- !u!4 &5767755378565546406 stripped
@@ -445,9 +442,9 @@ MonoBehaviour:
   ThingTransform: {fileID: 5767755378565546406}
   Slots: []
   Bounds:
-    m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 0, y: 0, z: 0}
-  SurfaceArea: 0
+    m_Center: {x: 0, y: 0.16439219, z: 0}
+    m_Extent: {x: 0.25, y: 0.18162459, z: 0.25}
+  SurfaceArea: 1.2264984
   SurfaceAreaScale: 1
   BoundsOffset: {x: 0, y: 0, z: 0}
   IgnoreSave: 0
@@ -470,6 +467,7 @@ MonoBehaviour:
     Name: 
     Bit: 0
     StringKey: 0
+    PaintOnly: 0
     Normal: {fileID: 0}
     Emissive: {fileID: 0}
     Cutable: {fileID: 0}
@@ -477,7 +475,7 @@ MonoBehaviour:
     Color: {r: 1, g: 1, b: 1, a: 1}
   Interactables:
   - StringKey: OnOff
-    StringHash: 0
+    StringHash: 734558724
     Parent: {fileID: 7076581379351363869}
     Collider: {fileID: 329902467498763460}
     ParentInteractableIndex: -1
@@ -495,7 +493,7 @@ MonoBehaviour:
     ActionName: ToggleOpenClose
     _state: 0
   - StringKey: Increase
-    StringHash: 0
+    StringHash: -114497912
     Parent: {fileID: 7076581379351363869}
     Collider: {fileID: 2394212926783810559}
     ParentInteractableIndex: -1
@@ -513,7 +511,7 @@ MonoBehaviour:
     ActionName: 
     _state: 0
   - StringKey: Decrease
-    StringHash: 0
+    StringHash: 1613670307
     Parent: {fileID: 7076581379351363869}
     Collider: {fileID: 2044400033649923310}
     ParentInteractableIndex: -1
@@ -535,6 +533,7 @@ MonoBehaviour:
   BaseAnimator: {fileID: 1326346193527564499}
   IsCursor: 0
   Blueprint: {fileID: 6509147330159653730, guid: 00bef2c7c94fa06c6aab12654c4ecd93, type: 3}
+  BlueprintOrientVector: {x: 0, y: 0, z: 0}
   Wireframe: {fileID: 0}
   lodFlares: []
   IsCustomThing: 0
@@ -741,22 +740,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Connection: 1
---- !u!114 &8353711774321850121
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6575535116851862300}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: db04f86da609d2d7f91b57f3a308cb4f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  BuildState: 0
-  SetEntryTool: 
-  SetEntry2Tool: 
-  SetExitTool: ItemWireCutters
 --- !u!95 &1326346193527564499
 Animator:
   serializedVersion: 5

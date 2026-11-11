@@ -224,7 +224,6 @@ GameObject:
   - component: {fileID: 7288037614237896951}
   - component: {fileID: 7299343515015070431}
   - component: {fileID: 2635364139034290347}
-  - component: {fileID: 4970972849212651262}
   m_Layer: 0
   m_Name: StructurePowerConverterDCDC
   m_TagString: Untagged
@@ -280,9 +279,9 @@ MonoBehaviour:
   ThingTransform: {fileID: 391518567535503507}
   Slots: []
   Bounds:
-    m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 0, y: 0, z: 0}
-  SurfaceArea: 0
+    m_Center: {x: 0, y: 0.09426763, z: 0}
+    m_Extent: {x: 0.25, y: 0.111500025, z: 0.25}
+  SurfaceArea: 0.9460001
   SurfaceAreaScale: 1
   BoundsOffset: {x: 0, y: 0, z: 0}
   IgnoreSave: 0
@@ -305,6 +304,7 @@ MonoBehaviour:
     Name: 
     Bit: 0
     StringKey: 0
+    PaintOnly: 0
     Normal: {fileID: 0}
     Emissive: {fileID: 0}
     Cutable: {fileID: 0}
@@ -312,7 +312,7 @@ MonoBehaviour:
     Color: {r: 1, g: 1, b: 1, a: 1}
   Interactables:
   - StringKey: Increase
-    StringHash: 0
+    StringHash: -114497912
     Parent: {fileID: 7288037614237896951}
     Collider: {fileID: 8962181667324852325}
     ParentInteractableIndex: 0
@@ -330,7 +330,7 @@ MonoBehaviour:
     ActionName: 
     _state: 0
   - StringKey: Decrease
-    StringHash: 0
+    StringHash: 1613670307
     Parent: {fileID: 7288037614237896951}
     Collider: {fileID: 7321281417827806184}
     ParentInteractableIndex: 0
@@ -352,6 +352,7 @@ MonoBehaviour:
   BaseAnimator: {fileID: 0}
   IsCursor: 0
   Blueprint: {fileID: 2997332654771505397, guid: c5704a873b2ab02128deb4387169409c, type: 3}
+  BlueprintOrientVector: {x: 0, y: 0, z: 0}
   Wireframe: {fileID: 0}
   lodFlares: []
   IsCustomThing: 0
@@ -560,7 +561,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ActivePowerProfile:
     rid: 758653192334475558
-  MinimumPowerDrawRatio: 0
   _serializedPowerProfileReferences:
   - rid: 758653192334475558
   references:
@@ -572,9 +572,11 @@ MonoBehaviour:
         Efficiency: 1
         Frequency: 0
         VoltageMaximum: 250
-        VoltageNominal: 200
+        VoltageNominalHigh: 200
+        VoltageNominalLow: 150
         VoltageMinimum: 150
         MaximumPower: 2000
+        MinimumPowerRatio: 0.95
         Inductance: 0
         Capacitance: 0
 --- !u!114 &2635364139034290347
@@ -600,27 +602,13 @@ MonoBehaviour:
         Efficiency: 1
         Frequency: 0
         VoltageMaximum: 250
-        VoltageNominal: 150
+        VoltageNominalHigh: 200
+        VoltageNominalLow: 150
         VoltageMinimum: 150
         MaximumPower: 2000
+        MinimumPowerRatio: 0.95
         Inductance: 0
         Capacitance: 0
---- !u!114 &4970972849212651262
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4563769391517356542}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: db04f86da609d2d7f91b57f3a308cb4f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  BuildState: 0
-  SetEntryTool: 
-  SetEntry2Tool: 
-  SetExitTool: ItemWireCutters
 --- !u!1 &4944546941100563368
 GameObject:
   m_ObjectHideFlags: 0

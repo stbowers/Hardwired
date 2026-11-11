@@ -8,11 +8,12 @@ using Assets.Scripts.Util;
 using Hardwired.Objects.Electrical;
 using Hardwired.Patches;
 using Hardwired.Utility.Extensions;
+using LaunchPadBooster.Utils;
 using Objects.Pipes;
 
 namespace Hardwired.Prefabs
 {
-    public class CircuitBreaker : Assets.Scripts.Objects.Pipes.Device, IComponentSaveData
+    public class CircuitBreaker : Assets.Scripts.Objects.Pipes.Device, IComponentSaveData, IPatchOnLoad
     {
         private static readonly string STATE_CLOSED = "closed".AsColor("green");
         private static readonly string STATE_OPEN = "open".AsColor("red");
@@ -24,6 +25,11 @@ namespace Hardwired.Prefabs
         public double MaxCurrent = 20f;
 
         public double MinVoltage = 200f;
+
+        public void PatchOnLoad()
+        {
+            this.SetExitTool(PrefabNames.WireCutters);
+        }
 
         public override DelayedActionInstance InteractWith(Interactable interactable, Interaction interaction, bool doAction = true)
         {

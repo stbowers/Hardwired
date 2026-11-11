@@ -9,11 +9,12 @@ using Assets.Scripts.Util;
 using Hardwired.Objects.Electrical;
 using Hardwired.Patches;
 using Hardwired.Utility.Extensions;
+using LaunchPadBooster.Utils;
 using Objects.Pipes;
 
 namespace Hardwired.Prefabs
 {
-    public class PowerConverter : Assets.Scripts.Objects.Pipes.Device, IComponentSaveData
+    public class PowerConverter : Assets.Scripts.Objects.Pipes.Device, IComponentSaveData, IPatchOnLoad
     {
         public PowerSink? PowerSink;
 
@@ -26,6 +27,11 @@ namespace Hardwired.Prefabs
         public float Charge = 0;
 
         public float MaxCharge = 5000;
+
+        public void PatchOnLoad()
+        {
+            this.SetExitTool(PrefabNames.WireCutters);
+        }
 
         public override DelayedActionInstance InteractWith(Interactable interactable, Interaction interaction, bool doAction = true)
         {
