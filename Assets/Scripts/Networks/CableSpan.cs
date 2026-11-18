@@ -52,7 +52,7 @@ namespace Hardwired.Networks
         /// Represents a "conductor" or individual wire within a cable span.
         /// Each conductor is modeled as a resistor between two nodes.
         /// </summary>
-        public class Conductor
+        public class Conductor : IDisposable
         {
             public RefCounted<MNASolver.Unknown> NodeA { get; }
 
@@ -65,6 +65,13 @@ namespace Hardwired.Networks
                 NodeA = RefCounted.Create(circuit.Solver.AddUnknown());
                 NodeB = RefCounted.Create(circuit.Solver.AddUnknown());
                 Resistor = new Resistor(circuit, NodeA, NodeB);
+            }
+
+            public void Dispose()
+            {
+                NodeA.Dispose();
+                NodeB.Dispose();
+                Resistor.Dispose();
             }
         }
 
@@ -154,6 +161,19 @@ namespace Hardwired.Networks
             ConnectionA = null;
             ConnectionB = null;
             Resistance = 0;
+
+            // Clean up conductors
+            Line1?.Dispose();
+            Line1 = null;
+
+            Line2?.Dispose();
+            Line2 = null;
+
+            Line3?.Dispose();
+            Line3 = null;
+
+            NeutralLine?.Dispose();
+            NeutralLine = null;
         }
 
         public void AddCable(HardwiredCable cable, Connection connectionA, Connection connectionB)

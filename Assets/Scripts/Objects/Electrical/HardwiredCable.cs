@@ -201,6 +201,10 @@ namespace Hardwired.Objects.Electrical
                 MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line3?.Resistor.VoltageB.Magnitude ?? 0);
                 MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.NeutralLine?.Resistor.VoltageA.Magnitude ?? 0);
                 MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.NeutralLine?.Resistor.VoltageB.Magnitude ?? 0);
+
+                // Normalize power dissapated so each individual segment only dissapates it's share of the power
+                var r = (Resistance / cableSpan?.Resistance) ?? 1;
+                PowerDissapated /= r;
             }
 
             // Calculate temperature change due to resistive heating

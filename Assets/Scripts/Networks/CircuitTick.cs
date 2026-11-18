@@ -234,8 +234,9 @@ namespace Hardwired.Networks
 
                 foreach (var cableSpan in CableSpans.Where(span => span.Cables.Contains(cable)).ToList())
                 {
-                    CableSpans.Remove(cableSpan);
                     toReinitiailze.AddRange(cableSpan.Cables);
+                    CableSpans.Remove(cableSpan);
+                    cableSpan.Clear();
                 }
 
                 toReinitiailze.Remove(cable);
