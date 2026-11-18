@@ -63,8 +63,6 @@ namespace Hardwired.Networks
         /// <param name="root"></param>
         public void ProcessTick(CableNetwork root)
         {
-            Hardwired.LogDebug($"CircuitTick.ProcessTick() -- Circuit: {Circuit.Id}, Tick: {CurrentTick}");
-
             using var _ = TimeProcessingTick.BeginScope();
             CurrentTick += 1;
 
@@ -185,7 +183,7 @@ namespace Hardwired.Networks
                     // If the other end of the cable would have connected to another span, remove that span and re-initialize its cables
                     if (span2 != null)
                     {
-                        RemoveCableSpan(span2);
+                        MergeCableSpans(span1, span2);
                     }
                 }
                 else
@@ -195,10 +193,20 @@ namespace Hardwired.Networks
                         var span = TryGetConnectedSpan(connection);
 
                         span ??= CreateCableSpan();
-                        span.AddCable(cable, connection, null);
+                        span.AddCable(cable, connection, connection);
                     }
                 }
             }
+        }
+
+        private void MergeCableSpans(CableSpan to, CableSpan from)
+        {
+            if (to == from) { return; }
+
+            to.AddSpan(from);
+
+            from.Clear();
+            CableSpans.Remove(from);
         }
 
         private CableSpan CreateCableSpan()
@@ -206,18 +214,6 @@ namespace Hardwired.Networks
             var newSpan = new CableSpan(Circuit);
             CableSpans.Add(newSpan);
             return newSpan;
-        }
-
-        private void RemoveCableSpan(CableSpan toRemove)
-        {
-            // Remove the span
-            CableSpans.Remove(toRemove);
-
-            // Re-initialize each cable in the span
-            foreach (var cable in toRemove.Cables)
-            {
-                InitializeComponent(cable);
-            }
         }
 
         public CableSpan? TryGetConnectedSpan(Connection connection)
@@ -231,6 +227,23 @@ namespace Hardwired.Networks
         private void UninitializeComponent(ElectricalComponent component)
         {
             component.RemoveFrom(Circuit);
+
+            if (component is HardwiredCable cable)
+            {
+                HashSet<HardwiredCable> toReinitiailze = new();
+
+                foreach (var cableSpan in CableSpans.Where(span => span.Cables.Contains(cable)).ToList())
+                {
+                    CableSpans.Remove(cableSpan);
+                    toReinitiailze.AddRange(cableSpan.Cables);
+                }
+
+                toReinitiailze.Remove(cable);
+                foreach (var cableToReinitialize in toReinitiailze)
+                {
+                    InitializeComponent(cableToReinitialize);
+                }
+            }
         }
 
         private void UpdateState()

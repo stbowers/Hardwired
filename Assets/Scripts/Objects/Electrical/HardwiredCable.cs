@@ -69,8 +69,6 @@ namespace Hardwired.Objects.Electrical
 
         public double PowerDissapated { get; private set;}
 
-        public CableSpan? CableSpan { get; set; }
-
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -102,7 +100,6 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")} | I_max: {MaximumCurrentRating.ToStringPrefix("A", "yellow")}");
             stringBuilder.AppendLine($"Vg: {MaximumVoltage.ToStringPrefix("V", "yellow")} | Vg_max: {MaximumVoltageRating.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")} | Dissapated: {PowerDissapated.ToStringPrefix("W", "yellow")}");
-            stringBuilder.AppendLine($"DBG CableSpan: {CableSpan?.Id ?? -1}");
         }
 
         private Dictionary<(CableSpan.ConductorType, Connection, Connection), Resistor> _resistors = new();
@@ -114,6 +111,8 @@ namespace Hardwired.Objects.Electrical
         {
             base.UpdateState(circuit);
 
+            // If this is a junction cable, we need to add short "resistors" between each node to tie them together.
+            // TODO: add support for series junctions (also, there's probably a better way to do this...)
             if (IsJunction)
             {
                 for (int i = 0; i < Cable?.OpenEnds.Count; i++)
@@ -166,6 +165,7 @@ namespace Hardwired.Objects.Electrical
 
             if (IsJunction)
             {
+                // For junction cables, each connection point may correspond to a different cable span.
                 foreach (var connection in Cable?.OpenEnds ?? Enumerable.Empty<Connection>())
                 {
                     var cableSpan = connection.GetCableSpan();
@@ -181,23 +181,26 @@ namespace Hardwired.Objects.Electrical
             }
             else
             {
-                PowerDissapated += CableSpan?.Line1?.Resistor.Power.Real ?? 0;
-                PowerDissapated += CableSpan?.Line2?.Resistor.Power.Real ?? 0;
-                PowerDissapated += CableSpan?.Line3?.Resistor.Power.Real ?? 0;
-                PowerDissapated += CableSpan?.NeutralLine?.Resistor.Power.Real ?? 0;
+                // For straight through cables, both ends should be in the same cable span
+                var cableSpan = PowerInput?.GetCableSpan();
 
-                Current = Math.Max(Current, CableSpan?.Line1?.Resistor.Current.Magnitude ?? 0);
-                Current = Math.Max(Current, CableSpan?.Line2?.Resistor.Current.Magnitude ?? 0);
-                Current = Math.Max(Current, CableSpan?.Line3?.Resistor.Current.Magnitude ?? 0);
+                PowerDissapated += cableSpan?.Line1?.Resistor.Power.Real ?? 0;
+                PowerDissapated += cableSpan?.Line2?.Resistor.Power.Real ?? 0;
+                PowerDissapated += cableSpan?.Line3?.Resistor.Power.Real ?? 0;
+                PowerDissapated += cableSpan?.NeutralLine?.Resistor.Power.Real ?? 0;
 
-                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line1?.Resistor.VoltageA.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line1?.Resistor.VoltageB.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line2?.Resistor.VoltageA.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line2?.Resistor.VoltageB.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line3?.Resistor.VoltageA.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line3?.Resistor.VoltageB.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.NeutralLine?.Resistor.VoltageA.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.NeutralLine?.Resistor.VoltageB.Magnitude ?? 0);
+                Current = Math.Max(Current, cableSpan?.Line1?.Resistor.Current.Magnitude ?? 0);
+                Current = Math.Max(Current, cableSpan?.Line2?.Resistor.Current.Magnitude ?? 0);
+                Current = Math.Max(Current, cableSpan?.Line3?.Resistor.Current.Magnitude ?? 0);
+
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line1?.Resistor.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line1?.Resistor.VoltageB.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line2?.Resistor.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line2?.Resistor.VoltageB.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line3?.Resistor.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line3?.Resistor.VoltageB.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.NeutralLine?.Resistor.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.NeutralLine?.Resistor.VoltageB.Magnitude ?? 0);
             }
 
             // Calculate temperature change due to resistive heating
