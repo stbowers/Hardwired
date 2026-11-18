@@ -80,24 +80,27 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Power Draw: {PowerDraw.ToStringPrefix("W", "yellow")} | PF: {PowerFactor}");
             stringBuilder.AppendLine($"ΔV: {VoltageDelta.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | ΔV_max: {PowerProfile.VoltageNominalHigh.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Internal resistance: {_nortonEquivalent?.Resistance.ToStringPrefix("Ω", "yellow")}");
+            stringBuilder.AppendLine($"DBG: {GetHashCode()}");
         }
 
-        public override void AddTo(Circuit circuit)
+        private void EnsureInitialized(Circuit circuit)
         {
-            base.AddTo(circuit);
+            var nodeA = PowerOutput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
+            var nodeB = PowerOutput?.GetNode(circuit, Networks.CableSpan.ConductorType.Neutral);
 
-            if (OutputCircuit == circuit)
+            if (_nortonEquivalent?.Circuit == circuit && _nortonEquivalent.NodeA == nodeA && _nortonEquivalent.NodeB == nodeB)
             {
-                if (_nortonEquivalent != null)
-                {
-                    RemoveFrom(_nortonEquivalent.Circuit);
-                }
-
-                var nodeA = PowerOutput?.GetNode(circuit, WireType.Line1);
-                var nodeB = PowerOutput?.GetNode(circuit, WireType.Neutral);
-
-                _nortonEquivalent = new(circuit, nodeA, nodeB);
+                return;
             }
+
+            Hardwired.LogDebug($"PowerSource - Re-initializing ({_nortonEquivalent?.Circuit.Id}, {_nortonEquivalent?.NodeA?.Value.Index}, {_nortonEquivalent?.NodeB?.Value.Index}) => ({circuit.Id}, {nodeA?.Value.Index}, {nodeB?.Value.Index})");
+
+            if (_nortonEquivalent != null)
+            {
+                RemoveFrom(_nortonEquivalent.Circuit);
+            }
+
+            _nortonEquivalent = new(circuit, nodeA, nodeB);
         }
 
         public override void UpdateState(Circuit circuit)
@@ -105,6 +108,8 @@ namespace Hardwired.Objects.Electrical
             base.UpdateState(circuit);
 
             if (circuit != OutputCircuit) { return; }
+
+            EnsureInitialized(circuit);
 
             // Get generated power
             PowerGenerated = Device?.GetGeneratedPower(OutputCableNetwork) ?? 0;

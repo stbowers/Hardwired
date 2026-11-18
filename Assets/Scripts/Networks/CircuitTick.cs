@@ -9,12 +9,11 @@ using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
+using Hardwired.Objects;
 using Hardwired.Objects.Electrical;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Utility.Extensions;
 using Objects.Pipes;
-
-using Foo = Hardwired.Utility.Extensions.CollectionExtensions;
 
 namespace Hardwired.Networks
 {
@@ -45,6 +44,8 @@ namespace Hardwired.Networks
 
         public HashSet<ElectricalComponent> Components = new();
 
+        public List<CableSpan> CableSpans = new();
+
         public int CurrentTick = 0;
 
         public int LastUpdateSolverIterations = 0;
@@ -62,6 +63,8 @@ namespace Hardwired.Networks
         /// <param name="root"></param>
         public void ProcessTick(CableNetwork root)
         {
+            Hardwired.LogDebug($"CircuitTick.ProcessTick() -- Circuit: {Circuit.Id}, Tick: {CurrentTick}");
+
             using var _ = TimeProcessingTick.BeginScope();
             CurrentTick += 1;
 
@@ -73,7 +76,6 @@ namespace Hardwired.Networks
 
             LogMetrics();
         }
-
 
         /// <summary>
         /// Initialize/update the cable networks and components that are a part of this circuit, given a "root" cable network.
@@ -125,7 +127,7 @@ namespace Hardwired.Networks
             // Now "orphanedComponents" will only contain components that were in the circuit last tick but have since been removed
             foreach (var component in orphanedComponents)
             {
-                component.RemoveFrom(Circuit);
+                UninitializeComponent(component);
                 Components.Remove(component);
             }
         }
@@ -154,16 +156,91 @@ namespace Hardwired.Networks
 
                 if (Components.Add(component))
                 {
-                    component.AddTo(Circuit);
+                    InitializeComponent(component);
                 }
 
                 foreach (var network in component.GetBridgedNetworks(cableNetwork)) { toInitialize.Enqueue(network); }
             }
         }
 
+        private void InitializeComponent(ElectricalComponent component)
+        {
+            component.AddTo(Circuit);
+
+            // Add cables to cable spans
+            if (component is HardwiredCable cable && cable.Cable is Cable baseGameCable)
+            {
+                if (baseGameCable.OpenEnds.Count == 2)
+                {
+                    var connectionA = baseGameCable.OpenEnds[0];
+                    var connectionB = baseGameCable.OpenEnds[1];
+
+                    var span1 = TryGetConnectedSpan(connectionA);
+                    var span2 = TryGetConnectedSpan(connectionB);
+
+                    // Add cable to the first span
+                    span1 ??= CreateCableSpan();
+                    span1.AddCable(cable, connectionA, connectionB);
+
+                    // If the other end of the cable would have connected to another span, remove that span and re-initialize its cables
+                    if (span2 != null)
+                    {
+                        RemoveCableSpan(span2);
+                    }
+                }
+                else
+                {
+                    foreach (var connection in baseGameCable.OpenEnds)
+                    {
+                        var span = TryGetConnectedSpan(connection);
+
+                        span ??= CreateCableSpan();
+                        span.AddCable(cable, connection, null);
+                    }
+                }
+            }
+        }
+
+        private CableSpan CreateCableSpan()
+        {
+            var newSpan = new CableSpan(Circuit);
+            CableSpans.Add(newSpan);
+            return newSpan;
+        }
+
+        private void RemoveCableSpan(CableSpan toRemove)
+        {
+            // Remove the span
+            CableSpans.Remove(toRemove);
+
+            // Re-initialize each cable in the span
+            foreach (var cable in toRemove.Cables)
+            {
+                InitializeComponent(cable);
+            }
+        }
+
+        public CableSpan? TryGetConnectedSpan(Connection connection)
+        {
+            var peerConnection = connection.GetPeer();
+            return CableSpans.FirstOrDefault(
+                span => span.ConnectionA == peerConnection || span.ConnectionB == peerConnection
+            );
+        }
+
+        private void UninitializeComponent(ElectricalComponent component)
+        {
+            component.RemoveFrom(Circuit);
+        }
+
         private void UpdateState()
         {
             using var _ = TimeUpdating.BeginScope();
+
+            foreach (var cableSpan in CableSpans)
+            {
+                cableSpan.UpdateState();
+            }
 
             foreach (var component in Components)
             {
@@ -186,6 +263,11 @@ namespace Hardwired.Networks
         private void ApplyState()
         {
             using var _ = TimeApplying.BeginScope();
+
+            foreach (var cableSpan in CableSpans)
+            {
+                cableSpan.ApplyState();
+            }
 
             foreach (var component in Components)
             {

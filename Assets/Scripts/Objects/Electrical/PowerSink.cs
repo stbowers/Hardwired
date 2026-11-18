@@ -23,7 +23,6 @@ namespace Hardwired.Objects.Electrical
     /// </summary>
     public class PowerSink : ElectricalComponent, ISerializationCallbackReceiver, IComponentSaveData
     {
-        private Device? _device;
         private ConstantPowerSource? _powerSource;
         private DateTime _lastPowerProfileChanged = DateTime.Now;
 
@@ -77,31 +76,33 @@ namespace Hardwired.Objects.Electrical
             BuildDebugInfoTooltip(stringBuilder);
         }
 
-        public override void AddTo(Circuit circuit)
+        private void EnsureInitialized(Circuit circuit)
         {
-            base.AddTo(circuit);
+            var nodeA = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
+            var nodeB = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Neutral);
 
-            _device ??= GetComponent<Device>();
-
-            if (InputCircuit == circuit)
+            if (_powerSource?.Circuit == circuit && _powerSource.NodeA == nodeA && _powerSource.NodeB == nodeB)
             {
-                if (_powerSource != null)
-                {
-                    RemoveFrom(_powerSource.Circuit);
-                }
-
-                var nodeA = PowerInput?.GetNode(circuit, WireType.Line1);
-                var nodeB = PowerInput?.GetNode(circuit, WireType.Neutral);
-
-                _powerSource = new(circuit, nodeA, nodeB);
+                return;
             }
+
+            Hardwired.LogDebug($"PowerSink({GetHashCode()}) - Re-initializing ({_powerSource?.Circuit.Id}, {_powerSource?.NodeA?.Value.Index}, {_powerSource?.NodeB?.Value.Index}) -> ({circuit.Id}, {nodeA?.Value.Index}, {nodeB?.Value.Index})");
+
+            if (_powerSource != null)
+            {
+                RemoveFrom(_powerSource.Circuit);
+            }
+
+            _powerSource = new(circuit, nodeA, nodeB);
         }
 
         public override void UpdateState(Circuit circuit)
         {
-            base.UpdateState(circuit );
-            
+            base.UpdateState(circuit);
+
             if (circuit != InputCircuit) { return; }
+
+            EnsureInitialized(circuit);
 
             // Check input conditions of circuit, to validate the current power profile
             IsInputValid =
@@ -115,7 +116,7 @@ namespace Hardwired.Objects.Electrical
                 // power used by the device. When the power is actually drawn from the circuit, it will be multiplied by the efficiency
                 // factor again before being sent to _device.ReceivePower() so therefore, under normal circumstances, the power received
                 // should equal the power requested.
-                PowerTarget = _device?.GetUsedPower(InputCableNetwork) ?? 0f;
+                PowerTarget = Device?.GetUsedPower(InputCableNetwork) ?? 0f;
                 PowerTarget = PowerTarget / ActivePowerProfile.Efficiency;
                 PowerTarget = Math.Min(ActivePowerProfile.MaximumPower, PowerTarget);
                 PowerThreshold = ActivePowerProfile.MinimumPowerRatio * PowerTarget;
@@ -152,15 +153,15 @@ namespace Hardwired.Objects.Electrical
 
             // Calculate how much power will actually go to the device (after active profile's efficiency loss)
             var powerDelivered = PowerDraw * ActivePowerProfile.Efficiency;
-            _device?.ReceivePower(InputCableNetwork, (float)powerDelivered);
+            Device?.ReceivePower(InputCableNetwork, (float)powerDelivered);
 
             // Set the device's power status based on if it received enough power this tick
-            bool powered = _device?.OnOff == true && powerDelivered > 0.1 && powerDelivered >= PowerThreshold;
-            if (_device?.AllowSetPower(InputCableNetwork) == true)
+            bool powered = Device?.OnOff == true && powerDelivered > 0.1 && powerDelivered >= PowerThreshold;
+            if (Device?.AllowSetPower(InputCableNetwork) == true)
             {
-                if (_device.Powered != powered)
+                if (Device.Powered != powered)
                 {
-                    _device.SetPowerFromThread(InputCableNetwork, powered).Forget();
+                    Device.SetPowerFromThread(InputCableNetwork, powered).Forget();
                 }
             }
         }

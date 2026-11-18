@@ -9,6 +9,7 @@ using Assets.Scripts.Atmospherics;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Util;
+using Hardwired.Networks;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility;
@@ -25,9 +26,6 @@ namespace Hardwired.Objects.Electrical
     /// </summary>
     public class HardwiredCable : ElectricalComponent
     {
-        private List<Resistor> _resistors = new();
-        private Circuit? _circuit;
-
         public double Resistance;
 
         /// <summary>
@@ -65,17 +63,13 @@ namespace Hardwired.Objects.Electrical
         /// </summary>
         public double Temperature { get; private set; } = 273.15;
 
-        public Complex VoltageDeltaAverage { get; private set; }
-
-        public Complex VoltageAverage { get; private set; }
+        public double MaximumVoltage { get; private set; }
 
         public double Current { get; private set; }
 
         public double PowerDissapated { get; private set;}
 
-        public override Circuit? InputCircuit => _circuit;
-
-        public override Circuit? OutputCircuit => null;
+        public CableSpan? CableSpan { get; set; }
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
@@ -106,49 +100,58 @@ namespace Hardwired.Objects.Electrical
 
             stringBuilder.AppendLine($"Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")} | I_max: {MaximumCurrentRating.ToStringPrefix("A", "yellow")}");
-            stringBuilder.AppendLine($"Vg(avg): {VoltageAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")} | Vg_max: {MaximumVoltageRating.ToStringPrefix("V", "yellow")}");
-            stringBuilder.AppendLine($"ΔV(avg): {VoltageDeltaAverage.ToStringPrefix(InputCircuit?.Frequency, "V", "yellow")}");
+            stringBuilder.AppendLine($"Vg: {MaximumVoltage.ToStringPrefix("V", "yellow")} | Vg_max: {MaximumVoltageRating.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")} | Dissapated: {PowerDissapated.ToStringPrefix("W", "yellow")}");
+            stringBuilder.AppendLine($"DBG CableSpan: {CableSpan?.Id ?? -1}");
         }
 
-        public override void AddTo(Circuit circuit)
-        {
-            base.AddTo(circuit);
+        private Dictionary<(CableSpan.ConductorType, Connection, Connection), Resistor> _resistors = new();
 
-            if (_circuit != null && _circuit != circuit)
-            {
-                RemoveFrom(_circuit);
-            }
-
-            _circuit = circuit;
-
-            if (Cable == null)
-            {
-                return;
-            }
-
-            for (int i = 0; i < Cable.OpenEnds.Count; i++)
-            {
-                for (int j = i + 1; j < Cable.OpenEnds.Count; j++)
-                {
-                    var nodeA = Cable.OpenEnds[i]?.GetNode(circuit, WireType.Line1);
-                    var nodeB = Cable.OpenEnds[j]?.GetNode(circuit, WireType.Line1);
-                    Resistor resistor = new(circuit, nodeA, nodeB);
-
-                    resistor.Resistance = Resistance;
-                    
-                    _resistors.Add(resistor);
-                }
-            }
-        }
+        public bool IsJunction => _isJunction ??= Cable?.OpenEnds.Count > 2;
+        private bool? _isJunction;
 
         public override void UpdateState(Circuit circuit)
         {
             base.UpdateState(circuit);
 
-            foreach (var resistor in _resistors)
+            if (IsJunction)
             {
-                resistor.UpdateState();
+                for (int i = 0; i < Cable?.OpenEnds.Count; i++)
+                {
+                    for (int j = i; j < Cable?.OpenEnds.Count; j++)
+                    {
+                        var connectionA = Cable.OpenEnds[i];
+                        var connectionB = Cable.OpenEnds[j];
+
+                        var cableSpanA = connectionA.GetCableSpan();
+                        var cableSpanB = connectionB.GetCableSpan();
+
+                        var nodeA = cableSpanA?.GetNode(connectionA, CableSpan.ConductorType.Line1);
+                        var nodeB = cableSpanB?.GetNode(connectionB, CableSpan.ConductorType.Line1);
+
+                        var neutralNodeA = cableSpanA?.GetNode(connectionA, CableSpan.ConductorType.Neutral);
+                        var neutralNodeB = cableSpanB?.GetNode(connectionB, CableSpan.ConductorType.Neutral);
+
+                        if (!_resistors.TryGetValue((CableSpan.ConductorType.Line1, connectionA, connectionB), out Resistor? resistor))
+                        {
+                            resistor = new(circuit, nodeA, nodeB);
+                            _resistors.Add((CableSpan.ConductorType.Line1, connectionA, connectionB), resistor);
+                            resistor.Resistance = Resistor.R_SHORT;
+                        }
+
+                        if (!_resistors.TryGetValue((CableSpan.ConductorType.Neutral, connectionA, connectionB), out resistor))
+                        {
+                            resistor = new(circuit, neutralNodeA, neutralNodeB);
+                            _resistors.Add((CableSpan.ConductorType.Neutral, connectionA, connectionB), resistor);
+                            resistor.Resistance = Resistor.R_SHORT;
+                        }
+                    }
+                }
+
+                foreach (var resistor in _resistors.Values)
+                {
+                    resistor.UpdateState();
+                }
             }
         }
 
@@ -156,44 +159,46 @@ namespace Hardwired.Objects.Electrical
         {
             base.ApplyState(circuit);
 
-            foreach (var resistor in _resistors)
-            {
-                resistor.ApplyState();
-            }
-
             PowerDissapated = 0;
             Current = 0;
 
-            VoltageDeltaAverage = 0;
-            VoltageAverage = 0;
+            MaximumVoltage = 0;
 
-            // Determine net current going through each node
-            Dictionary<int, Complex> nodeCurrents = new();
-
-            foreach (var resistor in _resistors)
+            if (IsJunction)
             {
-                VoltageDeltaAverage += resistor.VoltageDelta;
-                VoltageAverage += resistor.VoltageA;
-                VoltageAverage += resistor.VoltageB;
-
-                PowerDissapated += resistor.Power.Real;
-
-                if (resistor.NodeA?.Value.Index is int nodeAIndex)
+                foreach (var connection in Cable?.OpenEnds ?? Enumerable.Empty<Connection>())
                 {
-                    nodeCurrents[nodeAIndex] = nodeCurrents.GetValueOrDefault(nodeAIndex) + resistor.Current;
-                }
-                if (resistor.NodeB?.Value.Index is int nodeBIndex)
-                {
-                    nodeCurrents[nodeBIndex] = nodeCurrents.GetValueOrDefault(nodeBIndex) - resistor.Current;
+                    var cableSpan = connection.GetCableSpan();
+                    PowerDissapated += cableSpan?.Line1?.Resistor.Power.Real ?? 0;
+                    PowerDissapated += cableSpan?.Line2?.Resistor.Power.Real ?? 0;
+                    PowerDissapated += cableSpan?.Line3?.Resistor.Power.Real ?? 0;
+                    PowerDissapated += cableSpan?.NeutralLine?.Resistor.Power.Real ?? 0;
+
+                    Current = Math.Max(Current, cableSpan?.Line1?.Resistor.Current.Magnitude ?? 0);
+                    Current = Math.Max(Current, cableSpan?.Line2?.Resistor.Current.Magnitude ?? 0);
+                    Current = Math.Max(Current, cableSpan?.Line3?.Resistor.Current.Magnitude ?? 0);
                 }
             }
+            else
+            {
+                PowerDissapated += CableSpan?.Line1?.Resistor.Power.Real ?? 0;
+                PowerDissapated += CableSpan?.Line2?.Resistor.Power.Real ?? 0;
+                PowerDissapated += CableSpan?.Line3?.Resistor.Power.Real ?? 0;
+                PowerDissapated += CableSpan?.NeutralLine?.Resistor.Power.Real ?? 0;
 
-            // Get current throughput
-            Current = 0.5 * nodeCurrents.Values.Sum(c => c.Magnitude);
+                Current = Math.Max(Current, CableSpan?.Line1?.Resistor.Current.Magnitude ?? 0);
+                Current = Math.Max(Current, CableSpan?.Line2?.Resistor.Current.Magnitude ?? 0);
+                Current = Math.Max(Current, CableSpan?.Line3?.Resistor.Current.Magnitude ?? 0);
 
-            // Get average voltages
-            VoltageDeltaAverage /= _resistors.Count;
-            VoltageAverage /= _resistors.Count * 2;
+                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line1?.Resistor.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line1?.Resistor.VoltageB.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line2?.Resistor.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line2?.Resistor.VoltageB.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line3?.Resistor.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.Line3?.Resistor.VoltageB.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.NeutralLine?.Resistor.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, CableSpan?.NeutralLine?.Resistor.VoltageB.Magnitude ?? 0);
+            }
 
             // Calculate temperature change due to resistive heating
             // note - time delta is always 0.5s (constant tick time)
@@ -235,7 +240,7 @@ namespace Hardwired.Objects.Electrical
                 // Randomly break cables that are over voltage, with a higher chance the further away from their design voltage they are
                 // 100% of MaximumVoltageRating ~ 0%
                 // 150% of MaximumVoltageRating ~ 100%
-                var voltageCapacity = VoltageAverage.Magnitude / MaximumVoltageRating;
+                var voltageCapacity = MaximumVoltage / MaximumVoltageRating;
                 breakChance = (voltageCapacity - 1.0) / 0.5f;
                 breakChance = Math.Clamp(breakChance, 0f, 1f);
 
@@ -243,7 +248,7 @@ namespace Hardwired.Objects.Electrical
                 if (shouldBreak)
                 {
                     Cable?.Break();
-                    Hardwired.LogDebug($"Burning cable (too much voltage!) -- V: {VoltageAverage} / {MaximumVoltageRating} (I = {Current} A)");
+                    Hardwired.LogDebug($"Burning cable (too much voltage!) -- V: {MaximumVoltage} / {MaximumVoltageRating} (I = {Current} A)");
                 }
             }
 
@@ -263,18 +268,5 @@ namespace Hardwired.Objects.Electrical
                 }
             }
         }
-
-        public override void RemoveFrom(Circuit circuit)
-        {
-            base.RemoveFrom(circuit);
-
-            foreach (var resistor in _resistors)
-            {
-                resistor.Dispose();
-            }
-
-            _resistors.Clear();
-        }
-
     }
 }

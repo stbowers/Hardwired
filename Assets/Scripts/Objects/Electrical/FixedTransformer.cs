@@ -90,10 +90,10 @@ namespace Hardwired.Objects.Electrical
                 RemoveFrom(_mutualInductor.Circuit);
             }
 
-            var nodeA = PowerInput?.GetNode(circuit, WireType.Line1);
-            var nodeB = PowerInput?.GetNode(circuit, WireType.Neutral);
-            var nodeC = PowerOutput?.GetNode(circuit, WireType.Line1);
-            var nodeD = PowerOutput?.GetNode(circuit, WireType.Neutral);
+            var nodeA = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
+            var nodeB = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Neutral);
+            var nodeC = PowerOutput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
+            var nodeD = PowerOutput?.GetNode(circuit, Networks.CableSpan.ConductorType.Neutral);
 
             _internalPin = new(circuit.Solver.AddUnknown());
 

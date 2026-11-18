@@ -49,7 +49,7 @@ namespace Hardwired.Objects.Electrical
             }
 
             CircuitFrequency = hardwiredCable.InputCircuit?.Frequency ?? 0;
-            Voltage = hardwiredCable.VoltageAverage.Magnitude;
+            Voltage = hardwiredCable.MaximumVoltage;
             Current = hardwiredCable.Current;
         }
     }

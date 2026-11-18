@@ -25,15 +25,27 @@ The overall goal is to make the electrical system in Stationeers have a similar 
 
 ## AI Disclosure
 
+In today's world of AI slop, especially in mods, I think it's important to disclose to what extent AI was used in this project.
+I personally am very against "generative AI" for things like art, or even code (when used to generate whole modules or projects).
+However I think the line is less clear when it comes to using AI as an assistive tool, especially for code development.
+While I recognize AI is a useful tool for some developers, I don't use it extensively because for me personally Hardwired is a passion project, so I want to fully understand the code I'm writing.
+That being said however, AI is also rapidly changing the software development field, and I have used it a few times on this project, mostly out of curiosity to keep up with changes in AI development.
+
+With that being said, here is how AI was used for Hardwired:
+
 All of Hardwired's code is fully human written.
 AI *has not*, and *will not* be used to directly generate the core code for Hardwired.
-While I recognize AI is a useful tool for some developers, for me personally Hardwired is a passion project, so I want to fully understand the code I'm writing.
+To the extent that AI was used during development (explained more below), any code generated was taken only as a suggestion.
+Code was never copy-pasted directly from an AI, nor were AI "agents" allowed to directly modify files.
 
 AI *may* be used to generate some unit tests, or help search for and diagnose bugs.
 
 AI *was* consulted for research during various phases of development (e.g. to validate my understanding of the physics or math, help track down bugs or performance issues, to suggest alternative algorithms, etc).
+When used for such purposes, I always made sure to have some sort of external validation to ensure the AI wasn't hallucinating some explanation.
+Usually this took the form of reading existing literature (textbooks, pre-AI articles, etc), or running tests to validate theories.
 
 AI *was* used to "clean up" some of the text discriptions and documentation for various components.
-The original text was fully human written, with AI only being used to make the text more concise or flow better.
+The original text was fully human written, with AI only being used to suggest changes to make the text more concise or flow better.
+In such cases, the AI output was *not* copied directly, but instead only used as a suggestion.
 
 All AI output is reviewed by me before being used (I am the owner of this mod, and I take full responsibility for its contents).

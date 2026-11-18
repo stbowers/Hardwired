@@ -63,6 +63,21 @@ namespace Hardwired.Utility
             _inner = null;
         }
 
+        public override bool Equals(object? obj)
+            => obj is RefCounted<T> other && _inner != null && ReferenceEquals(_inner, other._inner);
+
+        public override int GetHashCode()
+            => _inner?.GetHashCode() ?? 0;
+
+        public override string ToString()
+            => Value.ToString();
+
+        public static bool operator ==(RefCounted<T>? a, RefCounted<T>? b)
+            => a?.Equals(b) ?? ReferenceEquals(b, null);
+
+        public static bool operator !=(RefCounted<T>? a, RefCounted<T>? b)
+            => !a?.Equals(b) ?? b != null;
+
         private sealed class Inner
         {
             public T Value;

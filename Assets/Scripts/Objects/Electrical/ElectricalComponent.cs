@@ -33,34 +33,6 @@ namespace Hardwired.Objects.Electrical
     /// </summary>
     public abstract class ElectricalComponent : MonoBehaviour
     {
-        /// <summary>
-        /// Identifies a wire type in a connection, which can be used to get different nodes for different "wires" in a cable
-        /// </summary>
-        public enum WireType
-        {
-            /// <summary>
-            /// The positive (DC) or "live" (AC) wire.
-            /// </summary>
-            Line1,
-
-            /// <summary>
-            /// The "live" wire for phase 2 for multi-phase AC cables (not used for DC or single phase AC)
-            /// </summary>
-            Line2,
-
-            /// <summary>
-            /// The "live" wire for phase 3 for multi-phase AC cables (not used for DC or single phase AC)
-            /// </summary>
-            Line3,
-
-            /// <summary>
-            /// The negative/common (DC) or neutral (AC) wire.
-            /// 
-            /// This is usually not used explicitly, because the common pin does not need to be referenced in most cases
-            /// </summary>
-            Neutral,
-        }
-
         private Device? _device;
         private Cable? _cable;
         private Connection? _powerInput;
@@ -80,9 +52,13 @@ namespace Hardwired.Objects.Electrical
 
         public virtual CableNetwork? OutputCableNetwork => PowerOutput?.GetCable()?.CableNetwork;
 
-        public virtual Circuit? InputCircuit => (InputCableNetwork?.PowerTick as HardwiredPowerTick)?.CircuitTick?.Circuit;
+        public virtual CircuitTick? InputCircuitTick => (InputCableNetwork?.PowerTick as HardwiredPowerTick)?.CircuitTick;
 
-        public virtual Circuit? OutputCircuit => (OutputCableNetwork?.PowerTick as HardwiredPowerTick)?.CircuitTick?.Circuit;
+        public virtual CircuitTick? OutputCircuitTick => (OutputCableNetwork?.PowerTick as HardwiredPowerTick)?.CircuitTick;
+
+        public virtual Circuit? InputCircuit => InputCircuitTick?.Circuit;
+
+        public virtual Circuit? OutputCircuit => OutputCircuitTick?.Circuit;
 
         /// <summary>
         /// For debugging - add info to the passive tooltip

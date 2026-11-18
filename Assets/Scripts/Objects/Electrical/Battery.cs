@@ -75,8 +75,8 @@ namespace Hardwired.Objects.Electrical
 
             if (InputCircuit == circuit)
             {
-                var nodeA = PowerInput?.GetNode(circuit, WireType.Line1);
-                var nodeB = PowerInput?.GetNode(circuit, WireType.Neutral);
+                var nodeA = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
+                var nodeB = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Neutral);
 
                 _energyBuffer?.Dispose();
                 _energyBuffer = new(circuit, nodeA, nodeB);
