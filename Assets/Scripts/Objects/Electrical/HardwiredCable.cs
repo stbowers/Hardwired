@@ -26,6 +26,8 @@ namespace Hardwired.Objects.Electrical
     /// </summary>
     public class HardwiredCable : ElectricalComponent
     {
+        private bool? _isJunction;
+
         public double Resistance;
 
         /// <summary>
@@ -69,6 +71,8 @@ namespace Hardwired.Objects.Electrical
 
         public double PowerDissapated { get; private set;}
 
+        public bool IsJunction => _isJunction ??= Cable?.OpenEnds.Count > 2;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -102,54 +106,50 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")} | Dissapated: {PowerDissapated.ToStringPrefix("W", "yellow")}");
         }
 
-        private Dictionary<(CableSpan.ConductorType, Connection, Connection), Resistor> _resistors = new();
-
-        public bool IsJunction => _isJunction ??= Cable?.OpenEnds.Count > 2;
-        private bool? _isJunction;
-
         public override void UpdateState(Circuit circuit)
         {
             base.UpdateState(circuit);
 
-            // If this is a junction cable, we need to add short "resistors" between each node to tie them together.
-            // TODO: add support for series junctions (also, there's probably a better way to do this...)
             if (IsJunction)
             {
-                for (int i = 0; i < Cable?.OpenEnds.Count; i++)
+                RefCounted<MNASolver.Unknown>? line1Node = null;
+                RefCounted<MNASolver.Unknown>? line2Node = null;
+                RefCounted<MNASolver.Unknown>? line3Node = null;
+                RefCounted<MNASolver.Unknown>? neutralNode = null;
+
+                foreach (var connection in Cable?.OpenEnds ?? Enumerable.Empty<Connection>())
                 {
-                    for (int j = i; j < Cable?.OpenEnds.Count; j++)
-                    {
-                        var connectionA = Cable.OpenEnds[i];
-                        var connectionB = Cable.OpenEnds[j];
+                    var cableSpan = connection.GetCableSpan();
 
-                        var cableSpanA = connectionA.GetCableSpan();
-                        var cableSpanB = connectionB.GetCableSpan();
-
-                        var nodeA = cableSpanA?.GetNode(connectionA, CableSpan.ConductorType.Line1);
-                        var nodeB = cableSpanB?.GetNode(connectionB, CableSpan.ConductorType.Line1);
-
-                        var neutralNodeA = cableSpanA?.GetNode(connectionA, CableSpan.ConductorType.Neutral);
-                        var neutralNodeB = cableSpanB?.GetNode(connectionB, CableSpan.ConductorType.Neutral);
-
-                        if (!_resistors.TryGetValue((CableSpan.ConductorType.Line1, connectionA, connectionB), out Resistor? resistor))
-                        {
-                            resistor = new(circuit, nodeA, nodeB);
-                            _resistors.Add((CableSpan.ConductorType.Line1, connectionA, connectionB), resistor);
-                            resistor.Resistance = Resistor.R_SHORT;
-                        }
-
-                        if (!_resistors.TryGetValue((CableSpan.ConductorType.Neutral, connectionA, connectionB), out resistor))
-                        {
-                            resistor = new(circuit, neutralNodeA, neutralNodeB);
-                            _resistors.Add((CableSpan.ConductorType.Neutral, connectionA, connectionB), resistor);
-                            resistor.Resistance = Resistor.R_SHORT;
-                        }
-                    }
+                    line1Node ??= cableSpan?.GetNode(connection, CableSpan.ConductorType.Line1);
+                    line2Node ??= cableSpan?.GetNode(connection, CableSpan.ConductorType.Line2);
+                    line3Node ??= cableSpan?.GetNode(connection, CableSpan.ConductorType.Line3);
+                    neutralNode ??= cableSpan?.GetNode(connection, CableSpan.ConductorType.Neutral);
                 }
 
-                foreach (var resistor in _resistors.Values)
+                foreach (var connection in Cable?.OpenEnds ?? Enumerable.Empty<Connection>())
                 {
-                    resistor.UpdateState();
+                    var cableSpan = connection.GetCableSpan();
+
+                    if (line1Node != null)
+                    {
+                        cableSpan?.SetNode(line1Node, connection, CableSpan.ConductorType.Line1);
+                    }
+
+                    if (line2Node != null)
+                    {
+                        cableSpan?.SetNode(line2Node, connection, CableSpan.ConductorType.Line2);
+                    }
+
+                    if (line3Node != null)
+                    {
+                        cableSpan?.SetNode(line3Node, connection, CableSpan.ConductorType.Line3);
+                    }
+
+                    if (neutralNode != null)
+                    {
+                        cableSpan?.SetNode(neutralNode, connection, CableSpan.ConductorType.Neutral);
+                    }
                 }
             }
         }
@@ -169,14 +169,14 @@ namespace Hardwired.Objects.Electrical
                 foreach (var connection in Cable?.OpenEnds ?? Enumerable.Empty<Connection>())
                 {
                     var cableSpan = connection.GetCableSpan();
-                    PowerDissapated += cableSpan?.Line1?.Resistor.Power.Real ?? 0;
-                    PowerDissapated += cableSpan?.Line2?.Resistor.Power.Real ?? 0;
-                    PowerDissapated += cableSpan?.Line3?.Resistor.Power.Real ?? 0;
-                    PowerDissapated += cableSpan?.NeutralLine?.Resistor.Power.Real ?? 0;
+                    PowerDissapated += cableSpan?.Line1?.Resistor?.Power.Real ?? 0;
+                    PowerDissapated += cableSpan?.Line2?.Resistor?.Power.Real ?? 0;
+                    PowerDissapated += cableSpan?.Line3?.Resistor?.Power.Real ?? 0;
+                    PowerDissapated += cableSpan?.NeutralLine?.Resistor?.Power.Real ?? 0;
 
-                    Current = Math.Max(Current, cableSpan?.Line1?.Resistor.Current.Magnitude ?? 0);
-                    Current = Math.Max(Current, cableSpan?.Line2?.Resistor.Current.Magnitude ?? 0);
-                    Current = Math.Max(Current, cableSpan?.Line3?.Resistor.Current.Magnitude ?? 0);
+                    Current = Math.Max(Current, cableSpan?.Line1?.Resistor?.Current.Magnitude ?? 0);
+                    Current = Math.Max(Current, cableSpan?.Line2?.Resistor?.Current.Magnitude ?? 0);
+                    Current = Math.Max(Current, cableSpan?.Line3?.Resistor?.Current.Magnitude ?? 0);
                 }
             }
             else
@@ -184,23 +184,23 @@ namespace Hardwired.Objects.Electrical
                 // For straight through cables, both ends should be in the same cable span
                 var cableSpan = PowerInput?.GetCableSpan();
 
-                PowerDissapated += cableSpan?.Line1?.Resistor.Power.Real ?? 0;
-                PowerDissapated += cableSpan?.Line2?.Resistor.Power.Real ?? 0;
-                PowerDissapated += cableSpan?.Line3?.Resistor.Power.Real ?? 0;
-                PowerDissapated += cableSpan?.NeutralLine?.Resistor.Power.Real ?? 0;
+                PowerDissapated += cableSpan?.Line1?.Resistor?.Power.Real ?? 0;
+                PowerDissapated += cableSpan?.Line2?.Resistor?.Power.Real ?? 0;
+                PowerDissapated += cableSpan?.Line3?.Resistor?.Power.Real ?? 0;
+                PowerDissapated += cableSpan?.NeutralLine?.Resistor?.Power.Real ?? 0;
 
-                Current = Math.Max(Current, cableSpan?.Line1?.Resistor.Current.Magnitude ?? 0);
-                Current = Math.Max(Current, cableSpan?.Line2?.Resistor.Current.Magnitude ?? 0);
-                Current = Math.Max(Current, cableSpan?.Line3?.Resistor.Current.Magnitude ?? 0);
+                Current = Math.Max(Current, cableSpan?.Line1?.Resistor?.Current.Magnitude ?? 0);
+                Current = Math.Max(Current, cableSpan?.Line2?.Resistor?.Current.Magnitude ?? 0);
+                Current = Math.Max(Current, cableSpan?.Line3?.Resistor?.Current.Magnitude ?? 0);
 
-                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line1?.Resistor.VoltageA.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line1?.Resistor.VoltageB.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line2?.Resistor.VoltageA.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line2?.Resistor.VoltageB.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line3?.Resistor.VoltageA.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line3?.Resistor.VoltageB.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.NeutralLine?.Resistor.VoltageA.Magnitude ?? 0);
-                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.NeutralLine?.Resistor.VoltageB.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line1?.Resistor?.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line1?.Resistor?.VoltageB.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line2?.Resistor?.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line2?.Resistor?.VoltageB.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line3?.Resistor?.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.Line3?.Resistor?.VoltageB.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.NeutralLine?.Resistor?.VoltageA.Magnitude ?? 0);
+                MaximumVoltage = Math.Max(MaximumVoltage, cableSpan?.NeutralLine?.Resistor?.VoltageB.Magnitude ?? 0);
 
                 // Normalize power dissapated so each individual segment only dissapates it's share of the power
                 var r = (Resistance / cableSpan?.Resistance) ?? 1;

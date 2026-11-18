@@ -11,6 +11,7 @@ using Hardwired.Objects.Electrical;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility;
+using UnityEngine.Assertions.Must;
 
 namespace Hardwired.Networks
 {
@@ -54,24 +55,17 @@ namespace Hardwired.Networks
         /// </summary>
         public class Conductor : IDisposable
         {
-            public RefCounted<MNASolver.Unknown> NodeA { get; }
+            public RefCounted<MNASolver.Unknown>? NodeA { get; set; }
 
-            public RefCounted<MNASolver.Unknown> NodeB { get; }
+            public RefCounted<MNASolver.Unknown>? NodeB { get; set; }
 
-            public Resistor Resistor { get; }
-
-            public Conductor(Circuit circuit)
-            {
-                NodeA = RefCounted.Create(circuit.Solver.AddUnknown());
-                NodeB = RefCounted.Create(circuit.Solver.AddUnknown());
-                Resistor = new Resistor(circuit, NodeA, NodeB);
-            }
+            public Resistor? Resistor { get; set; }
 
             public void Dispose()
             {
-                NodeA.Dispose();
-                NodeB.Dispose();
-                Resistor.Dispose();
+                NodeA?.Dispose();
+                NodeB?.Dispose();
+                Resistor?.Dispose();
             }
         }
 
@@ -124,35 +118,45 @@ namespace Hardwired.Networks
         {
             if (Line1 != null)
             {
-                Line1.Resistor.Resistance = Resistance;
-                Line1.Resistor.UpdateState();
+                UpdateConductor(Line1);
             }
 
             if (Line2 != null)
             {
-                Line2.Resistor.Resistance = Resistance;
-                Line2.Resistor.UpdateState();
+                UpdateConductor(Line2);
             }
 
             if (Line3 != null)
             {
-                Line3.Resistor.Resistance = Resistance;
-                Line3.Resistor.UpdateState();
+                UpdateConductor(Line3);
             }
 
             if (NeutralLine != null)
             {
-                NeutralLine.Resistor.Resistance = Resistance;
-                NeutralLine.Resistor.UpdateState();
+                UpdateConductor(NeutralLine);
             }
+        }
+
+        private void UpdateConductor(Conductor conductor)
+        {
+            // Ensure both nodes are allocated
+            conductor.NodeA ??= new(Circuit.Solver.AddUnknown());
+            conductor.NodeB ??= new(Circuit.Solver.AddUnknown());
+
+            // Ensure resistor is allocated
+            conductor.Resistor ??= new Resistor(Circuit, conductor.NodeA, conductor.NodeB);
+
+            // Update resistor
+            conductor.Resistor.Resistance = Resistance;
+            conductor.Resistor.UpdateState();
         }
 
         public void ApplyState()
         {
-            Line1?.Resistor.ApplyState();
-            Line2?.Resistor.ApplyState();
-            Line3?.Resistor.ApplyState();
-            NeutralLine?.Resistor.ApplyState();
+            Line1?.Resistor?.ApplyState();
+            Line2?.Resistor?.ApplyState();
+            Line3?.Resistor?.ApplyState();
+            NeutralLine?.Resistor?.ApplyState();
         }
 
         public void Clear()
@@ -276,10 +280,11 @@ namespace Hardwired.Networks
         /// <exception cref="InvalidOperationException"></exception>
         public RefCounted<MNASolver.Unknown>? GetNode(Connection connection, ConductorType conductorType)
         {
-            // TODO: Allow actually simulating the neutral line, instead of always returning null
-            if (conductorType == ConductorType.Neutral)
+            // If getting the "neutral" line, but no neutral line has actually been set,
+            // return the "common node"
+            if (conductorType == ConductorType.Neutral && NeutralLine == null)
             {
-                return null;
+                return CommonNode;
             }
 
             var conductor = GetConductor(conductorType);
@@ -300,14 +305,84 @@ namespace Hardwired.Networks
             }
         }
 
+        public RefCounted<MNASolver.Unknown>? GetOrCreateNode(Connection connection, ConductorType conductorType)
+        {
+            var node = GetNode(connection, conductorType);
+
+            // Always create non-neutral nodes if they're not already created
+            if (node == null && conductorType != ConductorType.Neutral)
+            {
+                node = new(Circuit.Solver.AddUnknown());
+                SetNode(node, connection, conductorType);
+            }
+
+            return node;
+        }
+
+        /// <summary>
+        /// Sets the node used for the given side of the given conductor.
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="connection"></param>
+        /// <param name="conductorType"></param>
+        /// <exception cref="InvalidOperationException"></exception>
+        public void SetNode(RefCounted<MNASolver.Unknown> node, Connection connection, ConductorType conductorType)
+        {
+            // Get current node first
+            var currentNode = GetNode(connection, conductorType);
+
+            // Ignore if no change
+            if (currentNode == node)
+            {
+                return;
+            }
+
+            // Dispose current node before replacing
+            currentNode?.Dispose();
+
+            // Performance optimization - if setting the "neutral" line, but only one phase
+            // is in use, use a single "common node" rather than a pair of nodes connected by resistor.
+            // We can then double the resistance in the positive line to account for the current that would flow
+            // through the neutral line.
+            // We can't do the same generalization for 3-phase power though, since the current flowing through the neutral
+            // may be unbalanced with the three phases.
+            if (conductorType == ConductorType.Neutral && NeutralLine == null && Line2 == null && Line3 == null)
+            {
+                CommonNode = node.Clone();
+                return;
+            }
+
+            var conductor = GetConductor(conductorType);
+
+            var peer = connection.GetPeer();
+
+            if (connection == ConnectionA || peer == ConnectionA)
+            {
+                conductor.NodeA = node.Clone();
+                conductor.Resistor?.Dispose();
+                conductor.Resistor = null;
+            }
+            else if (connection == ConnectionB || peer == ConnectionB)
+            {
+                conductor.NodeB = node.Clone();
+                conductor.Resistor?.Dispose();
+                conductor.Resistor = null;
+            }
+            else
+            {
+                throw new InvalidOperationException($"The provided connection does not attach to this cable span.");
+            }
+
+        }
+
         private Conductor GetConductor(ConductorType conductorType)
         {
             return conductorType switch
             {
-                ConductorType.Line1 => Line1 ??= new(Circuit),
-                ConductorType.Line2 => Line2 ??= new(Circuit),
-                ConductorType.Line3 => Line3 ??= new(Circuit),
-                _ => NeutralLine ??= new(Circuit),
+                ConductorType.Line1 => Line1 ??= new(),
+                ConductorType.Line2 => Line2 ??= new(),
+                ConductorType.Line3 => Line3 ??= new(),
+                _ => NeutralLine ??= new(),
             };
         }
     }

@@ -76,7 +76,7 @@ namespace Hardwired.Utility
             => a?.Equals(b) ?? ReferenceEquals(b, null);
 
         public static bool operator !=(RefCounted<T>? a, RefCounted<T>? b)
-            => !a?.Equals(b) ?? b != null;
+            => !a?.Equals(b) ?? !ReferenceEquals(b, null);
 
         private sealed class Inner
         {

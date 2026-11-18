@@ -48,7 +48,7 @@ namespace Hardwired.Objects
 
             if (cableSpan.Circuit != circuit) { return null; }
 
-            return cableSpan.GetNode(connection, conductorType);
+            return cableSpan.GetOrCreateNode(connection, conductorType);
         }
 
         /// <summary>
