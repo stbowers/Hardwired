@@ -74,23 +74,25 @@ namespace Hardwired.Objects.Electrical
             }
         }
 
-        public override void AddTo(Circuit circuit)
+        private void EnsureInitialized(Circuit circuit)
         {
-            base.AddTo(circuit);
-
             var nodeA = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
             var nodeB = PowerOutput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
-            
-            if (_switch?.NodeA != nodeA || _switch?.NodeB != nodeB)
+
+            if (_switch != null && _switch.NodeA == nodeA && _switch.NodeB == nodeB)
             {
-                _switch?.Dispose();
-                _switch = new(circuit, nodeA, nodeB);
+                return;
             }
+            
+            _switch?.Dispose();
+            _switch = new(circuit, nodeA, nodeB);
         }
 
         public override void UpdateState(Circuit circuit)
         {
             base.UpdateState(circuit);
+
+            EnsureInitialized(circuit);
 
             if (_switch != null)
             {

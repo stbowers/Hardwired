@@ -251,6 +251,11 @@ namespace Hardwired.Networks
         {
             using var _ = TimeUpdating.BeginScope();
 
+            foreach (var cable in Components.OfType<HardwiredCable>())
+            {
+                cable.UpdateSpanNodes();
+            }
+
             foreach (var cableSpan in CableSpans)
             {
                 cableSpan.UpdateState();

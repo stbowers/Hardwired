@@ -81,25 +81,29 @@ namespace Hardwired.Objects.Electrical
             }
         }
 
-        public override void AddTo(Circuit circuit)
+        private void EnsureInitialized(Circuit circuit)
         {
-            base.AddTo(circuit);
-            
-            if (_mutualInductor != null)
-            {
-                RemoveFrom(_mutualInductor.Circuit);
-            }
-
             var nodeA = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
             var nodeB = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Neutral);
             var nodeC = PowerOutput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
             var nodeD = PowerOutput?.GetNode(circuit, Networks.CableSpan.ConductorType.Neutral);
 
-            _internalPin = new(circuit.Solver.AddUnknown());
+            if (_mutualInductor != null && _switch != null
+                && _switch.NodeA == nodeA && _mutualInductor.NodeB == nodeB
+                && _mutualInductor.NodeC == nodeC && _mutualInductor.NodeD == nodeD)
+            {
+                return;
+            }
+
+            if (_mutualInductor != null)
+            {
+                RemoveFrom(_mutualInductor.Circuit);
+            }
+
+            _internalPin ??= new(circuit.Solver.AddUnknown("FixedTransformerInternalPin"));
 
             _switch = new(circuit, nodeA, _internalPin);
 
-            // Nodes B & D are shared ground
             _mutualInductor = new(circuit, _internalPin, nodeB, nodeC, nodeD);
             _mutualInductor.N = Ratio;
         }
@@ -107,6 +111,8 @@ namespace Hardwired.Objects.Electrical
         public override void UpdateState(Circuit circuit)
         {
             base.UpdateState(circuit);
+
+            EnsureInitialized(circuit);
 
             if (_switch != null)
             {

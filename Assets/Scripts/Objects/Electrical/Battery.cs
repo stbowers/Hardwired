@@ -69,27 +69,32 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Internal Resistance: {Resistance.ToStringPrefix("Ω", "yellow")}");
         }
 
-        public override void AddTo(Circuit circuit)
+        private void EnsureInitialized(Circuit circuit)
         {
-            base.AddTo(circuit);
+            var nodeA = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
+            var nodeB = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Neutral);
 
-            if (InputCircuit == circuit)
+            if (_energyBuffer != null && _energyBuffer?.NodeA == nodeA && _energyBuffer?.NodeB == nodeB)
             {
-                var nodeA = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
-                var nodeB = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Neutral);
+                return;
+            }
 
-                _energyBuffer?.Dispose();
-                _energyBuffer = new(circuit, nodeA, nodeB);
-                _energyBuffer.NortonEquivalent.Frequency = PowerProfile.Frequency;
-                _energyBuffer.VoltageMaximum = PowerProfile.VoltageNominalHigh;
-                _energyBuffer.CurrentMaximum = 20f;
-                _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Sin;
+            if (_energyBuffer != null)
+            {
+                RemoveFrom(_energyBuffer.Circuit);
+            }
 
-                if (Device is Assets.Scripts.Objects.Electrical.Battery battery)
-                {
-                    _batteries.Clear();
-                    _batteries.Add(battery);
-                }
+            _energyBuffer?.Dispose();
+            _energyBuffer = new(circuit, nodeA, nodeB);
+            _energyBuffer.NortonEquivalent.Frequency = PowerProfile.Frequency;
+            _energyBuffer.VoltageMaximum = PowerProfile.VoltageNominalHigh;
+            _energyBuffer.CurrentMaximum = 20f;
+            _energyBuffer.VoltageCurve = EnergyBuffer.VoltageCurveFunction.Sin;
+
+            if (Device is Assets.Scripts.Objects.Electrical.Battery battery)
+            {
+                _batteries.Clear();
+                _batteries.Add(battery);
             }
         }
 
@@ -99,6 +104,8 @@ namespace Hardwired.Objects.Electrical
 
             if (InputCircuit == circuit)
             {
+                EnsureInitialized(circuit);
+
                 if (Device is AreaPowerControl apc)
                 {
                     _batteries.Clear();

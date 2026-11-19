@@ -140,8 +140,8 @@ namespace Hardwired.Networks
         private void UpdateConductor(Conductor conductor)
         {
             // Ensure both nodes are allocated
-            conductor.NodeA ??= new(Circuit.Solver.AddUnknown());
-            conductor.NodeB ??= new(Circuit.Solver.AddUnknown());
+            conductor.NodeA ??= new(Circuit.Solver.AddUnknown("CableSpan::UpdateConductor"));
+            conductor.NodeB ??= new(Circuit.Solver.AddUnknown("CableSpan::UpdateConductor"));
 
             // Ensure resistor is allocated
             conductor.Resistor ??= new Resistor(Circuit, conductor.NodeA, conductor.NodeB);
@@ -178,6 +178,9 @@ namespace Hardwired.Networks
 
             NeutralLine?.Dispose();
             NeutralLine = null;
+
+            CommonNode?.Dispose();
+            CommonNode = null;
         }
 
         public void AddCable(HardwiredCable cable, Connection connectionA, Connection connectionB)
@@ -312,7 +315,7 @@ namespace Hardwired.Networks
             // Always create non-neutral nodes if they're not already created
             if (node == null && conductorType != ConductorType.Neutral)
             {
-                node = new(Circuit.Solver.AddUnknown());
+                node = new(Circuit.Solver.AddUnknown("CableSpan::GetOrCreateNode"));
                 SetNode(node, connection, conductorType);
             }
 

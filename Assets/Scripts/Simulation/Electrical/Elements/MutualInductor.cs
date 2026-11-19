@@ -13,7 +13,7 @@ namespace Hardwired.Simulation.Electrical.Elements
     /// Note - this transformer only works for AC. It might be worth replacing with an "ideal transformer" eventually, which also works for DC.
     /// The main difference between a mutual inductor and ideal transformer in MNA would usually just be for transient/waveform analysis, which we're not really doing...
     /// </summary>
-    public class MutualInductor : CircuitElementBase
+    public class MutualInductor : CircuitElementBase, ICircuitElement
     {
         private MNASolver.Unknown? _i1;
         private MNASolver.Unknown? _i2;
@@ -197,5 +197,7 @@ namespace Hardwired.Simulation.Electrical.Elements
             _appliedN = null;
             _appliedFrequency = null;
         }
+
+        string ICircuitElement.DebugInfo() => $"A: {NodeA?.Value.Index ?? -1}, B: {NodeB?.Value.Index ?? -1}, C: {NodeC?.Value.Index ?? -1}, D: {NodeD?.Value.Index ?? -1}";
     }
 }

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using Assets.Scripts.Atmospherics;
+using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Util;
@@ -73,6 +74,10 @@ namespace Hardwired.Objects.Electrical
 
         public bool IsJunction => _isJunction ??= Cable?.OpenEnds.Count > 2;
 
+        public override CableNetwork? InputCableNetwork => Cable?.CableNetwork;
+
+        public override CableNetwork? OutputCableNetwork => Cable?.CableNetwork;
+
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
             base.BuildPassiveToolTip(stringBuilder);
@@ -104,12 +109,12 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")} | I_max: {MaximumCurrentRating.ToStringPrefix("A", "yellow")}");
             stringBuilder.AppendLine($"Vg: {MaximumVoltage.ToStringPrefix("V", "yellow")} | Vg_max: {MaximumVoltageRating.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")} | Dissapated: {PowerDissapated.ToStringPrefix("W", "yellow")}");
+
+            stringBuilder.AppendLine($"DBG: {PowerInput?.GetCableSpan()?.Id}");
         }
 
-        public override void UpdateState(Circuit circuit)
+        public void UpdateSpanNodes()
         {
-            base.UpdateState(circuit);
-
             if (IsJunction)
             {
                 RefCounted<MNASolver.Unknown>? line1Node = null;
@@ -169,10 +174,17 @@ namespace Hardwired.Objects.Electrical
                 foreach (var connection in Cable?.OpenEnds ?? Enumerable.Empty<Connection>())
                 {
                     var cableSpan = connection.GetCableSpan();
-                    PowerDissapated += cableSpan?.Line1?.Resistor?.Power.Real ?? 0;
-                    PowerDissapated += cableSpan?.Line2?.Resistor?.Power.Real ?? 0;
-                    PowerDissapated += cableSpan?.Line3?.Resistor?.Power.Real ?? 0;
-                    PowerDissapated += cableSpan?.NeutralLine?.Resistor?.Power.Real ?? 0;
+
+                    double p = 0;
+                    p += cableSpan?.Line1?.Resistor?.Power.Real ?? 0;
+                    p += cableSpan?.Line2?.Resistor?.Power.Real ?? 0;
+                    p += cableSpan?.Line3?.Resistor?.Power.Real ?? 0;
+                    p += cableSpan?.NeutralLine?.Resistor?.Power.Real ?? 0;
+
+                    // Normalize power dissapated so each individual segment only dissapates it's share of the power
+                    var r = (Resistance / cableSpan?.Resistance) ?? 1;
+                    p *= r;
+                    PowerDissapated += p;
 
                     Current = Math.Max(Current, cableSpan?.Line1?.Resistor?.Current.Magnitude ?? 0);
                     Current = Math.Max(Current, cableSpan?.Line2?.Resistor?.Current.Magnitude ?? 0);
@@ -204,7 +216,7 @@ namespace Hardwired.Objects.Electrical
 
                 // Normalize power dissapated so each individual segment only dissapates it's share of the power
                 var r = (Resistance / cableSpan?.Resistance) ?? 1;
-                PowerDissapated /= r;
+                PowerDissapated *= r;
             }
 
             // Calculate temperature change due to resistive heating
