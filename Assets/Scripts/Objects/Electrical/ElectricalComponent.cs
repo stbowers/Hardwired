@@ -38,9 +38,9 @@ namespace Hardwired.Objects.Electrical
         private Connection? _powerInput;
         private Connection? _powerOutput;
         
-        public Device? Device => _device ??= GetComponent<Device>();
+        public virtual Device? Device => _device ??= GetComponent<Device>();
 
-        public Cable? Cable => _cable ??= GetComponent<Cable>();
+        public virtual Cable? Cable => _cable ??= GetComponent<Cable>();
 
         protected List<Connection>? OpenEnds => Device?.OpenEnds ?? Cable?.OpenEnds;
 

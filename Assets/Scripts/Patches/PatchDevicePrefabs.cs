@@ -136,6 +136,12 @@ namespace Hardwired.Patches
             cableComponent.MaximumVoltageRating = voltageRating;
             cableComponent.MaximumCurrentRating = currentCapacity;
 
+            // If cable has more than 2 connections, but hasn't been given a junction type yet, make it a parallel junction by default
+            if (cable.OpenEnds.Count > 2 && cableComponent.JunctionType == JunctionType.None)
+            {
+                cableComponent.JunctionType = JunctionType.Parallel;
+            }
+
             Hardwired.LogDebug($"patched cable {cable.PrefabName} ({cable.CableType}) -- resistance: {resistance} Ohm, max current: {currentCapacity} A, max voltage: {voltageRating}, length: {lengthMultiplier}");
         }
 

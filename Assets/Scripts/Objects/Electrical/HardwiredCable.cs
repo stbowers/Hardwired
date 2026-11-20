@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -25,9 +26,12 @@ namespace Hardwired.Objects.Electrical
     /// In the circuit, this is just simulated as a simple resistor - this componenet however adds additional logic to track the temperature of the cable
     /// as power is dissipated through it via resistive heating, so we can melt cables when too much current goes through them.
     /// </summary>
-    public class HardwiredCable : ElectricalComponent
+    public partial class HardwiredCable : ElectricalComponent
     {
-        private bool? _isJunction;
+        /// <summary>
+        /// Gets the junction type
+        /// </summary>
+        public JunctionType JunctionType;
 
         public double Resistance;
 
@@ -72,11 +76,14 @@ namespace Hardwired.Objects.Electrical
 
         public double PowerDissapated { get; private set;}
 
-        public bool IsJunction => _isJunction ??= Cable?.OpenEnds.Count > 2;
+        public bool IsJunction => JunctionType != JunctionType.None;
 
         public override CableNetwork? InputCableNetwork => Cable?.CableNetwork;
 
         public override CableNetwork? OutputCableNetwork => Cable?.CableNetwork;
+
+        [NotNull]
+        public override Cable? Cable => base.Cable ?? throw new InvalidOperationException("Invalid component setup - Could not find Cable component.");
 
         public override void BuildPassiveToolTip(StringBuilder stringBuilder)
         {
@@ -113,14 +120,14 @@ namespace Hardwired.Objects.Electrical
 
         public void UpdateSpanNodes()
         {
-            if (IsJunction)
+            if (JunctionType == JunctionType.Parallel)
             {
                 RefCounted<MNASolver.Unknown>? line1Node = null;
                 RefCounted<MNASolver.Unknown>? line2Node = null;
                 RefCounted<MNASolver.Unknown>? line3Node = null;
                 RefCounted<MNASolver.Unknown>? neutralNode = null;
 
-                foreach (var connection in Cable?.OpenEnds ?? Enumerable.Empty<Connection>())
+                foreach (var connection in Cable.OpenEnds)
                 {
                     var cableSpan = connection.GetCableSpan();
                     var endpoint = new CableSpan.Endpoint(this, connection);
@@ -131,7 +138,7 @@ namespace Hardwired.Objects.Electrical
                     neutralNode ??= cableSpan?.GetNode(endpoint, CableSpan.ConductorType.Neutral);
                 }
 
-                foreach (var connection in Cable?.OpenEnds ?? Enumerable.Empty<Connection>())
+                foreach (var connection in Cable.OpenEnds)
                 {
                     var cableSpan = connection.GetCableSpan();
                     var endpoint = new CableSpan.Endpoint(this, connection);
@@ -155,6 +162,45 @@ namespace Hardwired.Objects.Electrical
                     {
                         cableSpan?.SetNode(neutralNode, endpoint, CableSpan.ConductorType.Neutral);
                     }
+                }
+            }
+            else if (JunctionType == JunctionType.Series)
+            {
+                // Input connections
+                RefCounted<MNASolver.Unknown>? firstNeutralNode = null;
+                RefCounted<MNASolver.Unknown>? lastPositiveNode = null;
+                for (int i = 0; i < Cable.OpenEnds.Count - 1; i++)
+                {
+                    var connection = Cable.OpenEnds[i];
+                    var cableSpan = connection.GetCableSpan();
+                    var endpoint = new CableSpan.Endpoint(this, connection);
+
+                    if (i == 0)
+                    {
+                        firstNeutralNode = cableSpan?.GetNode(endpoint, CableSpan.ConductorType.Neutral);
+                    }
+
+                    if (lastPositiveNode != null)
+                    {
+                        cableSpan?.SetNode(lastPositiveNode, endpoint, CableSpan.ConductorType.Neutral);
+                    }
+                    
+                    lastPositiveNode = cableSpan?.GetOrCreateNode(endpoint, CableSpan.ConductorType.Line1);
+                }
+
+                // Output connection
+                var outputConnection = Cable.OpenEnds.Last();
+                var outputCableSpan = outputConnection.GetCableSpan();
+                var outputEndpoint = new CableSpan.Endpoint(this, outputConnection);
+
+                if (firstNeutralNode != null)
+                {
+                    outputCableSpan?.SetNode(firstNeutralNode, outputEndpoint, CableSpan.ConductorType.Neutral);
+                }
+
+                if (lastPositiveNode != null)
+                {
+                    outputCableSpan?.SetNode(lastPositiveNode, outputEndpoint, CableSpan.ConductorType.Line1);
                 }
             }
         }

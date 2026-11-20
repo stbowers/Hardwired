@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 76487085909497946}
   - component: {fileID: 1819709357340550493}
+  - component: {fileID: 2072817353386289502}
   m_Layer: 0
   m_Name: StructureCableJunctionSeries
   m_TagString: Untagged
@@ -308,6 +309,24 @@ MonoBehaviour:
   ColorRed: {fileID: 8524256972958436215, guid: 3d2460e942aa430ddaabd4466944d181, type: 3}
   ColorGray: {fileID: -6185372383968874695, guid: 3d2460e942aa430ddaabd4466944d181, type: 3}
   ColorBlue: {fileID: -4292630071799449407, guid: 3d2460e942aa430ddaabd4466944d181, type: 3}
+--- !u!114 &2072817353386289502
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3143669939856674490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c1efb7834e21b3edafe88432413efec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  JunctionType: 2
+  Resistance: 0
+  SpecificHeat: 0
+  DissipationCapacity: 0
+  MaximumVoltageRating: 0
+  MaximumCurrentRating: 0
 --- !u!1001 &6844408186781479744
 PrefabInstance:
   m_ObjectHideFlags: 0

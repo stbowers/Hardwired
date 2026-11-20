@@ -361,15 +361,15 @@ namespace Hardwired.Networks
             }
         }
 
-        public RefCounted<MNASolver.Unknown>? GetOrCreateNode(Connection connection, ConductorType conductorType)
+        public RefCounted<MNASolver.Unknown>? GetOrCreateNode(Endpoint endpoint, ConductorType conductorType)
         {
-            var node = GetNode(connection, conductorType);
+            var node = GetNode(endpoint, conductorType);
 
             // Always create non-neutral nodes if they're not already created
             if (node == null && conductorType != ConductorType.Neutral)
             {
                 node = new(Circuit.Solver.AddUnknown("CableSpan::GetOrCreateNode"));
-                SetNode(node, connection, conductorType);
+                SetNode(node, endpoint, conductorType);
             }
 
             return node;

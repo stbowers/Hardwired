@@ -28,7 +28,7 @@ The overall goal is to make the electrical system in Stationeers have a similar 
 In today's world of AI slop, especially in mods, I think it's important to disclose to what extent AI was used in this project.
 I personally am very against "generative AI" for things like art, or even code (when used to generate whole modules or projects).
 However I think the line is less clear when it comes to using AI as an assistive tool, especially for code development.
-While I recognize AI is a useful tool for some developers, I don't use it extensively because for me personally Hardwired is a passion project, so I want to fully understand the code I'm writing.
+While I recognize AI is a useful tool for some developers, I don't use it extensively because for me personally Hardwired is a passion project - I *enjoy* the process of programming, and I want to fully understand the code I'm writing.
 That being said however, AI is also rapidly changing the software development field, and I have used it a few times on this project, mostly out of curiosity to keep up with changes in AI development.
 
 With that being said, here is how AI was used for Hardwired:
