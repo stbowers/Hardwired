@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModRepo>
+  <!-- List all available versions of mods. Digest is optional -->
+  <ModVersion
+    ModID="hardwired"
+    Version="0.1.0"
+    Name="Hardwired"
+    Author="cat_criminal"
+    Url="https://github.com/stbowers/Hardwired/releases/download/v0.1.0/Hardwired.zip"
+    Digest="sha256:fb1c8091a0b490c2d547ecb1193af1a9202a89dc762a63fb69f5fa9970d8d2bb"
+  />
+</ModRepo>
