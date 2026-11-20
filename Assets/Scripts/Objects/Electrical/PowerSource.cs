@@ -92,8 +92,6 @@ namespace Hardwired.Objects.Electrical
                 return;
             }
 
-            Hardwired.LogDebug($"PowerSource - Re-initializing ({_nortonEquivalent?.Circuit.Id}, {_nortonEquivalent?.NodeA?.Value.Index}, {_nortonEquivalent?.NodeB?.Value.Index}) => ({circuit.Id}, {nodeA?.Value.Index}, {nodeB?.Value.Index})");
-
             if (_nortonEquivalent != null)
             {
                 RemoveFrom(_nortonEquivalent.Circuit);

@@ -86,8 +86,6 @@ namespace Hardwired.Objects.Electrical
                 return;
             }
 
-            Hardwired.LogDebug($"PowerSink({GetHashCode()}) - Re-initializing ({_powerSource?.Circuit.Id}, {_powerSource?.NodeA?.Value.Index}, {_powerSource?.NodeB?.Value.Index}) -> ({circuit.Id}, {nodeA?.Value.Index}, {nodeB?.Value.Index})");
-
             if (_powerSource != null)
             {
                 RemoveFrom(_powerSource.Circuit);

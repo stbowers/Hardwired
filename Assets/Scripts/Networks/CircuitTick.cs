@@ -174,9 +174,10 @@ namespace Hardwired.Networks
                     foreach (var connection in baseGameCable.OpenEnds)
                     {
                         var span = TryGetConnectedSpan(connection);
+                        var endpoint = new CableSpan.Endpoint(cable, connection);
 
                         span ??= CreateCableSpan();
-                        span.AddCable(cable, connection, cable);
+                        span.AddCable(cable, connection, endpoint);
                     }
                 }
                 else

@@ -70,6 +70,19 @@ namespace Hardwired.Networks
             }
         }
 
+        /// <summary>
+        /// Represents an endpoint of a cable span.
+        /// Can either be a single connection, representing a endpoint of a straight section of cable,
+        /// or a HardwiredCable and Connection pair, representing that endpoint connecting to a junction.
+        /// 
+        /// Keeping a reference to the actual junction cable in the case of a junction endpoint
+        /// allows us to differentiate from the "open" end of a junction and the actual "internal" end
+        /// of the junction in the case of a span containing only a junction.
+        /// 
+        /// Keeping a reference to the connection for junction endpoints is also required, in order to
+        /// differentiate the ends of a cable span that looped back on itself, connecting to a junction in
+        /// two or more places.
+        /// </summary>
         public class Endpoint
         {
             public Connection? Connection { get; }
@@ -81,8 +94,9 @@ namespace Hardwired.Networks
                 Connection = connection;
             }
 
-            public Endpoint(HardwiredCable junction)
+            public Endpoint(HardwiredCable junction, Connection connection)
             {
+                Connection = connection;
                 Junction = junction;
             }
 
@@ -99,9 +113,6 @@ namespace Hardwired.Networks
 
             [return: NotNullIfNotNull("connection")]
             public static implicit operator Endpoint?(Connection? connection) => connection != null ? new(connection) : null;
-
-            [return: NotNullIfNotNull("junction")]
-            public static implicit operator Endpoint?(HardwiredCable? junction) => junction != null ? new(junction) : null;
 
             public static bool operator ==(Endpoint? a, Endpoint? b)
                 => a?.Equals(b) ?? ReferenceEquals(b, null);
