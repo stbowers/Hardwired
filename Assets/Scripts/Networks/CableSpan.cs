@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using Assets.Scripts.Objects;
@@ -69,6 +70,47 @@ namespace Hardwired.Networks
             }
         }
 
+        public class Endpoint
+        {
+            public Connection? Connection { get; }
+
+            public HardwiredCable? Junction { get; }
+
+            public Endpoint(Connection connection)
+            {
+                Connection = connection;
+            }
+
+            public Endpoint(HardwiredCable junction)
+            {
+                Junction = junction;
+            }
+
+            public override string ToString()
+                => Connection != null ? $"Connection({Connection.GetHashCode()})" : $"Junction({Junction?.GetHashCode()})";
+
+            public override bool Equals(object? obj)
+                => obj is Endpoint other
+                && Connection == other.Connection
+                && Junction == other.Junction;
+
+            public override int GetHashCode()
+                => HashCode.Combine(Connection?.GetHashCode(), Junction?.GetHashCode());
+
+            [return: NotNullIfNotNull("connection")]
+            public static implicit operator Endpoint?(Connection? connection) => connection != null ? new(connection) : null;
+
+            [return: NotNullIfNotNull("junction")]
+            public static implicit operator Endpoint?(HardwiredCable? junction) => junction != null ? new(junction) : null;
+
+            public static bool operator ==(Endpoint? a, Endpoint? b)
+                => a?.Equals(b) ?? ReferenceEquals(b, null);
+
+            public static bool operator !=(Endpoint? a, Endpoint? b)
+                => !a?.Equals(b) ?? !ReferenceEquals(b, null);
+        }
+
+
         private List<HardwiredCable> _cables = new();
         private static int _nextId;
 
@@ -95,7 +137,7 @@ namespace Hardwired.Networks
         /// This connection may either be the termination of a straight section of cable, potentially attaching to a device, or
         /// the endpoint of a cable junction attached to the end of this span.
         /// </summary>
-        public Connection? ConnectionA { get; private set; }
+        public Endpoint? EndpointA { get; private set; }
 
         /// <summary>
         /// Gets the connection that represents "side B" of this span, or null if not yet initialized.
@@ -103,7 +145,7 @@ namespace Hardwired.Networks
         /// This connection may either be the termination of a straight section of cable, potentially attaching to a device, or
         /// the endpoint of a cable junction attached to the end of this span.
         /// </summary>
-        public Connection? ConnectionB { get; private set; }
+        public Endpoint? EndpointB { get; private set; }
 
         public Circuit Circuit { get; private set; }
 
@@ -162,8 +204,8 @@ namespace Hardwired.Networks
         public void Clear()
         {
             _cables.Clear();
-            ConnectionA = null;
-            ConnectionB = null;
+            EndpointA = null;
+            EndpointB = null;
             Resistance = 0;
 
             // Clean up conductors
@@ -183,13 +225,13 @@ namespace Hardwired.Networks
             CommonNode = null;
         }
 
-        public void AddCable(HardwiredCable cable, Connection connectionA, Connection connectionB)
+        public void AddCable(HardwiredCable cable, Endpoint endpointA, Endpoint endpointB)
         {
             _cables.Add(cable);
 
             Resistance += cable.Resistance;
 
-            UpdateConnections(connectionA, connectionB);
+            UpdateEndpoints(endpointA, endpointB);
         }
 
         public void AddSpan(CableSpan other)
@@ -221,9 +263,9 @@ namespace Hardwired.Networks
             }
 
             // Update the endpoints of this span given the endpoints of the other span
-            if (other.ConnectionA != null && other.ConnectionB != null)
+            if (other.EndpointA != null && other.EndpointB != null)
             {
-                UpdateConnections(other.ConnectionA, other.ConnectionB);
+                UpdateEndpoints(other.EndpointA, other.EndpointB);
             }
         }
 
@@ -234,40 +276,40 @@ namespace Hardwired.Networks
         /// </summary>
         /// <param name="a"></param>
         /// <param name="b"></param>
-        private void UpdateConnections(Connection a, Connection b)
+        private void UpdateEndpoints(Endpoint a, Endpoint b)
         {
-            a.SetCableSpan(this);
-            b.SetCableSpan(this);
+            a.Connection?.SetCableSpan(this);
+            b.Connection?.SetCableSpan(this);
 
             // If endpoints are uninitialized, set them to the endpoints of this section
-            if (ConnectionA == null || ConnectionB == null)
+            if (EndpointA == null || EndpointB == null)
             {
-                ConnectionA = a;
-                ConnectionB = b;
+                EndpointA = a;
+                EndpointB = b;
                 return;
             }
 
             // Otherwise, determine if either 'a' or 'b' match either existing endpoint of this span,
             // and if so update that endpoint to the opposite of whichever one matched.
 
-            var peerA = a.GetPeer();
-            var peerB = b.GetPeer();
+            var peerA = a.Connection?.GetPeer();
+            var peerB = b.Connection?.GetPeer();
 
-            if (ConnectionA == peerA)
+            if (EndpointA == peerA)
             {
-                ConnectionA = b;
+                EndpointA = b;
             }
-            else if (ConnectionA == peerB)
+            else if (EndpointA == peerB)
             {
-                ConnectionA = a;
+                EndpointA = a;
             }
-            else if (ConnectionB == peerA)
+            else if (EndpointB == peerA)
             {
-                ConnectionB = b;
+                EndpointB = b;
             }
-            else if (ConnectionB == peerB)
+            else if (EndpointB == peerB)
             {
-                ConnectionB = a;
+                EndpointB = a;
             }
         }
 
@@ -281,7 +323,7 @@ namespace Hardwired.Networks
         /// <param name="conductorType"></param>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException"></exception>
-        public RefCounted<MNASolver.Unknown>? GetNode(Connection connection, ConductorType conductorType)
+        public RefCounted<MNASolver.Unknown>? GetNode(Endpoint endpoint, ConductorType conductorType)
         {
             // If getting the "neutral" line, but no neutral line has actually been set,
             // return the "common node"
@@ -292,19 +334,19 @@ namespace Hardwired.Networks
 
             var conductor = GetConductor(conductorType);
 
-            var peer = connection.GetPeer();
+            var peer = endpoint.Connection?.GetPeer();
 
-            if (connection == ConnectionA || peer == ConnectionA)
+            if (endpoint == EndpointA || peer == EndpointA)
             {
                 return conductor.NodeA;
             }
-            else if (connection == ConnectionB || peer == ConnectionB)
+            else if (endpoint == EndpointB || peer == EndpointB)
             {
                 return conductor.NodeB;
             }
             else
             {
-                throw new InvalidOperationException($"The provided connection does not attach to this cable span.");
+                throw new InvalidOperationException($"The provided connection does not attach to this cable span. ({Circuit.Id}, {endpoint})");
             }
         }
 
@@ -329,10 +371,10 @@ namespace Hardwired.Networks
         /// <param name="connection"></param>
         /// <param name="conductorType"></param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void SetNode(RefCounted<MNASolver.Unknown> node, Connection connection, ConductorType conductorType)
+        public void SetNode(RefCounted<MNASolver.Unknown> node, Endpoint endpoint, ConductorType conductorType)
         {
             // Get current node first
-            var currentNode = GetNode(connection, conductorType);
+            var currentNode = GetNode(endpoint, conductorType);
 
             // Ignore if no change
             if (currentNode == node)
@@ -357,15 +399,15 @@ namespace Hardwired.Networks
 
             var conductor = GetConductor(conductorType);
 
-            var peer = connection.GetPeer();
+            var peer = endpoint.Connection?.GetPeer();
 
-            if (connection == ConnectionA || peer == ConnectionA)
+            if (endpoint == EndpointA || peer == EndpointA)
             {
                 conductor.NodeA = node.Clone();
                 conductor.Resistor?.Dispose();
                 conductor.Resistor = null;
             }
-            else if (connection == ConnectionB || peer == ConnectionB)
+            else if (endpoint == EndpointB || peer == EndpointB)
             {
                 conductor.NodeB = node.Clone();
                 conductor.Resistor?.Dispose();
@@ -373,7 +415,7 @@ namespace Hardwired.Networks
             }
             else
             {
-                throw new InvalidOperationException($"The provided connection does not attach to this cable span.");
+                throw new InvalidOperationException($"The provided connection does not attach to this cable span. ({Circuit.Id}, {endpoint})");
             }
 
         }

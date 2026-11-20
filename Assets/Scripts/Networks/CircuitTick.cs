@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Numerics;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
@@ -168,7 +169,17 @@ namespace Hardwired.Networks
             // Add cables to cable spans
             if (component is HardwiredCable cable && cable.Cable is Cable baseGameCable)
             {
-                if (baseGameCable.OpenEnds.Count == 2)
+                if (cable.IsJunction)
+                {
+                    foreach (var connection in baseGameCable.OpenEnds)
+                    {
+                        var span = TryGetConnectedSpan(connection);
+
+                        span ??= CreateCableSpan();
+                        span.AddCable(cable, connection, cable);
+                    }
+                }
+                else
                 {
                     var connectionA = baseGameCable.OpenEnds[0];
                     var connectionB = baseGameCable.OpenEnds[1];
@@ -184,16 +195,6 @@ namespace Hardwired.Networks
                     if (span2 != null)
                     {
                         MergeCableSpans(span1, span2);
-                    }
-                }
-                else
-                {
-                    foreach (var connection in baseGameCable.OpenEnds)
-                    {
-                        var span = TryGetConnectedSpan(connection);
-
-                        span ??= CreateCableSpan();
-                        span.AddCable(cable, connection, connection);
                     }
                 }
             }
@@ -220,7 +221,7 @@ namespace Hardwired.Networks
         {
             var peerConnection = connection.GetPeer();
             return CableSpans.FirstOrDefault(
-                span => span.ConnectionA == peerConnection || span.ConnectionB == peerConnection
+                span => span.EndpointA == peerConnection || span.EndpointB == peerConnection
             );
         }
 

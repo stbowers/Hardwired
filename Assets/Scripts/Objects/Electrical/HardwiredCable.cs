@@ -110,7 +110,9 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Vg: {MaximumVoltage.ToStringPrefix("V", "yellow")} | Vg_max: {MaximumVoltageRating.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")} | Dissapated: {PowerDissapated.ToStringPrefix("W", "yellow")}");
 
-            stringBuilder.AppendLine($"DBG: {PowerInput?.GetCableSpan()?.Id}");
+            stringBuilder.AppendLine($"GetHashCode(): {GetHashCode()}");
+            string dbg = string.Join(", ", Cable?.OpenEnds?.Select(c => $"{c.GetCableSpan()?.Id} ({c.GetCableSpan()?.EndpointA}, {c.GetCableSpan()?.EndpointB})"));
+            stringBuilder.AppendLine($"DBG: [{dbg}]");
         }
 
         public void UpdateSpanNodes()
@@ -126,10 +128,10 @@ namespace Hardwired.Objects.Electrical
                 {
                     var cableSpan = connection.GetCableSpan();
 
-                    line1Node ??= cableSpan?.GetNode(connection, CableSpan.ConductorType.Line1);
-                    line2Node ??= cableSpan?.GetNode(connection, CableSpan.ConductorType.Line2);
-                    line3Node ??= cableSpan?.GetNode(connection, CableSpan.ConductorType.Line3);
-                    neutralNode ??= cableSpan?.GetNode(connection, CableSpan.ConductorType.Neutral);
+                    line1Node ??= cableSpan?.GetNode(this, CableSpan.ConductorType.Line1);
+                    line2Node ??= cableSpan?.GetNode(this, CableSpan.ConductorType.Line2);
+                    line3Node ??= cableSpan?.GetNode(this, CableSpan.ConductorType.Line3);
+                    neutralNode ??= cableSpan?.GetNode(this, CableSpan.ConductorType.Neutral);
                 }
 
                 foreach (var connection in Cable?.OpenEnds ?? Enumerable.Empty<Connection>())
@@ -138,22 +140,22 @@ namespace Hardwired.Objects.Electrical
 
                     if (line1Node != null)
                     {
-                        cableSpan?.SetNode(line1Node, connection, CableSpan.ConductorType.Line1);
+                        cableSpan?.SetNode(line1Node, this, CableSpan.ConductorType.Line1);
                     }
 
                     if (line2Node != null)
                     {
-                        cableSpan?.SetNode(line2Node, connection, CableSpan.ConductorType.Line2);
+                        cableSpan?.SetNode(line2Node, this, CableSpan.ConductorType.Line2);
                     }
 
                     if (line3Node != null)
                     {
-                        cableSpan?.SetNode(line3Node, connection, CableSpan.ConductorType.Line3);
+                        cableSpan?.SetNode(line3Node, this, CableSpan.ConductorType.Line3);
                     }
 
                     if (neutralNode != null)
                     {
-                        cableSpan?.SetNode(neutralNode, connection, CableSpan.ConductorType.Neutral);
+                        cableSpan?.SetNode(neutralNode, this, CableSpan.ConductorType.Neutral);
                     }
                 }
             }
