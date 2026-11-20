@@ -50,6 +50,7 @@ namespace Hardwired.Patches
                     new(PowerProfile.DefaultGrid) { Efficiency = 0.98, VoltageMinimum = 0 },
                     // Direct connect to generators (lower efficiency)
                     new(PowerProfile.DefaultGenerator) { Efficiency = 0.85, VoltageMinimum = 0 },
+                    new(PowerProfile.DefaultSolar) { Efficiency = 0.85, VoltageMinimum = 0 },
                 };
 
                 // APC outputs power using the default grid profile
@@ -167,6 +168,15 @@ namespace Hardwired.Patches
             else if (device.TryGetComponent<ElectricalComponent>(out _))
             {
             }
+            // Solar panels
+            else if (device.PrefabName.Contains("SolarPanel") && TryGetPowerOutput(device, out powerOutput))
+            {
+                var powerSource = device.GetOrAddComponent<PowerSource>();
+
+                powerSource.PowerProfile = PowerProfile.DefaultSolar;
+
+                Hardwired.LogDebug($"patching device {device.PrefabName} -- Solar panel");
+            }
             // Generic power input/output (batteries, APC, etc)
             else if (TryGetPowerInput(device, out powerInput) && TryGetPowerOutput(device, out powerOutput) && powerInput != powerOutput)
             {
@@ -186,7 +196,7 @@ namespace Hardwired.Patches
             {
                 device.GetOrAddComponent<PowerSource>();
 
-                Hardwired.LogDebug($"patching device {device.PrefabName} -- Generic power source, P_nom: 500 W");
+                Hardwired.LogDebug($"patching device {device.PrefabName} -- Generic power source");
             }
             else
             {

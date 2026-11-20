@@ -24,6 +24,8 @@ namespace Hardwired.Objects.Electrical
         /// </summary>
         public static readonly PowerProfile DefaultGenerator = new() { Frequency = 0, VoltageMaximum = 550, VoltageNominalHigh = 500, VoltageNominalLow = 450 };
 
+        public static readonly PowerProfile DefaultSolar = new() { Frequency = 0, VoltageMaximum = 50, VoltageNominalHigh = 50, VoltageNominalLow = 25 };
+
         /// <summary>
         /// The efficiency of this power profile.
         /// Power used will be multiplied by this value before being sent to the device.
