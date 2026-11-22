@@ -129,9 +129,28 @@ namespace Hardwired.Objects.Electrical
                         var connectionA = Cable.OpenEnds[i];
                         var connectionB = Cable.OpenEnds[j];
 
-                        DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Line1, connectionB, CableSpan.ConductorType.Line1);
-                        DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Line2, connectionB, CableSpan.ConductorType.Line2);
-                        DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Line3, connectionB, CableSpan.ConductorType.Line3);
+                        var cableSpan = connectionA.GetCableSpan();
+                        var endpoint = new CableSpan.Endpoint(this, connectionA);
+
+                        var line1Node = cableSpan?.GetNode(endpoint, CableSpan.ConductorType.Line1);
+                        var line2Node = cableSpan?.GetNode(endpoint, CableSpan.ConductorType.Line2);
+                        var line3Node = cableSpan?.GetNode(endpoint, CableSpan.ConductorType.Line3);
+
+                        if (line1Node != null)
+                        {
+                            DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Line1, connectionB, CableSpan.ConductorType.Line1);
+                        }
+
+                        if (line2Node != null)
+                        {
+                            DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Line2, connectionB, CableSpan.ConductorType.Line2);
+                        }
+
+                        if (line3Node != null)
+                        {
+                            DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Line3, connectionB, CableSpan.ConductorType.Line3);
+                        }
+
                         DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Neutral, connectionB, CableSpan.ConductorType.Neutral);
                     }
                 }

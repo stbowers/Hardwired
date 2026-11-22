@@ -352,17 +352,17 @@ namespace Hardwired.Networks
                 return CommonNode;
             }
 
-            var conductor = GetOrCreateConductor(conductorType);
+            var conductor = GetConductor(conductorType);
 
             var peer = endpoint.Connection?.GetPeer();
 
             if (endpoint == EndpointA || peer == EndpointA)
             {
-                return conductor.NodeA;
+                return conductor?.NodeA;
             }
             else if (endpoint == EndpointB || peer == EndpointB)
             {
-                return conductor.NodeB;
+                return conductor?.NodeB;
             }
             else
             {
@@ -511,10 +511,11 @@ namespace Hardwired.Networks
 
         private void DrawLineDebugOverlay(ConductorType conductorType, StringBuilder debugText)
         {
+            var conductor = GetConductor(conductorType);
             Vector3? posA = EndpointA?.Connection?.Transform.position;
             Vector3? posB = EndpointB?.Connection?.Transform.position;
 
-            if (posA != null && posB != null)
+            if ((conductor != null || conductorType == ConductorType.Neutral) && posA != null && posB != null)
             {
                 Vector3 shift = GetLineDebugRenderOffset(conductorType);
 
@@ -525,7 +526,6 @@ namespace Hardwired.Networks
                 ImGuiExtensions.Rendering.DrawClippedLine(screenA, screenB);
             }
 
-            var conductor = GetConductor(conductorType);
             if (conductor != null)
             {
                 debugText.AppendLine($"{conductorType} Nodes: [{conductor.NodeA?.Value.Index ?? -1}, {conductor.NodeB?.Value.Index ?? -1}]");
