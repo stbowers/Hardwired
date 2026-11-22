@@ -492,8 +492,8 @@ namespace Hardwired.Networks
 
         public void DrawDebugOverlay()
         {
-            Vector3? posA = EndpointA?.Connection?.Transform.position;
-            Vector3? posB = EndpointB?.Connection?.Transform.position;
+            Vector3? posA = EndpointA?.Connection?.GetConnectionMidpoint();
+            Vector3? posB = EndpointB?.Connection?.GetConnectionMidpoint();
             
             if (posA != null && posB != null)
             {
@@ -518,14 +518,15 @@ namespace Hardwired.Networks
         private void DrawLineDebugOverlay(ConductorType conductorType, StringBuilder debugText)
         {
             var conductor = GetConductor(conductorType);
-            Vector3? posA = EndpointA?.Connection?.Transform.position;
-            Vector3? posB = EndpointB?.Connection?.Transform.position;
+            Vector3? posA = EndpointA?.Connection?.GetConnectionMidpoint();
+            Vector3? posB = EndpointB?.Connection?.GetConnectionMidpoint();
 
             if ((conductor != null || conductorType == ConductorType.Neutral) && posA != null && posB != null)
             {
                 Vector3 shift = GetLineDebugRenderOffset(conductorType);
 
                 ImGuiExtensions.Rendering.RenderingColor = GetLineDebugRenderColor(conductorType);
+                ImGuiExtensions.Rendering.LineThickness = 2f;
 
                 Vector3 screenA = ImGuiExtensions.WorldToScreen(posA.Value + shift);
                 Vector3 screenB = ImGuiExtensions.WorldToScreen(posB.Value + shift);

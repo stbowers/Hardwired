@@ -178,13 +178,14 @@ namespace Hardwired.Objects.Electrical
 
         private void DrawLineDebugOverlay(Connection a, CableSpan.ConductorType aType, Connection b, CableSpan.ConductorType bType)
         {
-            Vector3 posA = a.Transform.position;
-            Vector3 posB = b.Transform.position;
+            Vector3 posA = a.GetConnectionMidpoint();
+            Vector3 posB = b.GetConnectionMidpoint();
 
             Vector3 shiftA = CableSpan.GetLineDebugRenderOffset(aType);
             Vector3 shiftB = CableSpan.GetLineDebugRenderOffset(bType);
 
             ImGuiExtensions.Rendering.RenderingColor = CableSpan.GetLineDebugRenderColor(aType);
+            ImGuiExtensions.Rendering.LineThickness = 2f;
 
             Vector3 screenA = ImGuiExtensions.WorldToScreen(posA + shiftA);
             Vector3 screenB = ImGuiExtensions.WorldToScreen(posB + shiftB);

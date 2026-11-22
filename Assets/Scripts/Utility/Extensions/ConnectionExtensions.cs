@@ -16,6 +16,7 @@ using Hardwired.Networks;
 using Hardwired.Objects.Electrical;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Utility;
+using UnityEngine;
 using UnityEngine.Assertions;
 
 namespace Hardwired.Objects
@@ -86,6 +87,20 @@ namespace Hardwired.Objects
             var peerIndex = peerStructure?.OpenEnds.FindIndex(c => c.LocalGrid == connection?.FacingGrid);
 
             return peerIndex ?? -1;
+        }
+
+        /// <summary>
+        /// Gets the exact center between the two grid points this connection represents.
+        /// Both this connection and it's peer should return the exact same point, which is mainly useful for custom debug overlays where
+        /// we want both sides of a connection to draw something at the same point.
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <returns></returns>
+        public static Vector3 GetConnectionMidpoint(this Connection connection)
+        {
+            Vector3 localGrid = connection.LocalGrid.ToVector3();
+            Vector3 facingGrid = connection.FacingGrid.ToVector3();
+            return (localGrid + facingGrid) / 2f;
         }
     }
 }

@@ -9,12 +9,15 @@ using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
+using Assets.Scripts.UI.ImGuiUi;
 using Assets.Scripts.Util;
 using Hardwired.Networks;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Utility;
 using Hardwired.Utility.Extensions;
+using Objects.Rockets;
 using TerrainSystem;
+using UI.ImGuiUi;
 using UnityEngine;
 
 namespace Hardwired.Objects.Electrical
@@ -102,7 +105,37 @@ namespace Hardwired.Objects.Electrical
         }
 
         public virtual void DrawDebugOverlay()
-        { }
+        {
+            // Default debug overlay for devices, render connections as boxes for each wire
+            if (Device != null && Device.OpenEnds.Count > 0)
+            {
+                foreach (var connection in Device.OpenEnds)
+                {
+                    if (connection.ConnectionType.HasFlag(NetworkType.Power))
+                    {
+                        DrawConnectionDebugOverlay(connection);
+                    }
+                }
+            }
+        }
+
+        private void DrawConnectionDebugOverlay(Connection a)
+        {
+            Vector3 posA = a.GetConnectionMidpoint();
+
+            Vector3 shiftNeutral = CableSpan.GetLineDebugRenderOffset(CableSpan.ConductorType.Neutral);
+            Vector3 shiftLine1 = CableSpan.GetLineDebugRenderOffset(CableSpan.ConductorType.Line1);
+
+            ImGuiExtensions.Rendering.RenderingColor = CableSpan.GetLineDebugRenderColor(CableSpan.ConductorType.Neutral);
+            ImGuiExtensions.Rendering.LineThickness = 2f;
+
+            ImGuiExtensions.Rendering.DrawCube(posA + shiftNeutral, new Vector3(0.08f, 0.08f, 0.08f));
+
+            ImGuiExtensions.Rendering.RenderingColor = CableSpan.GetLineDebugRenderColor(CableSpan.ConductorType.Line1);
+            ImGuiExtensions.Rendering.LineThickness = 2f;
+
+            ImGuiExtensions.Rendering.DrawCube(posA + shiftLine1, new Vector3(0.08f, 0.08f, 0.08f));
+        }
 
         public virtual string DebugInfo()
         {
