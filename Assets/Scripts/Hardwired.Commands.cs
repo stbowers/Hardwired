@@ -3,8 +3,10 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Assets.Scripts.UI.ImGuiUi;
 using Hardwired.Simulation.Electrical;
 using RootMotion;
+using UnityEngine.Assertions.Must;
 using Util.Commands;
 
 namespace Hardwired
@@ -14,6 +16,23 @@ namespace Hardwired
         private static void RegisterCommands()
         {
             CommandLine.AddCommand("hardwired-print-debug", new PrintDebugInfoCommand());
+            CommandLine.AddCommand("hardwired-debug-overlay", new DebugOverlayCommand());
+        }
+
+        private class DebugOverlayCommand : CommandBase
+        {
+            public override string HelpText => "Toggles a debug overlay showing circuits, component IDs, cable spans, etc.";
+
+            public override string[] Arguments => Array.Empty<string>();
+
+            public override bool IsLaunchCmd => false;
+
+            public override string Execute(string[] args)
+            {
+                Hardwired.RenderDebugOverlay = !Hardwired.RenderDebugOverlay;
+
+                return string.Empty;
+            }
         }
 
         private class PrintDebugInfoCommand : CommandBase

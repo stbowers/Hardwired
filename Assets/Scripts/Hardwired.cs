@@ -17,6 +17,8 @@ namespace Hardwired
         public static readonly Mod MOD = new("Hardwired", "0.1.0");
         public static readonly Harmony HARMONY = new("Hardwired");
 
+        public static bool RenderDebugOverlay = false;
+
         public void OnLoaded(List<GameObject> prefabs)
         {
             LogDebug("Applying patches");

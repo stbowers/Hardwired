@@ -4,12 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Numerics;
 using System.Text;
 using Assets.Scripts.Atmospherics;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
+using Assets.Scripts.UI.ImGuiUi;
 using Assets.Scripts.Util;
 using Hardwired.Networks;
 using Hardwired.Simulation.Electrical;
@@ -116,6 +116,60 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"Current: {Current.ToStringPrefix("A", "yellow")} | I_max: {MaximumCurrentRating.ToStringPrefix("A", "yellow")}");
             stringBuilder.AppendLine($"Vg: {MaximumVoltage.ToStringPrefix("V", "yellow")} | Vg_max: {MaximumVoltageRating.ToStringPrefix("V", "yellow")}");
             stringBuilder.AppendLine($"Temperature: {tCelsius.ToStringPrefix("°C", "yellow")} | Dissapated: {PowerDissapated.ToStringPrefix("W", "yellow")}");
+        }
+
+        public override void DrawDebugOverlay()
+        {
+            if (JunctionType == JunctionType.Parallel)
+            {
+                for (int i = 0; i < Cable.OpenEnds.Count; i++)
+                {
+                    for (int j = i; j < Cable.OpenEnds.Count; j++)
+                    {
+                        var connectionA = Cable.OpenEnds[i];
+                        var connectionB = Cable.OpenEnds[j];
+
+                        DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Line1, connectionB, CableSpan.ConductorType.Line1);
+                        DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Line2, connectionB, CableSpan.ConductorType.Line2);
+                        DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Line3, connectionB, CableSpan.ConductorType.Line3);
+                        DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Neutral, connectionB, CableSpan.ConductorType.Neutral);
+                    }
+                }
+            }
+            else if (JunctionType == JunctionType.Series)
+            {
+                // Inputs
+                for (int i = 1; i < Cable.OpenEnds.Count - 1; i++)
+                {
+                    var connectionA = Cable.OpenEnds[i - 1];
+                    var connectionB = Cable.OpenEnds[i];
+
+                    DrawLineDebugOverlay(connectionA, CableSpan.ConductorType.Line1, connectionB, CableSpan.ConductorType.Neutral);
+                }
+                
+                // Output
+                var firstInput = Cable.OpenEnds[0];
+                var lastInput = Cable.OpenEnds[Cable.OpenEnds.Count - 2];
+                var output = Cable.OpenEnds[Cable.OpenEnds.Count - 1];
+
+                DrawLineDebugOverlay(firstInput, CableSpan.ConductorType.Neutral, output, CableSpan.ConductorType.Neutral);
+                DrawLineDebugOverlay(lastInput, CableSpan.ConductorType.Line1, output, CableSpan.ConductorType.Line1);
+            }
+        }
+
+        private void DrawLineDebugOverlay(Connection a, CableSpan.ConductorType aType, Connection b, CableSpan.ConductorType bType)
+        {
+            Vector3 posA = a.Transform.position;
+            Vector3 posB = b.Transform.position;
+
+            Vector3 shiftA = CableSpan.GetLineDebugRenderOffset(aType);
+            Vector3 shiftB = CableSpan.GetLineDebugRenderOffset(bType);
+
+            ImGuiExtensions.Rendering.RenderingColor = CableSpan.GetLineDebugRenderColor(aType);
+
+            Vector3 screenA = ImGuiExtensions.WorldToScreen(posA + shiftA);
+            Vector3 screenB = ImGuiExtensions.WorldToScreen(posB + shiftB);
+            ImGuiExtensions.Rendering.DrawClippedLine(screenA, screenB);
         }
 
         public void UpdateSpanNodes()

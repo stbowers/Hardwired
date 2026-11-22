@@ -328,5 +328,18 @@ namespace Hardwired.Networks
             TimeApplying.Reset();
             TimeProcessingTick.Reset();
         }
+
+        public void DrawDebugOverlay()
+        {
+            foreach (var cableSpan in CableSpans)
+            {
+                cableSpan.DrawDebugOverlay();
+            }
+
+            foreach (var component in Components)
+            {
+                component.DrawDebugOverlay();
+            }
+        }
     }
 }

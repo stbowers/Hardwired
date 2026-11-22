@@ -101,6 +101,9 @@ namespace Hardwired.Objects.Electrical
             stringBuilder.AppendLine($"]");
         }
 
+        public virtual void DrawDebugOverlay()
+        { }
+
         public virtual string DebugInfo()
         {
             return string.Empty;

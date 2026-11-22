@@ -4,14 +4,23 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Text;
 using System.Threading;
+using Assets.Scripts;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
+using Assets.Scripts.UI.ImGuiUi;
+using Assets.Scripts.Util;
 using Hardwired.Objects;
 using Hardwired.Objects.Electrical;
 using Hardwired.Simulation.Electrical;
 using Hardwired.Simulation.Electrical.Elements;
 using Hardwired.Utility;
+using Hardwired.Utility.Extensions;
+using Networks;
+using UI.ImGuiUi;
+using UI.ImGuiUi.Debug;
+using UnityEngine;
 using UnityEngine.Assertions.Must;
 
 namespace Hardwired.Networks
@@ -343,7 +352,7 @@ namespace Hardwired.Networks
                 return CommonNode;
             }
 
-            var conductor = GetConductor(conductorType);
+            var conductor = GetOrCreateConductor(conductorType);
 
             var peer = endpoint.Connection?.GetPeer();
 
@@ -408,7 +417,7 @@ namespace Hardwired.Networks
                 return;
             }
 
-            var conductor = GetConductor(conductorType);
+            var conductor = GetOrCreateConductor(conductorType);
 
             var peer = endpoint.Connection?.GetPeer();
 
@@ -431,7 +440,18 @@ namespace Hardwired.Networks
 
         }
 
-        private Conductor GetConductor(ConductorType conductorType)
+        private Conductor? GetConductor(ConductorType conductorType)
+        {
+            return conductorType switch
+            {
+                ConductorType.Line1 => Line1,
+                ConductorType.Line2 => Line2,
+                ConductorType.Line3 => Line3,
+                _ => NeutralLine,
+            };
+        }
+
+        private Conductor GetOrCreateConductor(ConductorType conductorType)
         {
             return conductorType switch
             {
@@ -440,6 +460,90 @@ namespace Hardwired.Networks
                 ConductorType.Line3 => Line3 ??= new(),
                 _ => NeutralLine ??= new(),
             };
+        }
+
+        public static Vector3 GetLineDebugRenderOffset(ConductorType conductorType)
+        {
+            return conductorType switch
+            {
+                ConductorType.Line1 => 0.1f * Vector3.up,
+                ConductorType.Line2 => 0.2f * Vector3.up,
+                ConductorType.Line3 => 0.3f * Vector3.up,
+                _ => Vector3.zero,
+            };
+        }
+
+        public static uint GetLineDebugRenderColor(ConductorType conductorType)
+        {
+            return conductorType switch
+            {
+                ConductorType.Line1 => ImGuiColor.Integer.Red,
+                ConductorType.Line2 => ImGuiColor.Integer.Yellow,
+                ConductorType.Line3 => ImGuiColor.Integer.Blue,
+                _ => ImGuiColor.Integer.Black,
+            };
+        }
+
+        public void DrawDebugOverlay()
+        {
+            Vector3? posA = EndpointA?.Connection?.Transform.position;
+            Vector3? posB = EndpointB?.Connection?.Transform.position;
+            
+            if (posA != null && posB != null)
+            {
+                StringBuilder debugText = new();
+                DrawLineDebugOverlay(ConductorType.Line1, debugText);
+                DrawLineDebugOverlay(ConductorType.Line2, debugText);
+                DrawLineDebugOverlay(ConductorType.Line3, debugText);
+                DrawLineDebugOverlay(ConductorType.Neutral, debugText);
+
+                Vector3 centerPoint = (posA.Value + posB.Value) / 2;
+                ImGuiExtensions.Rendering.DrawTextInWorld(() =>
+                {
+                    ImguiHelper.Text($"CableSpan: {Id}");
+                    ImguiHelper.Text($"Circuit: {Circuit.Id}");
+
+                    ImguiHelper.Text(debugText.ToString());
+
+                }, centerPoint, GetHashCode());
+            }
+        }
+
+        private void DrawLineDebugOverlay(ConductorType conductorType, StringBuilder debugText)
+        {
+            Vector3? posA = EndpointA?.Connection?.Transform.position;
+            Vector3? posB = EndpointB?.Connection?.Transform.position;
+
+            if (posA != null && posB != null)
+            {
+                Vector3 shift = GetLineDebugRenderOffset(conductorType);
+
+                ImGuiExtensions.Rendering.RenderingColor = GetLineDebugRenderColor(conductorType);
+
+                Vector3 screenA = ImGuiExtensions.WorldToScreen(posA.Value + shift);
+                Vector3 screenB = ImGuiExtensions.WorldToScreen(posB.Value + shift);
+                ImGuiExtensions.Rendering.DrawClippedLine(screenA, screenB);
+            }
+
+            var conductor = GetConductor(conductorType);
+            if (conductor != null)
+            {
+                debugText.AppendLine($"{conductorType} Nodes: [{conductor.NodeA?.Value.Index ?? -1}, {conductor.NodeB?.Value.Index ?? -1}]");
+                debugText.AppendLine($"{conductorType} Resistance: {conductor.Resistor?.Resistance.ToStringPrefix("Ω")}");
+                debugText.AppendLine($"{conductorType} Current: {conductor.Resistor?.Current.ToStringPrefix("A")}");
+
+                var vA = conductor.Resistor?.VoltageA ?? 0;
+                var vB = conductor.Resistor?.VoltageB ?? 0;
+                var vAvg = (vA + vB) / 2;
+                debugText.AppendLine($"{conductorType} Voltage (to ground): {vAvg.ToStringPrefix("V")}");
+            }
+
+            if (conductorType == ConductorType.Neutral && (NeutralLine == null || CommonNode != null))
+            {
+                var vComm = Circuit.Solver.GetValueOrDefault(CommonNode?.Value);
+                debugText.AppendLine($"CommonNode: {CommonNode?.Value.Index ?? -1}");
+                debugText.AppendLine($"CommonNode Voltage (to ground): {vComm.ToStringPrefix("V")}");
+            }
         }
     }
 }
