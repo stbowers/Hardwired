@@ -17,7 +17,7 @@ namespace Hardwired.Objects.Electrical
         /// <summary>
         /// Default power profile for devices that directly connect to the "grid" (~200V AC, default for most consumers)
         /// </summary>
-        public static readonly PowerProfile DefaultGrid = new() { Frequency = 60, VoltageMaximum = 250, VoltageNominalHigh = 200, VoltageNominalLow = 100, VoltageMinimum = 100 };
+        public static readonly PowerProfile DefaultGrid = new() { Frequency = 60, Phases = 3, VoltageMaximum = 250, VoltageNominalHigh = 200, VoltageNominalLow = 100, VoltageMinimum = 100 };
 
         /// <summary>
         /// Default profile for generators, and other power production/infrastructure related devices (~500V DC)
@@ -36,6 +36,11 @@ namespace Hardwired.Objects.Electrical
         /// The design circuit AC frequency, or 0 for DC.
         /// </summary>
         public double Frequency = 60.0;
+
+        /// <summary>
+        /// The number of AC phases (only when `Frequency != 0`).
+        /// </summary>
+        public int Phases = 1;
 
         /// <summary>
         /// The maximum design voltage for this profile.
@@ -108,6 +113,7 @@ namespace Hardwired.Objects.Electrical
         {
             Efficiency = other.Efficiency;
             Frequency = other.Frequency;
+            Phases = other.Phases;
             VoltageMaximum = other.VoltageMaximum;
             VoltageNominalHigh = other.VoltageNominalHigh;
             VoltageNominalLow = other.VoltageNominalLow;

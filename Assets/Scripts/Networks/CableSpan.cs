@@ -193,6 +193,14 @@ namespace Hardwired.Networks
                 UpdateConductor(Line3);
             }
 
+            // If using 3-phase power, we must have a fully simulated neutral line to allow for unbalanced return currents...
+            if (Line1 != null && Line2 != null)
+            {
+                CommonNode?.Dispose();
+                CommonNode = null;
+                NeutralLine ??= new();
+            }
+
             if (NeutralLine != null)
             {
                 UpdateConductor(NeutralLine);

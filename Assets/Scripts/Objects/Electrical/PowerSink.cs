@@ -23,7 +23,7 @@ namespace Hardwired.Objects.Electrical
     /// </summary>
     public class PowerSink : ElectricalComponent, ISerializationCallbackReceiver, IComponentSaveData
     {
-        private ConstantPowerSource? _powerSource;
+        private ConstantPowerSource[]? _powerSources;
         private DateTime _lastPowerProfileChanged = DateTime.Now;
 
         /// <summary>
@@ -78,20 +78,64 @@ namespace Hardwired.Objects.Electrical
 
         private void EnsureInitialized(Circuit circuit)
         {
+            if (ActivePowerProfile.Frequency == 0 || ActivePowerProfile.Phases == 1)
+            {
+                EnsureInitializedSinglePhase(circuit);
+            }
+            else
+            {
+                EnsureInitializedThreePhase(circuit);
+            }
+        }
+
+        private void EnsureInitializedSinglePhase(Circuit circuit)
+        {
             var nodeA = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
             var nodeB = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Neutral);
 
-            if (_powerSource?.Circuit == circuit && _powerSource.NodeA == nodeA && _powerSource.NodeB == nodeB)
+            if (_powerSources?.Length == 1 && _powerSources[0]?.Circuit == circuit && _powerSources[0].NodeA == nodeA && _powerSources[0].NodeB == nodeB)
             {
                 return;
             }
 
-            if (_powerSource != null)
+            if (_powerSources != null)
             {
-                RemoveFrom(_powerSource.Circuit);
+                RemoveFrom(_powerSources[0].Circuit);
             }
 
-            _powerSource = new(circuit, nodeA, nodeB);
+            _powerSources = new ConstantPowerSource[]
+            {
+                new(circuit, nodeA, nodeB)
+            };
+        }
+
+        private void EnsureInitializedThreePhase(Circuit circuit)
+        {
+            var nodeA = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line1);
+            var nodeB = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line2);
+            var nodeC = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Line3);
+            var commonNode = PowerInput?.GetNode(circuit, Networks.CableSpan.ConductorType.Neutral);
+
+            if (_powerSources?.Length == 3
+                && _powerSources[0]?.Circuit == circuit
+                && _powerSources[0].NodeA == nodeA && _powerSources[0].NodeB == commonNode
+                && _powerSources[1].NodeA == nodeB && _powerSources[1].NodeB == commonNode
+                && _powerSources[2].NodeA == nodeC && _powerSources[2].NodeB == commonNode)
+            {
+                return;
+            }
+
+            if (_powerSources != null)
+            {
+                RemoveFrom(_powerSources[0].Circuit);
+            }
+
+            _powerSources = new ConstantPowerSource[]
+            {
+                new(circuit, nodeA, commonNode),
+                new(circuit, nodeB, commonNode),
+                new(circuit, nodeC, commonNode)
+            };
         }
 
         public override void UpdateState(Circuit circuit)
@@ -126,13 +170,18 @@ namespace Hardwired.Objects.Electrical
                 PowerThreshold = 0;
             }
 
-            if (_powerSource != null)
+            if (_powerSources != null)
             {
-                // Update power "source"
-                _powerSource.TargetPower = PowerTarget;
-                _powerSource.MinimumNominalVoltage = ActivePowerProfile.VoltageNominalLow;
-                _powerSource.MaximumVoltage = ActivePowerProfile.VoltageMaximum;
-                _powerSource.UpdateState();
+                var powerPerSource = PowerTarget / _powerSources.Length;
+
+                foreach (var powerSource in _powerSources)
+                {
+                    // Update power "source"
+                    powerSource.TargetPower = powerPerSource;
+                    powerSource.MinimumNominalVoltage = ActivePowerProfile.VoltageNominalLow;
+                    powerSource.MaximumVoltage = ActivePowerProfile.VoltageMaximum;
+                    powerSource.UpdateState();
+                }
             }
         }
 
@@ -142,12 +191,27 @@ namespace Hardwired.Objects.Electrical
 
             if (circuit != InputCircuit) { return; }
 
-            _powerSource?.ApplyState();
+            PowerFactor = 0;
+            VoltageDelta = 0;
+            CurrentDraw = 0;
+            PowerDraw = 0;
 
-            PowerFactor = _powerSource?.PowerFactor ?? 0;
-            VoltageDelta = _powerSource?.VoltageDelta ?? 0;
-            CurrentDraw = _powerSource?.Current ?? 0;
-            PowerDraw = _powerSource?.Power.Real ?? 0;
+            if (_powerSources != null)
+            {
+                foreach (var powerSource in _powerSources)
+                {
+                    powerSource.ApplyState();
+
+                    PowerFactor += powerSource.PowerFactor;
+                    VoltageDelta += powerSource.VoltageDelta;
+                    CurrentDraw += powerSource.Current;
+                    PowerDraw += powerSource.Power.Real;
+                }
+
+                // Average power factor & voltage (current & power add between phases)
+                PowerFactor /= _powerSources.Length;
+                VoltageDelta /= _powerSources.Length;
+            }
 
             // Calculate how much power will actually go to the device (after active profile's efficiency loss)
             var powerDelivered = PowerDraw * ActivePowerProfile.Efficiency;
@@ -168,7 +232,7 @@ namespace Hardwired.Objects.Electrical
         {
             base.RemoveFrom(circuit);
 
-            if (circuit == _powerSource?.Circuit)
+            if (_powerSources?.Any(ps => ps.Circuit == circuit) == true)
             {
                 PowerTarget = 0;
                 PowerThreshold = 0;
@@ -177,8 +241,12 @@ namespace Hardwired.Objects.Electrical
                 CurrentDraw = 0;
                 PowerDraw = 0;
 
-                _powerSource?.Dispose();
-                _powerSource = null;
+                foreach (var powerSource in _powerSources)
+                {
+                    powerSource.Dispose();
+                }
+
+                _powerSources = null;
             }
         }
 
