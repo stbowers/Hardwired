@@ -48,13 +48,14 @@ namespace Hardwired.Patches
                 sink.PowerProfiles = new() {
                     // Grid supply (default, high efficiency)
                     new(PowerProfile.DefaultGrid) { Efficiency = 0.98, VoltageMinimum = 0 },
+                    new(PowerProfile.DefaultThreePhaseGrid) { Efficiency = 0.98, VoltageMinimum = 0 },
                     // Direct connect to generators (lower efficiency)
                     new(PowerProfile.DefaultGenerator) { Efficiency = 0.85, VoltageMinimum = 0 },
                     new(PowerProfile.DefaultSolar) { Efficiency = 0.85, VoltageMinimum = 0 },
                 };
 
                 // APC outputs power using the default grid profile
-                source.PowerProfile = new(PowerProfile.DefaultGrid);
+                source.PowerProfile = new(PowerProfile.DefaultThreePhaseGrid);
             },
             [typeof(CableAnalyser)] = d =>
             {

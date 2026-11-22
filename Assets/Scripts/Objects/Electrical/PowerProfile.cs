@@ -17,7 +17,12 @@ namespace Hardwired.Objects.Electrical
         /// <summary>
         /// Default power profile for devices that directly connect to the "grid" (~200V AC, default for most consumers)
         /// </summary>
-        public static readonly PowerProfile DefaultGrid = new() { Frequency = 60, Phases = 3, VoltageMaximum = 250, VoltageNominalHigh = 200, VoltageNominalLow = 100, VoltageMinimum = 100 };
+        public static readonly PowerProfile DefaultGrid = new() { Frequency = 60, VoltageMaximum = 250, VoltageNominalHigh = 200, VoltageNominalLow = 100, VoltageMinimum = 100 };
+
+        /// <summary>
+        /// Default power profile for devices using 3-phase AC "grid" power
+        /// </summary>
+        public static readonly PowerProfile DefaultThreePhaseGrid = new() { Frequency = 60, Phases = 3, VoltageMaximum = 250, VoltageNominalHigh = 200, VoltageNominalLow = 100, VoltageMinimum = 100 };
 
         /// <summary>
         /// Default profile for generators, and other power production/infrastructure related devices (~500V DC)
