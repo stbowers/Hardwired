@@ -95,6 +95,7 @@ namespace Hardwired.Networks
             // Get a list of components and networks that were part of the circuit last tick -- if they're not
             // found this tick we consider them "orphaned" and remove them from the circuit
             HashSet<ElectricalComponent> orphanedComponents = new(Components);
+            HashSet<ElectricalComponent> newComponents = new();
             HashSet<CableNetwork> orphanedNetworks = new(CableNetworks);
 
             CableNetworks.Clear();
@@ -113,7 +114,7 @@ namespace Hardwired.Networks
 
                 if (CableNetworks.Add(network))
                 {
-                    InitializeNetwork(network, orphanedComponents, toInitialize);
+                    InitializeNetwork(network, orphanedComponents, newComponents, toInitialize);
                 }
             }
 
@@ -124,10 +125,19 @@ namespace Hardwired.Networks
             }
 
             // Now "orphanedComponents" will only contain components that were in the circuit last tick but have since been removed
+            // (note - make sure we uninitialize any old components *before* initializing new components, so we don't end up with a
+            // weird partial state where both components are in the circuit, especially if a component is being replaced, such as
+            // merging a cable)
             foreach (var component in orphanedComponents)
             {
                 UninitializeComponent(component);
                 Components.Remove(component);
+            }
+
+            // Now initialize any new components
+            foreach (var component in newComponents)
+            {
+                InitializeComponent(component);
             }
         }
 
@@ -140,7 +150,7 @@ namespace Hardwired.Networks
         /// </summary>
         /// <param name="cableNetwork"></param>
         /// <param name="orphanedComponents"></param>
-        private void InitializeNetwork(CableNetwork cableNetwork, HashSet<ElectricalComponent> orphanedComponents, Queue<CableNetwork> toInitialize)
+        private void InitializeNetwork(CableNetwork cableNetwork, HashSet<ElectricalComponent> orphanedComponents, HashSet<ElectricalComponent> newComponents, Queue<CableNetwork> toInitialize)
         {
             HashSet<ElectricalComponent> components = new();
 
@@ -155,13 +165,17 @@ namespace Hardwired.Networks
 
                 if (Components.Add(component))
                 {
-                    InitializeComponent(component);
+                    newComponents.Add(component);
                 }
 
                 foreach (var network in component.GetBridgedNetworks(cableNetwork)) { toInitialize.Enqueue(network); }
             }
         }
 
+        /// <summary>
+        /// Initializes a new component, or re-initializes an existing component that might have been part of changed topology (such as a removed cable span).
+        /// </summary>
+        /// <param name="component"></param>
         private void InitializeComponent(ElectricalComponent component)
         {
             component.AddTo(Circuit);
@@ -173,8 +187,8 @@ namespace Hardwired.Networks
                 {
                     foreach (var connection in baseGameCable.OpenEnds)
                     {
-                        var span = TryGetConnectedSpan(connection);
                         var endpoint = new CableSpan.Endpoint(cable, connection);
+                        var span = TryGetConnectedSpan(connection);
 
                         span ??= CreateCableSpan();
                         span.AddCable(cable, connection, endpoint);
@@ -218,11 +232,19 @@ namespace Hardwired.Networks
             return newSpan;
         }
 
+        /// <summary>
+        /// Tries to find a cable span in `CableSpans` which is "connected to" the given connection (i.e. one of the span's endpoints represents the
+        /// peer to the given connection), _or_ the connection's _existing_ cable span (i.e. `ConnectionExtensions.GetCableSpan()`) _iff_ it is a valid
+        /// span in the list.
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <returns></returns>
         public CableSpan? TryGetConnectedSpan(Connection connection)
         {
             var peerConnection = connection.GetPeer();
+            var existingSpan = connection.GetCableSpan();
             return CableSpans.FirstOrDefault(
-                span => span.EndpointA == peerConnection || span.EndpointB == peerConnection
+                span => span.EndpointA == peerConnection || span.EndpointB == peerConnection || span == existingSpan
             );
         }
 

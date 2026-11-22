@@ -23,12 +23,14 @@ namespace Hardwired.Objects
     public static class ConnectionExtensions
     {
 
-        private static ConditionalWeakTable<Connection, CableSpan?> _cableSpan = new();
+        private static ConditionalWeakTable<Connection, WeakReference<CableSpan>?> _cableSpan = new();
 
         public static CableSpan? GetCableSpan(this Connection connection)
         {
-            if (_cableSpan.TryGetValue(connection, out CableSpan? cableSpan))
+            if (_cableSpan.TryGetValue(connection, out WeakReference<CableSpan>? cableSpanWeakRef))
             {
+                CableSpan? cableSpan = null;
+                cableSpanWeakRef?.TryGetTarget(out cableSpan);
                 return cableSpan;
             }
 
@@ -37,7 +39,10 @@ namespace Hardwired.Objects
 
         public static void SetCableSpan(this Connection connection, CableSpan? value)
         {
-            _cableSpan.AddOrUpdate(connection, value);
+            WeakReference<CableSpan>? weakReference
+                = value != null ? new WeakReference<CableSpan>(value) : null;
+
+            _cableSpan.AddOrUpdate(connection, weakReference);
         }
 
         public static RefCounted<MNASolver.Unknown>? GetNode(this Connection connection, Circuit circuit, CableSpan.ConductorType conductorType)

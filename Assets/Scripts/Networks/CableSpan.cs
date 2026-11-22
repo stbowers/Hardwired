@@ -247,6 +247,12 @@ namespace Hardwired.Networks
 
         public void AddCable(HardwiredCable cable, Endpoint endpointA, Endpoint endpointB)
         {
+            // Ignore if this cable is already in this span
+            if (_cables.Contains(cable))
+            {
+                return;
+            }
+
             _cables.Add(cable);
 
             Resistance += cable.Resistance;
