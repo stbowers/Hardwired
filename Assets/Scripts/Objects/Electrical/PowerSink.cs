@@ -103,6 +103,12 @@ namespace Hardwired.Objects.Electrical
                 RemoveFrom(_powerSources[0].Circuit);
             }
 
+            if (PowerInput != null)
+            {
+                PowerInput.ConnectionType |= (NetworkType)ConnectionExtensions.HardwiredPowerType.SinglePhase;
+                PowerInput.ConnectionType &= (NetworkType)~ConnectionExtensions.HardwiredPowerType.ThreePhase;
+            }
+
             _powerSources = new ConstantPowerSource[]
             {
                 new(circuit, nodeA, nodeB)
@@ -128,6 +134,12 @@ namespace Hardwired.Objects.Electrical
             if (_powerSources != null)
             {
                 RemoveFrom(_powerSources[0].Circuit);
+            }
+
+            if (PowerInput != null)
+            {
+                PowerInput.ConnectionType &= (NetworkType)~ConnectionExtensions.HardwiredPowerType.SinglePhase;
+                PowerInput.ConnectionType |= (NetworkType)ConnectionExtensions.HardwiredPowerType.ThreePhase;
             }
 
             _powerSources = new ConstantPowerSource[]

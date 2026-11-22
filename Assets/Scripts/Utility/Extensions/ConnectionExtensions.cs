@@ -23,6 +23,15 @@ namespace Hardwired.Objects
 {
     public static class ConnectionExtensions
     {
+        /// <summary>
+        /// Extends `NetworkType` to allow `Connection.ConnectionType` to specify what kind of circuits this connection is capable of connecting to
+        /// </summary>
+        [Flags]
+        public enum HardwiredPowerType
+        {
+            SinglePhase = 0x1000000,
+            ThreePhase = 0x2000000,
+        }
 
         private static ConditionalWeakTable<Connection, WeakReference<CableSpan>?> _cableSpan = new();
 

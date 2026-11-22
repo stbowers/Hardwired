@@ -112,6 +112,12 @@ namespace Hardwired.Objects.Electrical
                 RemoveFrom(_nortonEquivalents[0].Circuit);
             }
 
+            if (PowerOutput != null)
+            {
+                PowerOutput.ConnectionType |= (NetworkType)ConnectionExtensions.HardwiredPowerType.SinglePhase;
+                PowerOutput.ConnectionType &= (NetworkType)~ConnectionExtensions.HardwiredPowerType.ThreePhase;
+            }
+
             _nortonEquivalents = new NortonEquivalent[] {
                 new(circuit, nodeA, nodeB)
             };
@@ -136,6 +142,12 @@ namespace Hardwired.Objects.Electrical
             if (_nortonEquivalents != null)
             {
                 RemoveFrom(_nortonEquivalents[0].Circuit);
+            }
+
+            if (PowerOutput != null)
+            {
+                PowerOutput.ConnectionType &= (NetworkType)~ConnectionExtensions.HardwiredPowerType.SinglePhase;
+                PowerOutput.ConnectionType |= (NetworkType)ConnectionExtensions.HardwiredPowerType.ThreePhase;
             }
 
             _nortonEquivalents = new NortonEquivalent[] {

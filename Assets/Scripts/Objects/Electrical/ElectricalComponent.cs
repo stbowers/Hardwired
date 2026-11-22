@@ -135,6 +135,22 @@ namespace Hardwired.Objects.Electrical
             ImGuiExtensions.Rendering.LineThickness = 2f;
 
             ImGuiExtensions.Rendering.DrawCube(posA + shiftLine1, new Vector3(0.08f, 0.08f, 0.08f));
+
+            if (a.ConnectionType.HasFlag((NetworkType)ConnectionExtensions.HardwiredPowerType.ThreePhase))
+            {
+                Vector3 shiftLine2 = CableSpan.GetLineDebugRenderOffset(CableSpan.ConductorType.Line2);
+                Vector3 shiftLine3 = CableSpan.GetLineDebugRenderOffset(CableSpan.ConductorType.Line3);
+
+                ImGuiExtensions.Rendering.RenderingColor = CableSpan.GetLineDebugRenderColor(CableSpan.ConductorType.Line2);
+                ImGuiExtensions.Rendering.LineThickness = 2f;
+
+                ImGuiExtensions.Rendering.DrawCube(posA + shiftLine2, new Vector3(0.08f, 0.08f, 0.08f));
+
+                ImGuiExtensions.Rendering.RenderingColor = CableSpan.GetLineDebugRenderColor(CableSpan.ConductorType.Line3);
+                ImGuiExtensions.Rendering.LineThickness = 2f;
+
+                ImGuiExtensions.Rendering.DrawCube(posA + shiftLine3, new Vector3(0.08f, 0.08f, 0.08f));
+            }
         }
 
         public virtual string DebugInfo()
