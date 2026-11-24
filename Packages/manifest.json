@@ -8,6 +8,7 @@
     "com.unity.timeline": "1.7.7",
     "com.unity.toolchain.linux-x86_64": "2.0.11",
     "com.unity.ugui": "1.0.0",
+    "com.unity.visualscripting": "1.9.11",
     "stationeers.modding.assemblies": "https://github.com/ilodev/stationeers.modding.assemblies.git",
     "stationeers.modding.exporter": "https://github.com/ilodev/stationeers.modding.exporter.git",
     "stationeers.modding.tools": "https://github.com/StationeersModding/StationeersModdingTools.git",

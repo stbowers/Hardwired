@@ -9,6 +9,7 @@
   <Tags>
     <Tag>LaunchPad</Tag>
   </Tags>
+  <DependsOn WorkshopHandle="3751750326" />
   <ChangeLog></ChangeLog>
   <ModSide>Both</ModSide>
 </ModMetadata>

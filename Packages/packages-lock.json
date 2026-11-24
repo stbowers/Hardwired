@@ -198,6 +198,16 @@
         "com.unity.modules.imgui": "1.0.0"
       }
     },
+    "com.unity.visualscripting": {
+      "version": "1.9.11",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.ugui": "1.0.0",
+        "com.unity.modules.jsonserialize": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
     "stationeers.modding.assemblies": {
       "version": "https://github.com/ilodev/stationeers.modding.assemblies.git",
       "depth": 0,

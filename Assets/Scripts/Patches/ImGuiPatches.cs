@@ -1,10 +1,12 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using Assets.Scripts.Networks;
 using Assets.Scripts.Objects.Items;
 using Assets.Scripts.UI.ImGuiUi;
 using Hardwired.Networks;
+using Hardwired.Prefabs.JunctionBox;
 using HarmonyLib;
 
 namespace Hardwired.Patches
@@ -15,6 +17,8 @@ namespace Hardwired.Patches
         [HarmonyPostfix, HarmonyPatch(typeof(ImGuiInWorldManager), nameof(ImGuiInWorldManager.DrawDebugActions))]
         public static void Postfix_DrawDebugActions()
         {
+            JunctionBox.DrawImGui();
+
             if (Hardwired.RenderDebugOverlay)
             {
                 RenderCircuitDebugOverlays();
