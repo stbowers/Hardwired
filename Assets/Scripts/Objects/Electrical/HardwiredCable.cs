@@ -29,9 +29,26 @@ namespace Hardwired.Objects.Electrical
     public partial class HardwiredCable : ElectricalComponent
     {
         /// <summary>
+        /// Represents a single connection between two wires/terminals in a junction with `JunctionType == JunctionType.Custom`
+        /// </summary>
+        public struct CustomJunctionConnection
+        {
+            public Connection From;
+            public CableSpan.ConductorType FromConductor;
+
+            public Connection To;
+            public CableSpan.ConductorType ToConductor;
+        }
+
+        /// <summary>
         /// Gets the junction type
         /// </summary>
         public JunctionType JunctionType;
+
+        /// <summary>
+        /// A list of wires to connect between the ends of this junction, if `JunctionType == JunctionType.Custom`.
+        /// </summary>
+        public List<CustomJunctionConnection> CustomConnections = new();
 
         public double Resistance;
 
@@ -174,6 +191,13 @@ namespace Hardwired.Objects.Electrical
                 DrawLineDebugOverlay(firstInput, CableSpan.ConductorType.Neutral, output, CableSpan.ConductorType.Neutral);
                 DrawLineDebugOverlay(lastInput, CableSpan.ConductorType.Line1, output, CableSpan.ConductorType.Line1);
             }
+            else if (JunctionType == JunctionType.Custom)
+            {
+                foreach (var customConnection in CustomConnections)
+                {
+                    DrawLineDebugOverlay(customConnection.From, customConnection.FromConductor, customConnection.To, customConnection.ToConductor);
+                }
+            }
         }
 
         private void DrawLineDebugOverlay(Connection a, CableSpan.ConductorType aType, Connection b, CableSpan.ConductorType bType)
@@ -275,6 +299,24 @@ namespace Hardwired.Objects.Electrical
                 if (lastPositiveNode != null)
                 {
                     outputCableSpan?.SetNode(lastPositiveNode, outputEndpoint, CableSpan.ConductorType.Line1);
+                }
+            }
+            else if (JunctionType == JunctionType.Custom)
+            {
+                foreach (var customConnection in CustomConnections)
+                {
+                    var connectionA = customConnection.From;
+                    var cableSpanA = connectionA.GetCableSpan();
+                    var endpointA = new CableSpan.Endpoint(this, connectionA);
+                    var connectionB = customConnection.To;
+                    var cableSpanB = connectionB.GetCableSpan();
+                    var endpointB = new CableSpan.Endpoint(this, connectionB);
+
+                    var fromNode = cableSpanA?.GetOrCreateNode(endpointA, customConnection.FromConductor);
+                    if (fromNode != null)
+                    {
+                        cableSpanB?.SetNode(fromNode, endpointB, customConnection.ToConductor);
+                    }
                 }
             }
         }

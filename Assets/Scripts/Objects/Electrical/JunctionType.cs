@@ -10,6 +10,11 @@ namespace Hardwired.Objects.Electrical
         None,
 
         /// <summary>
+        /// Represents a cable that is a custom junction type (defined by custom links between connection points)
+        /// </summary>
+        Custom,
+
+        /// <summary>
         /// Default junction type - all "conductors" from each endpoint will be "tied together" (i.e. positive to positive, negative to negative).
         /// </summary>
         Parallel,

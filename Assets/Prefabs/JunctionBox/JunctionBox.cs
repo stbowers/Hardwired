@@ -13,6 +13,7 @@ using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.UI.ImGuiUi;
 using Assets.Scripts.Util;
 using Hardwired.Networks;
+using Hardwired.Objects.Electrical;
 using Hardwired.Patches;
 using LaunchPadBooster.Utils;
 using LibConstruct;
@@ -20,11 +21,14 @@ using UnityEngine;
 
 namespace Hardwired.Prefabs.JunctionBox
 {
-    public class JunctionBox : Device, IPlacementBoardHost, IPseudoNetworkMember<JunctionBox>, IPatchOnLoad
+    public class JunctionBox : Cable, IGridMergeable, IPlacementBoardHost, IPseudoNetworkMember<JunctionBox>, IPatchOnLoad
     {
         private static List<WeakReference<JunctionBox>> _allJunctionBoxes = new();
-
         private BoardRef<JunctionBoxBoard>? _board;
+        private HardwiredCable? _hardwiredCableComponent;
+        private List<Connection> _boardConnections = new();
+        private Interactable? _creatingWireStartTeriminal;
+        private CableSpan.ConductorType? _creatingWireStartConductor;
 
         public static readonly PseudoNetworkType<JunctionBox> PseudoNetworkType = new();
 
@@ -34,7 +38,8 @@ namespace Hardwired.Prefabs.JunctionBox
 
         public List<BoxCollider> BoardColliders = new();
 
-        private List<Connection> _boardConnections = new();
+        public HardwiredCable HardwiredCableComponent => _hardwiredCableComponent ??= GetComponent<HardwiredCable>()
+            ?? throw new InvalidOperationException("JunctionBox must have a HardiwredCable component attached.");
 
         IEnumerable<Connection> IPseudoNetworkMember<JunctionBox>.Connections
         {
@@ -51,6 +56,23 @@ namespace Hardwired.Prefabs.JunctionBox
         }
 
         public PseudoNetwork<JunctionBox> Network { get; } = PseudoNetworkType.Join();
+
+        CanConstructInfo IGridMergeable.CanReplace(Assets.Scripts.Objects.MultiConstructor constructor, Item inactiveHandItem)
+        {
+            Grid3[] array = (Grid3[])GridBounds.GetLocalSmallGrid(base.ThingTransformPosition, base.ThingTransformRotation);
+            foreach (Grid3 localGrid in array)
+            {
+                Thing thing = SmallCell.Get<Thing>(localGrid);
+                if (thing != null)
+                {
+                    return CanConstructInfo.InvalidPlacement(GameStrings.PlacementBlockedByStructure.AsString(thing.DisplayName));
+                }
+            }
+
+            return CanConstructInfo.ValidPlacement;
+        }
+
+        bool IGridMergeable.WillMergeWhenPlaced() => false;
 
         public override void OnFinishedLoad()
         {
@@ -146,21 +168,6 @@ namespace Hardwired.Prefabs.JunctionBox
         {
         }
 
-
-
-
-
-
-
-
-
-
-
-        private Interactable? _startTerminal;
-        private CableSpan.ConductorType? _startConductor;
-
-        private List<(Collider from, Collider to, CableSpan.ConductorType conductorType)> _connections = new();
-
         public static void DrawImGui()
         {
             foreach (var junctionBoxRef in _allJunctionBoxes)
@@ -176,28 +183,78 @@ namespace Hardwired.Prefabs.JunctionBox
         {
             if (!IsOpen || IsOccluded) { return; }
 
-            if (_startTerminal != null)
+            if (_creatingWireStartTeriminal != null)
             {
                 ImGuiExtensions.Rendering.LineThickness = 2;
                 
                 ImGuiExtensions.Rendering.RenderingColor = ImGuiColor.Integer.Green;
-                ImGuiExtensions.Rendering.DrawWireSphere(_startTerminal.Collider.transform.position, 0.05f);
+                ImGuiExtensions.Rendering.DrawWireSphere(_creatingWireStartTeriminal.Collider.transform.position, 0.05f);
             }
 
-            foreach (var connection in _connections)
+            // Render each connection wire
+            Vector3 wireOffset = 0.04f * Vector3.up;
+            foreach (var connection in HardwiredCableComponent.CustomConnections)
             {
                 ImGuiExtensions.Rendering.LineThickness = 4;
-                ImGuiExtensions.Rendering.RenderingColor = CableSpan.GetLineDebugRenderColor(connection.conductorType);
+                ImGuiExtensions.Rendering.RenderingColor = CableSpan.GetLineDebugRenderColor(connection.FromConductor);
+
+                // Get start & end points
+                Vector3 startPoint = GetTerminalConnectionPosition(connection.From, connection.FromConductor) + wireOffset;
+                Vector3 endPoint = GetTerminalConnectionPosition(connection.To, connection.ToConductor) + wireOffset;
             
-                ImGuiExtensions.Rendering.DrawLineSimple(connection.from.transform.position, connection.to.transform.position);
+                ImGuiExtensions.Rendering.DrawLineSimple(startPoint, endPoint);
+
+                // Offset each wire up by a small amount, to avoid clipping
+                wireOffset += 0.01f * Vector3.up;
             }
         }
 
-        public void AddConnection(Collider from, Collider to, CableSpan.ConductorType conductorType)
+        /// <summary>
+        /// Gets the world position for the "terminal" of the given connection for the given wireType, for rendering wires inside the junction box.
+        /// </summary>
+        /// <returns></returns>
+        private Vector3 GetTerminalConnectionPosition(Connection connection, CableSpan.ConductorType wireType)
         {
-            _connections.Add((from, to, conductorType));
+            Vector3 wireOffset = wireType switch
+            {
+                CableSpan.ConductorType.Line1 => 0.04f * connection.Transform.left(),
+                _ => 0.04f * connection.Transform.right,
+            };
+
+            return connection.Transform.position
+                + 0.225f * connection.Transform.forward
+                + wireOffset;
         }
 
+        private Connection GetConnectionForTerminal(Interactable terminal)
+        {
+            double DistanceTo(Connection c)
+            {
+                return (terminal.Collider.transform.position - c.Transform.position).magnitude;
+            }
+
+            return OpenEnds.OrderBy(DistanceTo).First();
+        }
+
+        private void AddConnection(Interactable fromTerminal, CableSpan.ConductorType fromConductor, Interactable toTerminal, CableSpan.ConductorType toConductor)
+        {
+            HardwiredCableComponent.CustomConnections.Add(new HardwiredCable.CustomJunctionConnection
+            {
+                From = GetConnectionForTerminal(fromTerminal),
+                FromConductor = fromConductor,
+                To = GetConnectionForTerminal(toTerminal),
+                ToConductor = toConductor,
+            });
+        }
+
+        /// <summary>
+        /// Called from JunctionBoxTerminalBlock to handle interactions with a terminal in the junction box.
+        /// Allows creating new custom connections in the junction by clicking on the source terminal followed by the destination terminal.
+        /// </summary>
+        /// <param name="terminal"></param>
+        /// <param name="conductorType"></param>
+        /// <param name="doAction"></param>
+        /// <returns></returns>
         public DelayedActionInstance InteractWithTerminal(Interactable terminal, CableSpan.ConductorType conductorType, bool doAction)
         {
             DelayedActionInstance actionMessage = new()
@@ -205,7 +262,7 @@ namespace Hardwired.Prefabs.JunctionBox
                 ActionMessage = terminal.ContextualName
             };
 
-            if (_startTerminal == terminal)
+            if (_creatingWireStartTeriminal == terminal)
             {
                 actionMessage.ExtendedMessage = $"Cannot connect back to source";
                 return actionMessage.Fail();
@@ -216,22 +273,19 @@ namespace Hardwired.Prefabs.JunctionBox
                 return actionMessage.Succeed();
             }
 
-            if (_startTerminal == null)
+            if (_creatingWireStartTeriminal == null || _creatingWireStartConductor == null)
             {
-                _startTerminal = terminal;
-                _startConductor = conductorType;
+                _creatingWireStartTeriminal = terminal;
+                _creatingWireStartConductor = conductorType;
             }
             else
             {
-                AddConnection(_startTerminal.Collider, terminal.Collider, _startConductor!.Value);
-                _startTerminal = null;
+                AddConnection(_creatingWireStartTeriminal, _creatingWireStartConductor.Value, terminal, conductorType);
+                _creatingWireStartTeriminal = null;
             }
 
             return actionMessage.Succeed();
         }
-
-
-
 
         public override void UpdateStateVisualizer(bool visualOnly = false)
         {
