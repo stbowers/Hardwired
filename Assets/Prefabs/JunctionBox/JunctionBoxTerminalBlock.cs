@@ -22,6 +22,37 @@ namespace Hardwired.Prefabs.JunctionBox
         public PlacementBoard.BoardCell[] BoardCells { get; set; } = Array.Empty<PlacementBoard.BoardCell>();
 
 
+        public override ThingSaveData SerializeSave()
+        {
+            var saveData = new JunctionBoxTerminalBlockSaveData();
+            var baseData = saveData as ThingSaveData;
+            InitialiseSaveData(ref baseData);
+            return saveData;
+        }
+
+        protected override void InitialiseSaveData(ref ThingSaveData baseData)
+        {
+            base.InitialiseSaveData(ref baseData);
+
+            if (baseData is not JunctionBoxTerminalBlockSaveData saveData)
+            {
+                return;
+            }
+
+            saveData.Board = BoardStructureHooks.SerializeSave(this);
+        }
+
+        public override void DeserializeSave(ThingSaveData baseData)
+        {
+            base.DeserializeSave(baseData);
+
+            if (baseData is not JunctionBoxTerminalBlockSaveData saveData)
+            {
+                return;
+            }
+
+            BoardStructureHooks.DeserializeSave(this, saveData.Board);
+        }
 
         public override DelayedActionInstance InteractWith(Interactable interactable, Interaction interaction, bool doAction = true)
         {
@@ -36,7 +67,10 @@ namespace Hardwired.Prefabs.JunctionBox
                 return junctionBox.InteractWithTerminal(interactable, conductorType, doAction);
             }
 
-            return base.InteractWith(interactable, interaction, doAction);
+            var returnValue = base.InteractWith(interactable, interaction, doAction);
+            returnValue.ExtendedMessage = $"Interactable.Action = {interactable.Action}\nBoard = {Board?.GetHashCode()}\nBoard.PrimaryHost = {Board?.PrimaryHost?.GetHashCode()}";
+
+            return returnValue;
         }
 
         public override void UpdateStateVisualizer(bool visualOnly = false)
@@ -87,6 +121,7 @@ namespace Hardwired.Prefabs.JunctionBox
         public void PatchOnLoad()
         {
             this.ReplaceMaterialWithColor(PaintableMaterial, ColorType.Black);
+            this.SetExitTool(PrefabNames.Drill);
         }
     }
 }

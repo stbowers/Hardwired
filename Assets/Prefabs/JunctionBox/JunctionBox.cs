@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Localization2;
 using Assets.Scripts.Networking;
@@ -74,6 +75,54 @@ namespace Hardwired.Prefabs.JunctionBox
 
         bool IGridMergeable.WillMergeWhenPlaced() => false;
 
+        public override ThingSaveData SerializeSave()
+        {
+            var saveData = new JunctionBoxSaveData();
+            var baseData = saveData as ThingSaveData;
+            InitialiseSaveData(ref baseData);
+            return saveData;
+        }
+
+        protected override void InitialiseSaveData(ref ThingSaveData baseData)
+        {
+            base.InitialiseSaveData(ref baseData);
+
+            if (baseData is not JunctionBoxSaveData saveData)
+            {
+                return;
+            }
+
+            saveData.Board = BoardHostHooks.SerializeBoard(this, Board);
+
+            saveData.JunctionConnections.AddRange(HardwiredCableComponent.CustomConnections.Select(connection => new JunctionBoxConnectionSaveData
+            {
+                FromConnection = OpenEnds.IndexOf(connection.From),
+                FromConductorType = connection.FromConductor,
+                ToConnection = OpenEnds.IndexOf(connection.To),
+                ToConductorType = connection.ToConductor,
+            }));
+        }
+
+        public override void DeserializeSave(ThingSaveData baseData)
+        {
+            base.DeserializeSave(baseData);
+
+            if (baseData is not JunctionBoxSaveData saveData)
+            {
+                return;
+            }
+
+            BoardHostHooks.DeserializeBoard(this, saveData.Board, out _board, BoardOrigin);
+
+            HardwiredCableComponent.CustomConnections.AddRange(saveData.JunctionConnections.Select(connection => new HardwiredCable.CustomJunctionConnection
+            {
+                From = OpenEnds[connection.FromConnection],
+                FromConductor = connection.FromConductorType,
+                To = OpenEnds[connection.ToConnection],
+                ToConductor = connection.ToConductorType,
+            }));
+        }
+
         public override void OnFinishedLoad()
         {
             base.OnFinishedLoad();
@@ -122,10 +171,13 @@ namespace Hardwired.Prefabs.JunctionBox
                 return base.GetPassiveTooltip(hitCollider);
             }
 
+            StringBuilder cableInfo = new();
+            HardwiredCableComponent.BuildPassiveToolTip(cableInfo);
+
             return new PassiveTooltip
             {
                 Title = DisplayName,
-                Extended = $"{Network.Members.Count} board structures"
+                Extended = $"Cable: {cableInfo}"
             };
         }
 
@@ -147,13 +199,13 @@ namespace Hardwired.Prefabs.JunctionBox
             }
         }
 
-
         public void OnBoardStructureDeregistered(PlacementBoard board, IPlacementBoardStructure structure)
         {
         }
 
         public void OnBoardStructureRegistered(PlacementBoard board, IPlacementBoardStructure structure)
         {
+            Hardwired.LogDebug($"JunctionBox.OnBoardStructureRegistered: '{structure?.GetType().Name}'");
         }
 
         public void OnMemberAdded(JunctionBox member)
@@ -174,7 +226,11 @@ namespace Hardwired.Prefabs.JunctionBox
             {
                 if (junctionBoxRef.TryGetTarget(out var junctionBox))
                 {
-                    junctionBox.DrawImGuiInternal();
+                    try
+                    {
+                        junctionBox.DrawImGuiInternal();
+                    }
+                    catch {}
                 }
             }
         }
