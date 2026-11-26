@@ -150,9 +150,9 @@ MonoBehaviour:
   Wireframe: {fileID: 0}
   lodFlares: []
   IsCustomThing: 0
-  ThumbnailOffset: {x: 0.73697716, y: 0.81799936, z: 0.25446934}
-  ThumbnailRotation: {x: -0.32064384, y: 0.53347486, z: 0.22850546, w: 0.74858356}
-  Thumbnail: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  ThumbnailOffset: {x: 0.29181898, y: 0.38286367, z: 0.18825416}
+  ThumbnailRotation: {x: -0.3556871, y: 0.4374773, z: 0.19382103, w: 0.80282855}
+  Thumbnail: {fileID: 21300000, guid: 2f69d56be8479fd40aba458354b224e5, type: 3}
   Thumbnails: []
   IsEntity: 0
   _isOccluded: 0
