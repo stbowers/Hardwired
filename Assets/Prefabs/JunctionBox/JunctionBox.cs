@@ -226,11 +226,7 @@ namespace Hardwired.Prefabs.JunctionBox
             {
                 if (junctionBoxRef.TryGetTarget(out var junctionBox))
                 {
-                    try
-                    {
-                        junctionBox.DrawImGuiInternal();
-                    }
-                    catch {}
+                    junctionBox.DrawImGuiInternal();
                 }
             }
         }
@@ -248,7 +244,7 @@ namespace Hardwired.Prefabs.JunctionBox
             }
 
             // Render each connection wire
-            Vector3 wireOffset = 0.04f * Vector3.up;
+            Vector3 wireOffset = Vector3.zero;
             foreach (var connection in HardwiredCableComponent.CustomConnections)
             {
                 ImGuiExtensions.Rendering.LineThickness = 4;
@@ -261,7 +257,7 @@ namespace Hardwired.Prefabs.JunctionBox
                 ImGuiExtensions.Rendering.DrawLineSimple(startPoint, endPoint);
 
                 // Offset each wire up by a small amount, to avoid clipping
-                wireOffset += 0.01f * Vector3.up;
+                wireOffset += 0.005f * Vector3.up;
             }
         }
 
@@ -271,15 +267,15 @@ namespace Hardwired.Prefabs.JunctionBox
         /// <returns></returns>
         private Vector3 GetTerminalConnectionPosition(Connection connection, CableSpan.ConductorType wireType)
         {
-            Vector3 wireOffset = wireType switch
+            float DistanceTo(JunctionBoxTerminalBlock terminalBlock)
             {
-                CableSpan.ConductorType.Line1 => 0.04f * connection.Transform.left(),
-                _ => 0.04f * connection.Transform.right,
-            };
+                return (terminalBlock.transform.position - connection.Transform.position).magnitude;
+            }
 
-            return connection.Transform.position
-                + 0.225f * connection.Transform.forward
-                + wireOffset;
+            // Get terminal block closest to the given connection
+            JunctionBoxTerminalBlock? terminalBlock = Board?.Structures.OfType<JunctionBoxTerminalBlock>().OrderBy(DistanceTo).FirstOrDefault();
+
+            return terminalBlock?.GetTerminalConnectionPosition(connection, wireType) ?? Vector3.zero;
         }
 
         private Connection GetConnectionForTerminal(Interactable terminal)

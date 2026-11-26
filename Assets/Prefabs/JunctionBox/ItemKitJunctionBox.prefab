@@ -491,6 +491,8 @@ MonoBehaviour:
   Constructables:
   - {fileID: 8950269344249294861, guid: 62a243fc09f8056888dfdfe432604303, type: 3}
   - {fileID: 3521535259485579533, guid: 0ba4ad0bc44eb7ac996fdecd1184443c, type: 3}
+  - {fileID: 2422507357120872691, guid: 65efb2997fecfad9b920a64ba40955fb, type: 3}
+  - {fileID: 3065223294294536203, guid: 8c5adb3f9d21637f9965de292da44657, type: 3}
 --- !u!1001 &378560933481092170
 PrefabInstance:
   m_ObjectHideFlags: 0

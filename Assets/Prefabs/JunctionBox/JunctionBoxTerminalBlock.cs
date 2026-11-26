@@ -1,6 +1,8 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
@@ -21,6 +23,26 @@ namespace Hardwired.Prefabs.JunctionBox
         public PlacementBoard? Board { get; set;}
         public PlacementBoard.BoardCell[] BoardCells { get; set; } = Array.Empty<PlacementBoard.BoardCell>();
 
+        /// <summary>
+        /// In same order as interactables (neutral, line1, line2, line3)
+        /// </summary>
+        public List<Transform> TerminalBasePositions = new();
+
+        /// <summary>
+        /// Gets the world position for the "terminal" of the given connection for the given wireType, for rendering wires inside the junction box.
+        /// </summary>
+        /// <returns></returns>
+        public Vector3 GetTerminalConnectionPosition(Connection connection, CableSpan.ConductorType wireType)
+        {
+            return wireType switch
+            {
+                CableSpan.ConductorType.Neutral => TerminalBasePositions.ElementAtOrDefault(0).position,
+                CableSpan.ConductorType.Line1 => TerminalBasePositions.ElementAtOrDefault(1).position,
+                CableSpan.ConductorType.Line2 => TerminalBasePositions.ElementAtOrDefault(2).position,
+                CableSpan.ConductorType.Line3 => TerminalBasePositions.ElementAtOrDefault(3).position,
+                _ => Vector3.zero
+            };
+        }
 
         public override ThingSaveData SerializeSave()
         {
@@ -56,15 +78,18 @@ namespace Hardwired.Prefabs.JunctionBox
 
         public override DelayedActionInstance InteractWith(Interactable interactable, Interaction interaction, bool doAction = true)
         {
-            if ((interactable == InteractButton1 || interactable == InteractButton2)
-                && Board?.PrimaryHost is JunctionBox junctionBox)
+            CableSpan.ConductorType? conductorType = interactable.Action switch
             {
-                var conductorType = interactable.Action switch
-                {
-                    InteractableType.Button1 => CableSpan.ConductorType.Line1,
-                    _ => CableSpan.ConductorType.Neutral,
-                };
-                return junctionBox.InteractWithTerminal(interactable, conductorType, doAction);
+                InteractableType.Button1 => CableSpan.ConductorType.Neutral,
+                InteractableType.Button2 => CableSpan.ConductorType.Line1,
+                InteractableType.Button3 => CableSpan.ConductorType.Line2,
+                InteractableType.Button4 => CableSpan.ConductorType.Line3,
+                _ => null
+            };
+
+            if (conductorType != null && Board?.PrimaryHost is JunctionBox junctionBox)
+            {
+                return junctionBox.InteractWithTerminal(interactable, conductorType.Value, doAction);
             }
 
             var returnValue = base.InteractWith(interactable, interaction, doAction);
