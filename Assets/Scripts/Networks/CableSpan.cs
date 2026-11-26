@@ -178,19 +178,30 @@ namespace Hardwired.Networks
 
         public void UpdateState()
         {
+            // Calculate the resistance to give each line, based on how many lines are being simulated with a resistor (not including `CommonNode` if there is no `NeutralLine`).
+            // based on teh assumption that the total resistance of the entire span if all lines were in parallel should be `Resistance`
+            // :. R_total = Resistance = 1 / N * (1 / R_line) = R_line / N
+            // :. N*R_total = R_line
+            var nSimulatedLines
+                = (Line1 != null ? 1 : 0)
+                + (Line2 != null ? 1 : 0)
+                + (Line3 != null ? 1 : 0)
+                + (NeutralLine != null ? 1 : 0);
+            var perLineResistance = nSimulatedLines * Resistance;
+
             if (Line1 != null)
             {
-                UpdateConductor(Line1);
+                UpdateConductor(Line1, perLineResistance);
             }
 
             if (Line2 != null)
             {
-                UpdateConductor(Line2);
+                UpdateConductor(Line2, perLineResistance);
             }
 
             if (Line3 != null)
             {
-                UpdateConductor(Line3);
+                UpdateConductor(Line3, perLineResistance);
             }
 
             // If using 3-phase power, we must have a fully simulated neutral line to allow for unbalanced return currents...
@@ -203,11 +214,11 @@ namespace Hardwired.Networks
 
             if (NeutralLine != null)
             {
-                UpdateConductor(NeutralLine);
+                UpdateConductor(NeutralLine, perLineResistance);
             }
         }
 
-        private void UpdateConductor(Conductor conductor)
+        private void UpdateConductor(Conductor conductor, double resistance)
         {
             // Ensure both nodes are allocated
             conductor.NodeA ??= new(Circuit.Solver.AddUnknown("CableSpan::UpdateConductor"));
@@ -217,7 +228,7 @@ namespace Hardwired.Networks
             conductor.Resistor ??= new Resistor(Circuit, conductor.NodeA, conductor.NodeB);
 
             // Update resistor
-            conductor.Resistor.Resistance = Resistance;
+            conductor.Resistor.Resistance = resistance;
             conductor.Resistor.UpdateState();
         }
 
